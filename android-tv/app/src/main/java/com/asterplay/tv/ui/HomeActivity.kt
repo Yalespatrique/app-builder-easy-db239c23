@@ -6,6 +6,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.asterplay.tv.R
 import com.asterplay.tv.core.DeviceId
+import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
 
 class HomeActivity : AppCompatActivity() {
@@ -31,6 +32,11 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun openBrowse(type: String) {
+        val url = PlaylistStore.get(this)
+        if (url == null || !PlaylistCache.has(this, url)) {
+            startActivity(Intent(this, LoadingActivity::class.java))
+            return
+        }
         startActivity(Intent(this, BrowseActivity::class.java).putExtra("type", type))
     }
 }

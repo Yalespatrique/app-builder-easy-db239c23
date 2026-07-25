@@ -36,21 +36,23 @@ class BrowseActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val channels = withContext(Dispatchers.IO) {
                 PlaylistCache.load(this@BrowseActivity, url)
-                    ?: downloadAndParse(url).also {
-                        if (it.isNotEmpty()) PlaylistCache.save(this@BrowseActivity, url, it)
-                    }
             }
             loading.visibility = View.GONE
-            if (channels.isEmpty()) {
+            if (channels == null || channels.isEmpty()) {
+                startActivity(Intent(this@BrowseActivity, LoadingActivity::class.java))
+                finish()
+                return@launch
+            }
+            val filtered = filterByType(channels, type)
+            if (filtered.isEmpty()) {
                 val tv = TextView(this@BrowseActivity).apply {
-                    text = "Não foi possível carregar sua lista.\nVerifique código, usuário e senha."
+                    text = "Nenhuma categoria encontrada para esta seção."
                     setTextColor(0xFFFFFFFF.toInt())
                     textSize = 18f
                 }
                 container.addView(tv)
                 return@launch
             }
-            val filtered = filterByType(channels, type)
             if (group != null) {
                 renderContents(container, group, filtered.filter { (it.group ?: "Outros") == group })
             } else {
@@ -65,26 +67,39 @@ class BrowseActivity : AppCompatActivity() {
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
         client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-            M3UParser.parse(resp.body?.string().orEmpty())
+            if (!resp.isSuccessful) return@use emptyList()
+            val body = resp.body ?: return@use emptyList()
+            body.charStream().buffered().useLines { lines ->
+                M3UParser.parseLines(lines)
+            }
         }
     } catch (_: Exception) { emptyList() }
 
     private fun filterByType(all: List<Channel>, type: String?): List<Channel> {
-        val f = when (type) {
-            "vod" -> all.filter { matches(it.group, listOf("filme", "movie", "vod")) }
-            "series" -> all.filter { matches(it.group, listOf("serie", "série", "series")) }
+        return when (type) {
+            "vod" -> all.filter { isMovie(it) }.ifEmpty { all.filter { !isSeries(it) } }
+            "series" -> all.filter { isSeries(it) }
             "live" -> all.filter {
-                val g = it.group?.lowercase() ?: return@filter true
-                !listOf("filme", "movie", "vod", "serie", "série", "series").any { n -> g.contains(n) }
+                !isMovie(it) && !isSeries(it)
             }
             else -> all
         }
-        return f.ifEmpty { all }
     }
 
     private fun matches(group: String?, needles: List<String>): Boolean {
         val g = group?.lowercase() ?: return false
         return needles.any { g.contains(it) }
+    }
+
+    private fun isMovie(item: Channel): Boolean {
+        val groupMatch = matches(item.group, listOf("filme", "filmes", "movie", "movies", "vod", "cinema"))
+        val url = item.url.lowercase()
+        return groupMatch || url.contains("/movie/") || url.endsWith(".mp4") || url.endsWith(".mkv") || url.endsWith(".avi")
+    }
+
+    private fun isSeries(item: Channel): Boolean {
+        val groupMatch = matches(item.group, listOf("serie", "série", "series", "temporada", "novela"))
+        return groupMatch || item.url.lowercase().contains("/series/")
     }
 
     private fun renderCategories(container: LinearLayout, type: String?, items: List<Channel>) {

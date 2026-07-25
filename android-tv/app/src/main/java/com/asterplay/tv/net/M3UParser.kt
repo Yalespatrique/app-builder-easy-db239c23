@@ -12,12 +12,15 @@ object M3UParser {
     private val attrRegex = Regex("""(\S+?)="([^"]*)"""")
 
     fun parse(text: String): List<Channel> {
+        return parseLines(text.lineSequence())
+    }
+
+    fun parseLines(lines: Sequence<String>): List<Channel> {
         val out = mutableListOf<Channel>()
-        val lines = text.lineSequence().iterator()
         var pending: Map<String, String>? = null
         var pendingName: String? = null
-        while (lines.hasNext()) {
-            val line = lines.next().trim()
+        lines.forEach { raw ->
+            val line = raw.trim()
             if (line.startsWith("#EXTINF")) {
                 val attrs = attrRegex.findAll(line).associate { it.groupValues[1] to it.groupValues[2] }
                 pending = attrs

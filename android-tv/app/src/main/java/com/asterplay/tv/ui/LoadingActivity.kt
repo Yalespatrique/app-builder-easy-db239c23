@@ -28,8 +28,8 @@ class LoadingActivity : AppCompatActivity() {
         val status = findViewById<TextView>(R.id.txtStatus)
 
         lifecycleScope.launch {
-            val cached = withContext(Dispatchers.IO) { PlaylistCache.load(this@LoadingActivity, url) }
-            if (cached != null && cached.isNotEmpty()) {
+            val cachedCount = withContext(Dispatchers.IO) { PlaylistCache.count(this@LoadingActivity, url) }
+            if (cachedCount > 0) {
                 goHome(); return@launch
             }
             status.text = "Carregando informações da lista..."
@@ -60,7 +60,11 @@ class LoadingActivity : AppCompatActivity() {
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
         client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-            M3UParser.parse(resp.body?.string().orEmpty())
+            if (!resp.isSuccessful) return@use emptyList()
+            val body = resp.body ?: return@use emptyList()
+            body.charStream().buffered().useLines { lines ->
+                M3UParser.parseLines(lines)
+            }
         }
     } catch (_: Exception) { emptyList() }
 }
