@@ -74,6 +74,30 @@ export type Database = {
         }
         Relationships: []
       }
+      dns_map: {
+        Row: {
+          code: string
+          created_at: string
+          dns: string
+          id: string
+          label: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          dns: string
+          id?: string
+          label?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          dns?: string
+          id?: string
+          label?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
