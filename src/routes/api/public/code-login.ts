@@ -41,16 +41,27 @@ export const Route = createFileRoute("/api/public/code-login")({
         const password = (u.searchParams.get("pass") ?? "").trim();
         if (!code || !username || !password)
           return json(400, { ok: false, message: "code, user e pass obrigatórios" });
-        const { data, error } = await sb()
+        const client = sb();
+        const codeRow = await client
           .from("codes")
           .select("playlist_url, active")
           .eq("code", code)
           .eq("username", username)
           .eq("password", password)
           .maybeSingle();
-        if (error) return json(500, { ok: false, message: error.message });
-        if (!data || !data.active) return json(404, { ok: false, message: "Credenciais inválidas" });
-        return json(200, { ok: true, playlist_url: data.playlist_url });
+        if (codeRow.data && codeRow.data.active) {
+          return json(200, { ok: true, playlist_url: codeRow.data.playlist_url });
+        }
+        const dnsRow = await client
+          .from("dns_map")
+          .select("dns")
+          .eq("code", code)
+          .maybeSingle();
+        if (dnsRow.error) return json(500, { ok: false, message: dnsRow.error.message });
+        if (!dnsRow.data) return json(404, { ok: false, message: "Código não encontrado" });
+        const base = dnsRow.data.dns.replace(/\/+$/, "");
+        const playlist_url = `${base}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus&output=mpegts`;
+        return json(200, { ok: true, playlist_url });
       },
     },
   },
