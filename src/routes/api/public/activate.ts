@@ -36,13 +36,18 @@ export const Route = createFileRoute("/api/public/activate")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       GET: async ({ request }) => {
         const u = new URL(request.url);
-        const mac = (u.searchParams.get("mac") ?? "").trim().toUpperCase();
+        const rawMac = (u.searchParams.get("mac") ?? "").trim().toUpperCase();
         const key = (u.searchParams.get("key") ?? "").trim().toUpperCase();
-        if (!mac || !key) return json(400, { ok: false, message: "mac e key obrigatórios" });
+        if (!rawMac || !key) return json(400, { ok: false, message: "mac e key obrigatórios" });
+        // Aceita MAC com ou sem separadores. Gera variantes para casar com o formato salvo.
+        const hex = rawMac.replace(/[^0-9A-F]/g, "");
+        const colon = hex.match(/.{1,2}/g)?.join(":") ?? hex;
+        const dash = hex.match(/.{1,2}/g)?.join("-") ?? hex;
+        const variants = Array.from(new Set([rawMac, hex, colon, dash]));
         const { data, error } = await sb()
           .from("activations")
-          .select("playlist_url, active")
-          .eq("mac", mac)
+          .select("playlist_url, active, mac, device_key")
+          .in("mac", variants)
           .eq("device_key", key)
           .maybeSingle();
         if (error) return json(500, { ok: false, message: error.message });
