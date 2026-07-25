@@ -87,7 +87,7 @@ class SplashActivity : AppCompatActivity() {
     private fun advance() {
         if (advanced) return
         advanced = true
-        val next = if (PlaylistStore.get(this) != null) BrowseActivity::class.java else PairingActivity::class.java
+        val next = if (PlaylistStore.get(this) != null) HomeActivity::class.java else PairingActivity::class.java
         startActivity(Intent(this, next))
         finish()
     }
