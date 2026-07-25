@@ -16,8 +16,9 @@ object PanelApi {
         .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
-    // Painel de teste hospedado no Lovable Cloud (URL estável do projeto).
-    private const val BASE = "https://project--826ec096-5fc1-441d-aae7-3e19857ac979.lovable.app"
+    // Painel de teste hospedado no Lovable Cloud.
+    // -dev = preview (funciona antes de publicar). Troque para o domínio sem "-dev" após publicar.
+    private const val BASE = "https://project--826ec096-5fc1-441d-aae7-3e19857ac979-dev.lovable.app"
 
     private fun enc(v: String) = URLEncoder.encode(v, "UTF-8")
 
