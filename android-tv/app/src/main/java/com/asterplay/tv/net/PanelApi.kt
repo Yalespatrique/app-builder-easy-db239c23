@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 data class PanelResult(val ok: Boolean, val playlistUrl: String?, val message: String?)
@@ -15,29 +16,30 @@ object PanelApi {
         .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
-    private const val BASE = "https://appasterplay.top"
+    // Painel de teste hospedado no Lovable Cloud (URL estável do projeto).
+    private const val BASE = "https://project--826ec096-5fc1-441d-aae7-3e19857ac979.lovable.app"
+
+    private fun enc(v: String) = URLEncoder.encode(v, "UTF-8")
 
     suspend fun activateWithMac(mac: String, key: String): PanelResult = withContext(Dispatchers.IO) {
-        val url = "$BASE/api/activate?mac=$mac&key=$key"
-        request(url)
+        request("$BASE/api/public/activate?mac=${enc(mac)}&key=${enc(key)}")
     }
 
     suspend fun activateWithCode(dns: String, user: String, pass: String): PanelResult = withContext(Dispatchers.IO) {
-        val base = if (dns.startsWith("http")) dns else "http://$dns"
-        val url = "$base/get.php?username=$user&password=$pass&type=m3u_plus&output=ts"
-        // For code login the M3U URL itself is the answer.
-        PanelResult(true, url, null)
+        // O painel resolve DNS+usuário+senha -> playlist_url. `dns` é ignorado se o registro
+        // já contiver a URL completa; enviamos apenas code/user/pass.
+        request("$BASE/api/public/code-login?code=${enc(dns)}&user=${enc(user)}&pass=${enc(pass)}")
     }
 
     private fun request(url: String): PanelResult {
         return try {
             val req = Request.Builder().url(url).build()
             client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) return PanelResult(false, null, "HTTP ${resp.code}")
                 val body = resp.body?.string().orEmpty()
-                val json = JSONObject(body)
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
                 val playlist = json.optString("playlist_url").ifEmpty { json.optString("url") }
-                PanelResult(playlist.isNotEmpty(), playlist.ifEmpty { null }, json.optString("message"))
+                val ok = resp.isSuccessful && json.optBoolean("ok", playlist.isNotEmpty()) && playlist.isNotEmpty()
+                PanelResult(ok, playlist.ifEmpty { null }, json.optString("message").ifEmpty { if (!resp.isSuccessful) "HTTP ${resp.code}" else null })
             }
         } catch (e: Exception) {
             PanelResult(false, null, e.message)
