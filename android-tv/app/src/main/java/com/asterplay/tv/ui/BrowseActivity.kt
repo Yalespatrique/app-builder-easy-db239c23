@@ -93,10 +93,7 @@ class BrowseActivity : AppCompatActivity() {
         else -> "CONTEÚDO"
     }
 }
-        val groupMatch = matches(item.group, listOf("serie", "série", "series", "temporada", "novela"))
-        return groupMatch || item.url.lowercase().contains("/series/")
-    }
-}
+
 
 private class SideCategoryAdapter(
     private val items: List<Pair<String, Int>>,
