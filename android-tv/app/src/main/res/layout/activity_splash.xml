@@ -2,7 +2,14 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="@drawable/splash">
+
+    <ImageView
+        android:id="@+id/imgSplash"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/splash" />
 
     <VideoView
         android:id="@+id/videoIntro"
@@ -11,10 +18,9 @@
         android:layout_gravity="center" />
 
     <ImageView
-        android:id="@+id/imgSplash"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/splash"
-        android:visibility="gone" />
+        android:layout_width="220dp"
+        android:layout_height="166dp"
+        android:layout_gravity="center"
+        android:contentDescription="Asterplay"
+        android:src="@drawable/logo_asterplay" />
 </FrameLayout>
