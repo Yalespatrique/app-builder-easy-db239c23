@@ -47,41 +47,42 @@ class BrowseActivity : AppCompatActivity() {
         listCategories.layoutManager = LinearLayoutManager(this)
         gridContents.layoutManager = GridLayoutManager(this, 4)
 
-        lifecycleScope.launch {
-            val channels = withContext(Dispatchers.IO) { PlaylistCache.load(this@BrowseActivity, url) }
-            if (channels == null || channels.isEmpty()) {
-                startActivity(Intent(this@BrowseActivity, LoadingActivity::class.java))
-                finish()
-                return@launch
-            }
-            val filtered = filterByType(channels, type)
-            groups = filtered.groupBy { it.group?.trim().orEmpty().ifEmpty { "Outros" } }
-                .toSortedMap()
-                .map { (k, v) -> k to v }
+        val dbType = when (type) { "vod" -> "vod"; "series" -> "series"; else -> "live" }
 
-            if (groups.isEmpty()) {
+        lifecycleScope.launch {
+            val cats = withContext(Dispatchers.IO) { PlaylistCache.groups(this@BrowseActivity, dbType) }
+            if (cats.isEmpty()) {
+                if (!PlaylistCache.has(this@BrowseActivity, url)) {
+                    startActivity(Intent(this@BrowseActivity, LoadingActivity::class.java))
+                    finish()
+                    return@launch
+                }
                 header.text = "${header.text}  ·  nenhuma categoria"
                 return@launch
             }
-
-            val adapter = SideCategoryAdapter(groups.map { it.first to it.second.size }) { idx ->
-                showGroup(idx)
+            groups = cats.map { (name, _) -> name to emptyList() }
+            val adapter = SideCategoryAdapter(cats) { idx ->
+                showGroup(dbType, cats[idx].first)
             }
             listCategories.adapter = adapter
-            showGroup(0)
+            showGroup(dbType, cats[0].first)
             listCategories.post {
                 listCategories.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }
         }
     }
 
-    private fun showGroup(index: Int) {
-        val (name, items) = groups.getOrNull(index) ?: return
-        header.text = "${headerTypeLabel()}  ·  $name"
-        gridContents.adapter = ChannelAdapter(items) { ch ->
-            startActivity(Intent(this, PlayerActivity::class.java).apply {
-                putExtra("url", ch.url); putExtra("name", ch.name)
-            })
+    private fun showGroup(type: String, group: String) {
+        header.text = "${headerTypeLabel()}  ·  $group"
+        lifecycleScope.launch {
+            val items = withContext(Dispatchers.IO) {
+                PlaylistCache.byGroup(this@BrowseActivity, type, group)
+            }
+            gridContents.adapter = ChannelAdapter(items) { ch ->
+                startActivity(Intent(this, PlayerActivity::class.java).apply {
+                    putExtra("url", ch.url); putExtra("name", ch.name)
+                })
+            }
         }
     }
 
@@ -91,32 +92,8 @@ class BrowseActivity : AppCompatActivity() {
         "live" -> "CANAIS"
         else -> "CONTEÚDO"
     }
-
-    private fun filterByType(all: List<Channel>, type: String?): List<Channel> {
-        return when (type) {
-            "vod" -> all.filter { isMovie(it) }.ifEmpty { all.filter { !isSeries(it) } }
-            "series" -> all.filter { isSeries(it) }
-            "live" -> all.filter { !isMovie(it) && !isSeries(it) }
-            else -> all
-        }
-    }
-
-    private fun matches(group: String?, needles: List<String>): Boolean {
-        val g = group?.lowercase() ?: return false
-        return needles.any { g.contains(it) }
-    }
-
-    private fun isMovie(item: Channel): Boolean {
-        val groupMatch = matches(item.group, listOf("filme", "filmes", "movie", "movies", "vod", "cinema"))
-        val url = item.url.lowercase()
-        return groupMatch || url.contains("/movie/") || url.endsWith(".mp4") || url.endsWith(".mkv") || url.endsWith(".avi")
-    }
-
-    private fun isSeries(item: Channel): Boolean {
-        val groupMatch = matches(item.group, listOf("serie", "série", "series", "temporada", "novela"))
-        return groupMatch || item.url.lowercase().contains("/series/")
-    }
 }
+
 
 private class SideCategoryAdapter(
     private val items: List<Pair<String, Int>>,

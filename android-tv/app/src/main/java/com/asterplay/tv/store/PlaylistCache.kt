@@ -3,120 +3,62 @@ package com.asterplay.tv.store
 import android.content.Context
 import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.M3UParser
-import org.json.JSONObject
-import java.io.File
 
+/**
+ * Cache backed by SQLite via [ChannelDb]. Keeps the previous API so the
+ * rest of the app doesn't need to change.
+ */
 object PlaylistCache {
-    private const val FILE = "playlist_cache.jsonl"
-    private const val LEGACY_FILE = "playlist_cache.json"
-    private const val META = "playlist_cache_meta"
-    private const val KEY_URL = "url"
-    private const val KEY_TS = "ts"
-    private const val KEY_COUNT = "count"
-
-    private fun file(ctx: Context) = File(ctx.filesDir, FILE)
-    private fun legacyFile(ctx: Context) = File(ctx.filesDir, LEGACY_FILE)
-
-    fun save(ctx: Context, url: String, channels: List<Channel>) {
-        file(ctx).bufferedWriter().use { writer ->
-            channels.forEach { c ->
-                writer.write(toJson(c).toString())
-                writer.newLine()
-            }
-        }
-        commitMeta(ctx, url, channels.size)
-    }
 
     fun saveFromM3uLines(ctx: Context, url: String, lines: Sequence<String>): Int {
+        val db = ChannelDb.get(ctx)
+        db.clearAll()
         var count = 0
-        file(ctx).bufferedWriter().use { writer ->
+        val seq = sequence {
             M3UParser.forEach(lines) { c ->
-                writer.write(toJson(c).toString())
-                writer.newLine()
-                count++
+                yield(c to ChannelDb.classify(c))
             }
         }
-        if (count > 0) commitMeta(ctx, url, count) else file(ctx).delete()
+        count = db.bulkInsert(seq)
+        if (count > 0) db.setMeta(url, count) else db.clearAll()
         return count
     }
 
     fun has(ctx: Context, url: String): Boolean {
-        val prefs = ctx.getSharedPreferences(META, Context.MODE_PRIVATE)
-        if (prefs.getString(KEY_URL, null) != url) return false
-        val current = file(ctx)
-        if (prefs.getInt(KEY_COUNT, 0) > 0 && current.exists()) return true
-        return legacyFile(ctx).exists()
+        val db = ChannelDb.get(ctx)
+        return db.currentUrl() == url && db.currentCount() > 0
     }
 
     fun count(ctx: Context, url: String): Int {
-        val prefs = ctx.getSharedPreferences(META, Context.MODE_PRIVATE)
-        if (prefs.getString(KEY_URL, null) != url) return 0
-        val savedCount = prefs.getInt(KEY_COUNT, 0)
-        if (savedCount > 0) return savedCount
-        return if (legacyFile(ctx).exists()) 1 else 0
+        val db = ChannelDb.get(ctx)
+        return if (db.currentUrl() == url) db.currentCount() else 0
     }
 
+    /** Kept for compatibility; returns all channels for [url]. Prefer [byType]/[groups]. */
     fun load(ctx: Context, url: String, maxAgeMs: Long = Long.MAX_VALUE): List<Channel>? {
-        val prefs = ctx.getSharedPreferences(META, Context.MODE_PRIVATE)
-        if (prefs.getString(KEY_URL, null) != url) return null
-        val age = System.currentTimeMillis() - prefs.getLong(KEY_TS, 0L)
-        if (maxAgeMs != Long.MAX_VALUE && age > maxAgeMs) return null
-
-        val current = file(ctx)
-        if (current.exists()) {
-            return try {
-                val out = ArrayList<Channel>()
-                current.bufferedReader().useLines { lines ->
-                    lines.forEach { line ->
-                        if (line.isNotBlank()) out += channelFromJson(JSONObject(line))
-                    }
-                }
-                out
-            } catch (_: Exception) {
-                null
+        val db = ChannelDb.get(ctx)
+        if (db.currentUrl() != url) return null
+        val ts = db.getMeta("ts")?.toLongOrNull() ?: 0L
+        if (maxAgeMs != Long.MAX_VALUE && System.currentTimeMillis() - ts > maxAgeMs) return null
+        val out = ArrayList<Channel>(db.currentCount())
+        listOf("live", "vod", "series").forEach { t ->
+            db.groupsByType(t).forEach { (g, _) ->
+                out += db.channelsByGroup(t, g, limit = Int.MAX_VALUE)
             }
         }
-
-        val legacy = legacyFile(ctx)
-        if (!legacy.exists()) return null
-        return try {
-            val arr = org.json.JSONArray(legacy.readText())
-            val out = ArrayList<Channel>(arr.length())
-            for (i in 0 until arr.length()) out += channelFromJson(arr.getJSONObject(i))
-            out
-        } catch (_: Exception) {
-            null
-        }
+        return out
     }
 
-    private fun channelFromJson(o: JSONObject) = Channel(
-        name = o.optString("name"),
-        url = o.optString("url"),
-        logo = o.optString("logo").ifEmpty { null },
-        group = o.optString("group").ifEmpty { null },
-        tvgId = o.optString("tvgId").ifEmpty { null }
-    )
+    fun groups(ctx: Context, type: String): List<Pair<String, Int>> =
+        ChannelDb.get(ctx).groupsByType(type)
 
-    private fun toJson(c: Channel) = JSONObject().apply {
-        put("name", c.name)
-        put("url", c.url)
-        put("logo", c.logo ?: "")
-        put("group", c.group ?: "")
-        put("tvgId", c.tvgId ?: "")
-    }
+    fun byGroup(ctx: Context, type: String, group: String): List<Channel> =
+        ChannelDb.get(ctx).channelsByGroup(type, group)
 
-    private fun commitMeta(ctx: Context, url: String, count: Int) {
-        legacyFile(ctx).delete()
-        ctx.getSharedPreferences(META, Context.MODE_PRIVATE).edit()
-            .putString(KEY_URL, url)
-            .putLong(KEY_TS, System.currentTimeMillis())
-            .putInt(KEY_COUNT, count)
-            .apply()
-    }
+    fun search(ctx: Context, query: String): List<Channel> =
+        ChannelDb.get(ctx).search(query)
 
     fun clear(ctx: Context) {
-        file(ctx).delete()
-        legacyFile(ctx).delete()
-        ctx.getSharedPreferences(META, Context.MODE_PRIVATE).edit().clear().apply()
+        ChannelDb.get(ctx).clearAll()
     }
 }
