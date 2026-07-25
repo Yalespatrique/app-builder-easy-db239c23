@@ -33,7 +33,7 @@ class PairingActivity : AppCompatActivity() {
                 val r = PanelApi.activateWithMac(mac, key)
                 if (r.ok && r.playlistUrl != null) {
                     PlaylistStore.save(this@PairingActivity, r.playlistUrl)
-                    startActivity(Intent(this@PairingActivity, HomeActivity::class.java))
+                    startActivity(Intent(this@PairingActivity, LoadingActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(this@PairingActivity, r.message ?: "Ainda não ativado", Toast.LENGTH_SHORT).show()
@@ -52,7 +52,7 @@ class PairingActivity : AppCompatActivity() {
                 val r = PanelApi.activateWithCode(code, user, pass)
                 if (r.ok && r.playlistUrl != null) {
                     PlaylistStore.save(this@PairingActivity, r.playlistUrl)
-                    startActivity(Intent(this@PairingActivity, HomeActivity::class.java))
+                    startActivity(Intent(this@PairingActivity, LoadingActivity::class.java))
                     finish()
                 } else {
                     Toast.makeText(this@PairingActivity, r.message ?: "Falha no login", Toast.LENGTH_SHORT).show()

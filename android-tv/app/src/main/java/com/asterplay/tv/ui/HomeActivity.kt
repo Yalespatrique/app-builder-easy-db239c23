@@ -24,6 +24,7 @@ class HomeActivity : AppCompatActivity() {
         findViewById<android.view.View>(R.id.cardSeries).setOnClickListener { openBrowse("series") }
         findViewById<android.view.View>(R.id.cardSettings).setOnClickListener {
             PlaylistStore.clear(this)
+            com.asterplay.tv.store.PlaylistCache.clear(this)
             startActivity(Intent(this, PairingActivity::class.java))
             finish()
         }
