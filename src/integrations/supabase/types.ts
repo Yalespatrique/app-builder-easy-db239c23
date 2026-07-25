@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activations: {
+        Row: {
+          active: boolean
+          created_at: string
+          device_key: string
+          id: string
+          mac: string
+          playlist_url: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          device_key: string
+          id?: string
+          mac: string
+          playlist_url: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          device_key?: string
+          id?: string
+          mac?: string
+          playlist_url?: string
+        }
+        Relationships: []
+      }
+      codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          dns: string
+          id: string
+          password: string
+          playlist_url: string
+          username: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          dns: string
+          id?: string
+          password: string
+          playlist_url: string
+          username: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          dns?: string
+          id?: string
+          password?: string
+          playlist_url?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
