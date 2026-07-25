@@ -1,11 +1,10 @@
 package com.asterplay.tv.ui
 
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -127,43 +126,21 @@ private class SideCategoryAdapter(
     private var selected = 0
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
-        val name: TextView = v.findViewById(android.R.id.text1)
-        val count: TextView = v.findViewById(android.R.id.text2)
+        val name: TextView = v.findViewById(R.id.catName)
+        val count: TextView = v.findViewById(R.id.catCount)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val ctx = parent.context
-        val root = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = ViewGroup.MarginLayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(4, 4, 4, 4) }
-            setPadding(20, 18, 20, 18)
-            isFocusable = true
-            isFocusableInTouchMode = true
-            isClickable = true
-        }
-        val t1 = TextView(ctx).apply {
-            id = android.R.id.text1
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            maxLines = 2
-        }
-        val t2 = TextView(ctx).apply {
-            id = android.R.id.text2
-            setTextColor(0xFF00E676.toInt())
-            textSize = 11f
-        }
-        root.addView(t1)
-        root.addView(t2)
-        return VH(root)
+        val v = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_side_category, parent, false)
+        return VH(v)
     }
 
     override fun getItemCount() = items.size
 
     override fun onBindViewHolder(h: VH, i: Int) {
         val (name, count) = items[i]
-        h.name.text = name
+        h.name.text = name.ifBlank { "Outros" }
         h.count.text = "$count itens"
         val bg = if (i == selected) 0xFF1E2A44.toInt() else 0xFF151522.toInt()
         h.itemView.setBackgroundColor(bg)
