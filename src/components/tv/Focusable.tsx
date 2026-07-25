@@ -3,12 +3,7 @@ import {
   type FocusableComponentLayout,
   type FocusDetails,
 } from "@noriginmedia/norigin-spatial-navigation";
-import {
-  cloneElement,
-  isValidElement,
-  useCallback,
-  type ReactElement,
-} from "react";
+import { useEffect, type ReactNode } from "react";
 
 type Props = {
   onEnterPress?: (props: object, details: FocusDetails) => void;
@@ -20,20 +15,13 @@ type Props = {
   focusKey?: string;
   autoFocus?: boolean;
   className?: string;
-  children:
-    | ReactElement<{
-        ref?: unknown;
-        "data-focused"?: string;
-        className?: string;
-      }>
-    | ((focused: boolean) => ReactElement);
+  as?: "div" | "button";
+  children: ReactNode | ((focused: boolean) => ReactNode);
 };
 
 /**
- * Thin wrapper around norigin useFocusable that:
- *  - wires ref + focused state onto the child
- *  - toggles data-focused="true" so CSS (.aster-focusable) reacts
- *  - auto-focuses on mount when requested
+ * D-pad focusable wrapper. Renders a div (or button) with data-focused
+ * so CSS (.aster-focusable[data-focused="true"]) applies the focus ring.
  */
 export function Focusable({
   onEnterPress,
@@ -41,6 +29,7 @@ export function Focusable({
   focusKey,
   autoFocus,
   className,
+  as = "div",
   children,
 }: Props) {
   const { ref, focused, focusSelf } = useFocusable({
@@ -49,31 +38,38 @@ export function Focusable({
     focusKey,
   });
 
-  const setRef = useCallback(
-    (node: HTMLElement | null) => {
-      (ref as { current: HTMLElement | null }).current = node;
-      if (autoFocus && node) focusSelf();
-    },
-    [ref, autoFocus, focusSelf],
-  );
+  useEffect(() => {
+    if (autoFocus) focusSelf();
+  }, [autoFocus, focusSelf]);
 
-  if (typeof children === "function") {
-    const rendered = children(focused);
-    return cloneElement(rendered, {
-      ref: setRef,
-      "data-focused": focused ? "true" : "false",
-      className: [rendered.props.className, className]
-        .filter(Boolean)
-        .join(" "),
-    });
+  const cls = ["aster-focusable", className].filter(Boolean).join(" ");
+  const content = typeof children === "function" ? children(focused) : children;
+
+  if (as === "button") {
+    return (
+      <button
+        ref={ref as React.RefObject<HTMLButtonElement>}
+        data-focused={focused ? "true" : "false"}
+        className={cls}
+        type="button"
+        onClick={() =>
+          onEnterPress?.({}, { pressedKeys: {} } as FocusDetails)
+        }
+      >
+        {content}
+      </button>
+    );
   }
-
-  if (!isValidElement(children)) return null;
-  return cloneElement(children, {
-    ref: setRef,
-    "data-focused": focused ? "true" : "false",
-    className: [children.props.className, "aster-focusable", className]
-      .filter(Boolean)
-      .join(" "),
-  });
+  return (
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      data-focused={focused ? "true" : "false"}
+      className={cls}
+      onClick={() =>
+        onEnterPress?.({}, { pressedKeys: {} } as FocusDetails)
+      }
+    >
+      {content}
+    </div>
+  );
 }
