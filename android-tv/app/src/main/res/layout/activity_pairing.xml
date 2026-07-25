@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0B12"
+    android:padding="32dp">
+
+    <TextView
+        android:id="@+id/txtDisclaimer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Asterplay é apenas um reprodutor de mídia. O usuário é responsável pelo conteúdo carregado."
+        android:textColor="#B0B0B0"
+        android:textSize="14sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/loginBox"
+        android:layout_marginEnd="32dp"/>
+
+    <LinearLayout
+        android:id="@+id/loginBox"
+        android:layout_width="360dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#151522"
+        android:padding="20dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Entrar com código" android:textColor="#FFD700" android:textSize="18sp" android:textStyle="bold"/>
+        <EditText android:id="@+id/edtDns" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="DNS" android:textColorHint="#666" android:textColor="#FFF" android:layout_marginTop="12dp"/>
+        <EditText android:id="@+id/edtUser" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Usuário" android:textColorHint="#666" android:textColor="#FFF"/>
+        <EditText android:id="@+id/edtPass" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Senha" android:inputType="textPassword" android:textColorHint="#666" android:textColor="#FFF"/>
+        <Button android:id="@+id/btnLoginCode" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Entrar" android:layout_marginTop="12dp"/>
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/imgQr"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:background="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginStart="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/imgQr"
+        app:layout_constraintStart_toEndOf="@id/imgQr"
+        app:layout_constraintEnd_toEndOf="parent">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="MAC" android:textColor="#888" android:textSize="14sp"/>
+        <TextView android:id="@+id/txtMac" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFD700" android:textSize="28sp" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Chave" android:textColor="#888" android:textSize="14sp" android:layout_marginTop="8dp"/>
+        <TextView android:id="@+id/txtKey" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFD700" android:textSize="28sp" android:textStyle="bold"/>
+        <Button android:id="@+id/btnCheckMac" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Verificar ativação" android:layout_marginTop="12dp"/>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
