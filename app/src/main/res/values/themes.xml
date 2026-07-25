@@ -12,4 +12,17 @@
     <style name="Theme.Asterplay.Splash" parent="Theme.Asterplay">
         <item name="android:windowBackground">@drawable/bg_gradient</item>
     </style>
+
+    <!-- Tema Leanback para Browse/Search (necessário para BrowseSupportFragment) -->
+    <style name="Theme.Asterplay.Leanback" parent="Theme.Leanback.Browse">
+        <item name="android:windowBackground">@color/aster_bg</item>
+        <item name="android:colorBackground">@color/aster_bg</item>
+        <item name="colorPrimary">@color/aster_primary</item>
+        <item name="colorAccent">@color/aster_primary</item>
+    </style>
+
+    <style name="Theme.Asterplay.LeanbackSearch" parent="Theme.Leanback">
+        <item name="android:windowBackground">@color/aster_bg</item>
+        <item name="colorAccent">@color/aster_primary</item>
+    </style>
 </resources>
