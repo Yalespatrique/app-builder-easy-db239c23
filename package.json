@@ -1,0 +1,14 @@
+{
+  "name": "asterplay-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native Android TV project — see README.md. Web preview is a static placeholder.",
+  "scripts": {
+    "build:dev": "echo 'Native Android project — nothing to build for web.'",
+    "build": "echo 'Native Android project — nothing to build for web.'",
+    "dev": "node preview-server.cjs"
+  },
+  "devDependencies": {
+    "serve": "^14.2.6"
+  }
+}
