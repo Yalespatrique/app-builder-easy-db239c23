@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DnsRouteImport } from './routes/dns'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicCodeLoginRouteImport } from './routes/api/public/code-login'
+import { Route as ApiPublicActivateRouteImport } from './routes/api/public/activate'
 
 const DnsRoute = DnsRouteImport.update({
   id: '/dns',
@@ -22,31 +24,54 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCodeLoginRoute = ApiPublicCodeLoginRouteImport.update({
+  id: '/api/public/code-login',
+  path: '/api/public/code-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicActivateRoute = ApiPublicActivateRouteImport.update({
+  id: '/api/public/activate',
+  path: '/api/public/activate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dns': typeof DnsRoute
+  '/api/public/activate': typeof ApiPublicActivateRoute
+  '/api/public/code-login': typeof ApiPublicCodeLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dns': typeof DnsRoute
+  '/api/public/activate': typeof ApiPublicActivateRoute
+  '/api/public/code-login': typeof ApiPublicCodeLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dns': typeof DnsRoute
+  '/api/public/activate': typeof ApiPublicActivateRoute
+  '/api/public/code-login': typeof ApiPublicCodeLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dns'
+  fullPaths: '/' | '/dns' | '/api/public/activate' | '/api/public/code-login'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dns'
-  id: '__root__' | '/' | '/dns'
+  to: '/' | '/dns' | '/api/public/activate' | '/api/public/code-login'
+  id:
+    | '__root__'
+    | '/'
+    | '/dns'
+    | '/api/public/activate'
+    | '/api/public/code-login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DnsRoute: typeof DnsRoute
+  ApiPublicActivateRoute: typeof ApiPublicActivateRoute
+  ApiPublicCodeLoginRoute: typeof ApiPublicCodeLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +90,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/code-login': {
+      id: '/api/public/code-login'
+      path: '/api/public/code-login'
+      fullPath: '/api/public/code-login'
+      preLoaderRoute: typeof ApiPublicCodeLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/activate': {
+      id: '/api/public/activate'
+      path: '/api/public/activate'
+      fullPath: '/api/public/activate'
+      preLoaderRoute: typeof ApiPublicActivateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DnsRoute: DnsRoute,
+  ApiPublicActivateRoute: ApiPublicActivateRoute,
+  ApiPublicCodeLoginRoute: ApiPublicCodeLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
