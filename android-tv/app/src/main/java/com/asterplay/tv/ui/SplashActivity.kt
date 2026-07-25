@@ -6,14 +6,19 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.asterplay.tv.R
 import com.asterplay.tv.store.PlaylistStore
 
 class SplashActivity : AppCompatActivity() {
     private var advanced = false
     private val handler = Handler(Looper.getMainLooper())
+    private var player: ExoPlayer? = null
+    private val stuckFallback = Runnable { advance() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,30 +26,55 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
 
         val splashPhase = findViewById<View>(R.id.splashPhase)
-        val video = findViewById<VideoView>(R.id.videoIntro)
+        val playerView = findViewById<PlayerView>(R.id.playerIntro)
 
-        // Fase 1: splash estático com a logo. Após 1.4s, inicia o vídeo.
-        handler.postDelayed({ startVideo(splashPhase, video) }, 1400)
+        // Fase 1: splash estático original. Depois toca o vídeo limpo e só então abre o login.
+        handler.postDelayed({ startVideo(splashPhase, playerView) }, 1600)
     }
 
-    private fun startVideo(splashPhase: View, video: VideoView) {
+    private fun startVideo(splashPhase: View, playerView: PlayerView) {
         val uri = Uri.parse("android.resource://" + packageName + "/" + R.raw.intro)
-        video.setVideoURI(uri)
-        video.setOnPreparedListener { mp ->
-            mp.isLooping = false
-            // Só troca de fase quando o vídeo está realmente pronto para tocar
-            splashPhase.visibility = View.GONE
-            video.visibility = View.VISIBLE
-            video.start()
+        val exoPlayer = ExoPlayer.Builder(this).build()
+        player = exoPlayer
+        playerView.player = exoPlayer
+        exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
+        exoPlayer.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                when (playbackState) {
+                    Player.STATE_READY -> {
+                        splashPhase.visibility = View.GONE
+                        playerView.visibility = View.VISIBLE
+                        handler.removeCallbacks(stuckFallback)
+                    }
+                    Player.STATE_ENDED -> advance()
+                }
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                handler.removeCallbacks(stuckFallback)
+                advance()
+            }
+        })
+        exoPlayer.setMediaItem(MediaItem.fromUri(uri))
+        exoPlayer.prepare()
+        exoPlayer.playWhenReady = true
+
+        // Se o player não preparar por algum motivo, não deixa preso no splash.
+        handler.postDelayed(stuckFallback, 12000)
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        player?.release()
+        player = null
+        super.onDestroy()
+    }
+
+    override fun onStop() {
+        if (!advanced) {
+            player?.pause()
         }
-        video.setOnCompletionListener { advance() }
-        video.setOnErrorListener { _, _, _ ->
-            // Se o vídeo falhar, avança direto após breve delay
-            handler.postDelayed({ advance() }, 800)
-            true
-        }
-        // Fallback duro caso o player trave
-        handler.postDelayed({ advance() }, 15000)
+        super.onStop()
     }
 
     private fun advance() {
