@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Asterplay</string>
+    <string name="pairing_title">Ative seu dispositivo</string>
+    <string name="pairing_subtitle">Acesse o painel e vincule sua lista M3U ao MAC abaixo</string>
+    <string name="pairing_mac_label">MAC do dispositivo</string>
+    <string name="pairing_key_label">Código do dispositivo</string>
+    <string name="pairing_url_label">appasterplay.top</string>
+    <string name="pairing_waiting">Aguardando vinculação…</string>
+    <string name="pairing_error">Não foi possível contactar o painel. Tentando novamente…</string>
+    <string name="browse_live">TV ao vivo</string>
+    <string name="browse_movies">Filmes</string>
+    <string name="browse_series">Séries</string>
+    <string name="browse_settings">Ajustes</string>
+    <string name="browse_empty">Nenhum item na sua lista.</string>
+</resources>
