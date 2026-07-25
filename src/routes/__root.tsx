@@ -1,6 +1,6 @@
-import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/__root")({
+export const Route = createRootRoute({
   component: RootLayout,
 });
 
@@ -15,7 +15,7 @@ function RootLayout() {
 
 function NavBar() {
   const { pathname } = useLocation();
-  const link = (to: string, label: string) => (
+  const link = (to: "/" | "/dns", label: string) => (
     <Link
       to={to}
       className={`px-3 py-1.5 rounded-md text-sm font-semibold ${
