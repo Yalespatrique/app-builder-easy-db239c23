@@ -4,29 +4,27 @@
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
-    <!-- Fase 1: splash com logo girando -->
+    <!-- Fase 1: splash estático (SEM logo girando) -->
     <FrameLayout
         android:id="@+id/splashPhase"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
         <ImageView
-            android:id="@+id/imgSplash"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:src="@drawable/splash" />
 
         <ImageView
-            android:id="@+id/imgLogoSpin"
-            android:layout_width="220dp"
-            android:layout_height="220dp"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
             android:layout_gravity="center"
             android:contentDescription="Asterplay"
             android:src="@drawable/logo_asterplay" />
     </FrameLayout>
 
-    <!-- Fase 2: vídeo de intro (sem logo por cima) -->
+    <!-- Fase 2: vídeo -->
     <VideoView
         android:id="@+id/videoIntro"
         android:layout_width="match_parent"
