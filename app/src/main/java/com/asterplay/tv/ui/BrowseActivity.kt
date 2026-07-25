@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import com.asterplay.tv.R
 import com.asterplay.tv.data.AsterStore
-import com.asterplay.tv.data.FavoritesStore
 import com.asterplay.tv.ui.fragments.MainBrowseFragment
 
 class BrowseActivity : FragmentActivity() {
