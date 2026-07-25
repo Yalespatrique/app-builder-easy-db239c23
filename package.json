@@ -1,0 +1,11 @@
+{
+  "name": "asterplay-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native Android TV project — see README.md. Web build is a no-op.",
+  "scripts": {
+    "build:dev": "echo 'Native Android project. Build via Android Studio or ./gradlew assembleDebug'",
+    "build": "echo 'Native Android project. Build via Android Studio or ./gradlew assembleDebug'",
+    "dev": "echo 'No web dev server. Open the project in Android Studio.'"
+  }
+}
