@@ -1,13 +1,16 @@
 package com.asterplay.tv.ui
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.asterplay.tv.R
 import com.asterplay.tv.net.Channel
@@ -19,50 +22,82 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class BrowseActivity : AppCompatActivity() {
+
+    private lateinit var listCategories: RecyclerView
+    private lateinit var gridContents: RecyclerView
+    private lateinit var header: TextView
+    private var groups: List<Pair<String, List<Channel>>> = emptyList()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_browse)
         val url = PlaylistStore.get(this) ?: run { finish(); return }
-        val type = intent.getStringExtra("type") // live | vod | series
-        val group = intent.getStringExtra("group") // categoria escolhida
-        val loading = findViewById<TextView>(R.id.txtLoading)
-        val container = findViewById<LinearLayout>(R.id.rowsContainer)
+        val type = intent.getStringExtra("type")
+
+        header = findViewById(R.id.txtHeader)
+        listCategories = findViewById(R.id.listCategories)
+        gridContents = findViewById(R.id.gridContents)
+
+        header.text = when (type) {
+            "vod" -> "FILMES"
+            "series" -> "SÉRIES"
+            "live" -> "CANAIS"
+            else -> "CONTEÚDO"
+        }
+
+        listCategories.layoutManager = LinearLayoutManager(this)
+        gridContents.layoutManager = GridLayoutManager(this, 4)
 
         lifecycleScope.launch {
-            val channels = withContext(Dispatchers.IO) {
-                PlaylistCache.load(this@BrowseActivity, url)
-            }
-            loading.visibility = View.GONE
+            val channels = withContext(Dispatchers.IO) { PlaylistCache.load(this@BrowseActivity, url) }
             if (channels == null || channels.isEmpty()) {
                 startActivity(Intent(this@BrowseActivity, LoadingActivity::class.java))
                 finish()
                 return@launch
             }
             val filtered = filterByType(channels, type)
-            if (filtered.isEmpty()) {
-                val tv = TextView(this@BrowseActivity).apply {
-                    text = "Nenhuma categoria encontrada para esta seção."
-                    setTextColor(0xFFFFFFFF.toInt())
-                    textSize = 18f
-                }
-                container.addView(tv)
+            groups = filtered.groupBy { it.group?.trim().orEmpty().ifEmpty { "Outros" } }
+                .toSortedMap()
+                .map { (k, v) -> k to v }
+
+            if (groups.isEmpty()) {
+                header.text = "${header.text}  ·  nenhuma categoria"
                 return@launch
             }
-            if (group != null) {
-                renderContents(container, group, filtered.filter { (it.group ?: "Outros") == group })
-            } else {
-                renderCategories(container, type, filtered)
+
+            val adapter = SideCategoryAdapter(groups.map { it.first to it.second.size }) { idx ->
+                showGroup(idx)
+            }
+            listCategories.adapter = adapter
+            showGroup(0)
+            listCategories.post {
+                listCategories.findViewHolderForAdapterPosition(0)?.itemView?.requestFocus()
             }
         }
+    }
+
+    private fun showGroup(index: Int) {
+        val (name, items) = groups.getOrNull(index) ?: return
+        header.text = "${headerTypeLabel()}  ·  $name"
+        gridContents.adapter = ChannelAdapter(items) { ch ->
+            startActivity(Intent(this, PlayerActivity::class.java).apply {
+                putExtra("url", ch.url); putExtra("name", ch.name)
+            })
+        }
+    }
+
+    private fun headerTypeLabel(): String = when (intent.getStringExtra("type")) {
+        "vod" -> "FILMES"
+        "series" -> "SÉRIES"
+        "live" -> "CANAIS"
+        else -> "CONTEÚDO"
     }
 
     private fun filterByType(all: List<Channel>, type: String?): List<Channel> {
         return when (type) {
             "vod" -> all.filter { isMovie(it) }.ifEmpty { all.filter { !isSeries(it) } }
             "series" -> all.filter { isSeries(it) }
-            "live" -> all.filter {
-                !isMovie(it) && !isSeries(it)
-            }
+            "live" -> all.filter { !isMovie(it) && !isSeries(it) }
             else -> all
         }
     }
@@ -82,67 +117,65 @@ class BrowseActivity : AppCompatActivity() {
         val groupMatch = matches(item.group, listOf("serie", "série", "series", "temporada", "novela"))
         return groupMatch || item.url.lowercase().contains("/series/")
     }
+}
 
-    private fun renderCategories(container: LinearLayout, type: String?, items: List<Channel>) {
-        container.removeAllViews()
+private class SideCategoryAdapter(
+    private val items: List<Pair<String, Int>>,
+    private val onSelect: (Int) -> Unit
+) : RecyclerView.Adapter<SideCategoryAdapter.VH>() {
 
-        val title = TextView(this).apply {
-            text = when (type) {
-                "vod" -> "FILMES  ·  Categorias"
-                "series" -> "SÉRIES  ·  Categorias"
-                "live" -> "CANAIS  ·  Categorias"
-                else -> "Categorias"
-            }
-            setTextColor(0xFFFFFFFF.toInt())
-            textSize = 22f
-            setPadding(0, 0, 0, 16)
-        }
-        container.addView(title)
+    private var selected = 0
 
-        val groups = items.groupBy { it.group?.trim().orEmpty().ifEmpty { "Outros" } }
-            .toSortedMap()
-
-        val rv = RecyclerView(this)
-        rv.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            0,
-            1f
-        )
-        rv.layoutManager = GridLayoutManager(this, 4)
-        rv.adapter = CategoryAdapter(groups.map { (name, list) -> name to list.size }) { name ->
-            startActivity(Intent(this, BrowseActivity::class.java).apply {
-                putExtra("type", type)
-                putExtra("group", name)
-            })
-        }
-        container.addView(rv)
-        rv.requestFocus()
+    class VH(v: View) : RecyclerView.ViewHolder(v) {
+        val name: TextView = v.findViewById(android.R.id.text1)
+        val count: TextView = v.findViewById(android.R.id.text2)
     }
 
-    private fun renderContents(container: LinearLayout, group: String, items: List<Channel>) {
-        container.removeAllViews()
-
-        val title = TextView(this).apply {
-            text = group
-            setTextColor(0xFFFFFFFF.toInt())
-            textSize = 22f
-            setPadding(0, 0, 0, 16)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val ctx = parent.context
+        val root = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(4, 4, 4, 4) }
+            setPadding(20, 18, 20, 18)
+            isFocusable = true
+            isFocusableInTouchMode = true
+            isClickable = true
         }
-        container.addView(title)
-
-        val rv = RecyclerView(this)
-        rv.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            0,
-            1f
-        )
-        rv.layoutManager = GridLayoutManager(this, 5)
-        rv.adapter = ChannelAdapter(items) { ch ->
-            startActivity(Intent(this, PlayerActivity::class.java).apply {
-                putExtra("url", ch.url); putExtra("name", ch.name)
-            })
+        val t1 = TextView(ctx).apply {
+            id = android.R.id.text1
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            maxLines = 2
         }
-        container.addView(rv)
-        rv.requestFocus()
+        val t2 = TextView(ctx).apply {
+            id = android.R.id.text2
+            setTextColor(0xFF00E676.toInt())
+            textSize = 11f
+        }
+        root.addView(t1)
+        root.addView(t2)
+        return VH(root)
+    }
+
+    override fun getItemCount() = items.size
+
+    override fun onBindViewHolder(h: VH, i: Int) {
+        val (name, count) = items[i]
+        h.name.text = name
+        h.count.text = "$count itens"
+        val bg = if (i == selected) 0xFF1E2A44.toInt() else 0xFF151522.toInt()
+        h.itemView.setBackgroundColor(bg)
+        h.itemView.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                val prev = selected
+                selected = i
+                notifyItemChanged(prev)
+                notifyItemChanged(i)
+                onSelect(i)
+            }
+        }
+        h.itemView.setOnClickListener { onSelect(i) }
     }
 }
