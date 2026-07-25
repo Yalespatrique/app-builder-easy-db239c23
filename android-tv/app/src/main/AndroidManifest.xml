@@ -31,6 +31,7 @@
 
         <activity android:name=".ui.PairingActivity" android:exported="false" />
         <activity android:name=".ui.HomeActivity" android:exported="false" />
+        <activity android:name=".ui.LoadingActivity" android:exported="false" />
         <activity android:name=".ui.BrowseActivity" android:exported="false" />
         <activity android:name=".ui.SearchActivity" android:exported="false" />
         <activity android:name=".player.PlayerActivity" android:exported="false"

@@ -14,6 +14,7 @@ import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.M3UParser
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.FavoritesStore
+import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
 import com.asterplay.tv.store.ResumeStore
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,10 @@ class BrowseActivity : AppCompatActivity() {
         val container = findViewById<LinearLayout>(R.id.rowsContainer)
 
         lifecycleScope.launch {
-            val channels = withContext(Dispatchers.IO) { downloadAndParse(url) }
+            val channels = withContext(Dispatchers.IO) {
+                PlaylistCache.load(this@BrowseActivity, url)
+                    ?: downloadAndParse(url).also { if (it.isNotEmpty()) PlaylistCache.save(this@BrowseActivity, url, it) }
+            }
             loading.visibility = View.GONE
             if (channels.isEmpty()) {
                 val tv = TextView(this@BrowseActivity).apply {
