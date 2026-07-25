@@ -2,10 +2,13 @@
   "name": "asterplay-android",
   "version": "1.0.0",
   "private": true,
-  "description": "Native Android TV project — see README.md. Web build is a no-op.",
+  "description": "Native Android TV project — see README.md. Web preview is a static placeholder.",
   "scripts": {
-    "build:dev": "echo 'Native Android project. Build via Android Studio or ./gradlew assembleDebug'",
-    "build": "echo 'Native Android project. Build via Android Studio or ./gradlew assembleDebug'",
-    "dev": "echo 'No web dev server. Open the project in Android Studio.'"
+    "build:dev": "echo 'Native Android project — nothing to build for web.'",
+    "build": "echo 'Native Android project — nothing to build for web.'",
+    "dev": "bunx --bun serve -l 8080 public"
+  },
+  "devDependencies": {
+    "serve": "^14.2.3"
   }
 }
