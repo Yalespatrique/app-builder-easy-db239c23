@@ -27,13 +27,23 @@ class BrowseActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_browse)
         val url = PlaylistStore.get(this) ?: run { finish(); return }
+        val type = intent.getStringExtra("type") // live | vod | series | null
         val loading = findViewById<TextView>(R.id.txtLoading)
         val container = findViewById<LinearLayout>(R.id.rowsContainer)
 
         lifecycleScope.launch {
             val channels = withContext(Dispatchers.IO) { downloadAndParse(url) }
             loading.visibility = View.GONE
-            renderRows(container, channels)
+            if (channels.isEmpty()) {
+                val tv = TextView(this@BrowseActivity).apply {
+                    text = "Não foi possível carregar sua lista.\nVerifique código, usuário e senha."
+                    setTextColor(0xFFFFFFFF.toInt())
+                    textSize = 18f
+                }
+                container.addView(tv)
+                return@launch
+            }
+            renderRows(container, channels, type)
         }
     }
 
@@ -44,21 +54,34 @@ class BrowseActivity : AppCompatActivity() {
         }
     } catch (e: Exception) { emptyList() }
 
-    private fun renderRows(container: LinearLayout, all: List<Channel>) {
+    private fun renderRows(container: LinearLayout, all: List<Channel>, type: String?) {
         container.removeAllViews()
         val favs = FavoritesStore.all(this)
         val resumeUrls = ResumeStore.recent(this).toSet()
 
-        val resume = all.filter { it.url in resumeUrls }
+        val filtered = when (type) {
+            "live" -> all.filter { matches(it.group, listOf("live", "ao vivo", "canais", "tv")) || (it.group == null) }
+            "vod" -> all.filter { matches(it.group, listOf("filme", "movie", "vod")) }
+            "series" -> all.filter { matches(it.group, listOf("serie", "série", "series")) }
+            else -> all
+        }.ifEmpty { all }
+
+        val resume = filtered.filter { it.url in resumeUrls }
         if (resume.isNotEmpty()) container.addView(buildRow("Continuar assistindo", resume))
 
-        val favList = all.filter { it.url in favs }
+        val favList = filtered.filter { it.url in favs }
         if (favList.isNotEmpty()) container.addView(buildRow("Favoritos", favList))
 
-        all.groupBy { it.group ?: "Outros" }.forEach { (grp, list) ->
+        filtered.groupBy { it.group ?: "Outros" }.forEach { (grp, list) ->
             container.addView(buildRow(grp, list))
         }
     }
+
+    private fun matches(group: String?, needles: List<String>): Boolean {
+        val g = group?.lowercase() ?: return false
+        return needles.any { g.contains(it) }
+    }
+
 
     private fun buildRow(title: String, items: List<Channel>): View {
         val v = layoutInflater.inflate(R.layout.row_channels, null)
