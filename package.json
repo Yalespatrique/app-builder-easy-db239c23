@@ -9,6 +9,6 @@
     "dev": "bunx --bun serve -l 8080 public"
   },
   "devDependencies": {
-    "serve": "^14.2.3"
+    "serve": "^14.2.6"
   }
 }
