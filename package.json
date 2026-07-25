@@ -6,7 +6,7 @@
   "scripts": {
     "build:dev": "echo 'Native Android project — nothing to build for web.'",
     "build": "echo 'Native Android project — nothing to build for web.'",
-    "dev": "serve -l 8080 public"
+    "dev": "node preview-server.cjs"
   },
   "devDependencies": {
     "serve": "^14.2.6"
