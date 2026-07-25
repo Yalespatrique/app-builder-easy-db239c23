@@ -12,6 +12,7 @@ import androidx.media3.datasource.RawResourceDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.asterplay.tv.R
+import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
 
 class SplashActivity : AppCompatActivity() {
@@ -87,7 +88,12 @@ class SplashActivity : AppCompatActivity() {
     private fun advance() {
         if (advanced) return
         advanced = true
-        val next = if (PlaylistStore.get(this) != null) HomeActivity::class.java else PairingActivity::class.java
+        val url = PlaylistStore.get(this)
+        val next = when {
+            url == null -> PairingActivity::class.java
+            PlaylistCache.has(this, url) -> HomeActivity::class.java
+            else -> LoadingActivity::class.java
+        }
         startActivity(Intent(this, next))
         finish()
     }

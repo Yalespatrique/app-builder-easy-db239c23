@@ -8,20 +8,15 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.asterplay.tv.R
 import com.asterplay.tv.net.Channel
-import com.asterplay.tv.net.M3UParser
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
 
 class BrowseActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,21 +31,23 @@ class BrowseActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val channels = withContext(Dispatchers.IO) {
                 PlaylistCache.load(this@BrowseActivity, url)
-                    ?: downloadAndParse(url).also {
-                        if (it.isNotEmpty()) PlaylistCache.save(this@BrowseActivity, url, it)
-                    }
             }
             loading.visibility = View.GONE
-            if (channels.isEmpty()) {
+            if (channels == null || channels.isEmpty()) {
+                startActivity(Intent(this@BrowseActivity, LoadingActivity::class.java))
+                finish()
+                return@launch
+            }
+            val filtered = filterByType(channels, type)
+            if (filtered.isEmpty()) {
                 val tv = TextView(this@BrowseActivity).apply {
-                    text = "Não foi possível carregar sua lista.\nVerifique código, usuário e senha."
+                    text = "Nenhuma categoria encontrada para esta seção."
                     setTextColor(0xFFFFFFFF.toInt())
                     textSize = 18f
                 }
                 container.addView(tv)
                 return@launch
             }
-            val filtered = filterByType(channels, type)
             if (group != null) {
                 renderContents(container, group, filtered.filter { (it.group ?: "Outros") == group })
             } else {
@@ -59,32 +56,31 @@ class BrowseActivity : AppCompatActivity() {
         }
     }
 
-    private fun downloadAndParse(url: String): List<Channel> = try {
-        val client = OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build()
-        client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-            M3UParser.parse(resp.body?.string().orEmpty())
-        }
-    } catch (_: Exception) { emptyList() }
-
     private fun filterByType(all: List<Channel>, type: String?): List<Channel> {
-        val f = when (type) {
-            "vod" -> all.filter { matches(it.group, listOf("filme", "movie", "vod")) }
-            "series" -> all.filter { matches(it.group, listOf("serie", "série", "series")) }
+        return when (type) {
+            "vod" -> all.filter { isMovie(it) }.ifEmpty { all.filter { !isSeries(it) } }
+            "series" -> all.filter { isSeries(it) }
             "live" -> all.filter {
-                val g = it.group?.lowercase() ?: return@filter true
-                !listOf("filme", "movie", "vod", "serie", "série", "series").any { n -> g.contains(n) }
+                !isMovie(it) && !isSeries(it)
             }
             else -> all
         }
-        return f.ifEmpty { all }
     }
 
     private fun matches(group: String?, needles: List<String>): Boolean {
         val g = group?.lowercase() ?: return false
         return needles.any { g.contains(it) }
+    }
+
+    private fun isMovie(item: Channel): Boolean {
+        val groupMatch = matches(item.group, listOf("filme", "filmes", "movie", "movies", "vod", "cinema"))
+        val url = item.url.lowercase()
+        return groupMatch || url.contains("/movie/") || url.endsWith(".mp4") || url.endsWith(".mkv") || url.endsWith(".avi")
+    }
+
+    private fun isSeries(item: Channel): Boolean {
+        val groupMatch = matches(item.group, listOf("serie", "série", "series", "temporada", "novela"))
+        return groupMatch || item.url.lowercase().contains("/series/")
     }
 
     private fun renderCategories(container: LinearLayout, type: String?, items: List<Channel>) {
@@ -107,6 +103,11 @@ class BrowseActivity : AppCompatActivity() {
             .toSortedMap()
 
         val rv = RecyclerView(this)
+        rv.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
         rv.layoutManager = GridLayoutManager(this, 4)
         rv.adapter = CategoryAdapter(groups.map { (name, list) -> name to list.size }) { name ->
             startActivity(Intent(this, BrowseActivity::class.java).apply {
@@ -115,6 +116,7 @@ class BrowseActivity : AppCompatActivity() {
             })
         }
         container.addView(rv)
+        rv.requestFocus()
     }
 
     private fun renderContents(container: LinearLayout, group: String, items: List<Channel>) {
@@ -129,6 +131,11 @@ class BrowseActivity : AppCompatActivity() {
         container.addView(title)
 
         val rv = RecyclerView(this)
+        rv.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
         rv.layoutManager = GridLayoutManager(this, 5)
         rv.adapter = ChannelAdapter(items) { ch ->
             startActivity(Intent(this, PlayerActivity::class.java).apply {
@@ -136,5 +143,6 @@ class BrowseActivity : AppCompatActivity() {
             })
         }
         container.addView(rv)
+        rv.requestFocus()
     }
 }
