@@ -24,4 +24,11 @@
     <string name="browse_series">Séries</string>
     <string name="browse_settings">Ajustes</string>
     <string name="browse_empty">Nenhum item na sua lista.</string>
+    <string name="row_continue">Continuar assistindo</string>
+    <string name="row_favorites">Favoritos</string>
+    <string name="row_all">Todos</string>
+    <string name="search_results">Resultados (%1$d)</string>
+    <string name="fav_hint">Abra um canal e pressione o botão amarelo para favoritar.</string>
+    <string name="fav_added">Adicionado aos favoritos</string>
+    <string name="fav_removed">Removido dos favoritos</string>
 </resources>

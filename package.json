@@ -4,8 +4,8 @@
   "private": true,
   "description": "Native Android TV project — see README.md. Web preview is a static placeholder.",
   "scripts": {
-    "build:dev": "echo 'Native Android project — nothing to build for web.'",
-    "build": "echo 'Native Android project — nothing to build for web.'",
+    "build:dev": "mkdir -p dist && cp -r public/* dist/",
+    "build": "mkdir -p dist && cp -r public/* dist/",
     "dev": "node preview-server.cjs"
   },
   "devDependencies": {

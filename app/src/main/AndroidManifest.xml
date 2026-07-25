@@ -38,7 +38,13 @@
 
         <activity
             android:name=".ui.BrowseActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.Asterplay.Leanback" />
+
+        <activity
+            android:name=".ui.SearchActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Asterplay.LeanbackSearch" />
 
         <activity
             android:name=".ui.PlayerActivity"

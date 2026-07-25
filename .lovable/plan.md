@@ -1,78 +1,74 @@
+# Asterplay — Fase XCIPTV
 
-# Plano — Asterplay Android TV (APK via GitHub Actions)
+Preview do Lovable já foi corrigido (era o build:dev). Agora o roadmap Kotlin para deixar o app estilo XCIPTV, mantendo o painel/contrato Roku intacto.
 
-## Realidade técnica primeiro (importante)
+## Objetivo
+Transformar a tela `BrowseActivity` (hoje uma lista simples) numa experiência tipo XCIPTV/Roku original: grid de pôsteres com logo do canal, categorias na lateral, e todas as funções pedidas.
 
-O que você enviou é um app **Roku** (BrightScript + SceneGraph, ~5.300 linhas). **Não existe conversor** para Android. O que dá pra fazer é **reimplementar** o app em outra stack que gere APK e rode em Android TV com D-pad, mantendo o mesmo visual, mesmas telas e a mesma lógica (login por MAC, painel de ativação, playlist M3U, EPG, player, favoritos, pedidos, categorias, detalhes, live TV, settings).
+## Escopo desta fase
 
-Lovable é uma plataforma **web** (TanStack Start / React). Um projeto Android TV *nativo em Kotlin* não é editável dentro do Lovable. As duas opções realistas são:
+1. **Grid de pôsteres estilo Roku**
+   - `VerticalGridSupportFragment` (Leanback) com colunas responsivas.
+   - Cada card usa `tvg-logo` do M3U (via Coil), fallback pra `banner.png`.
+   - Categorias (`group-title`) viram linhas do `BrowseSupportFragment` (Netflix-like) com um "Todos" e uma linha "Favoritos" e "Continuar assistindo" fixas no topo.
 
-- **A) React TV app + Capacitor WebView (APK Android TV)** — 100% construível aqui, buildado por GitHub Actions. UI idêntica ao Roku, D-pad via spatial navigation, player com hls.js/Shaka, `<video>` HTML5. É o caminho recomendado.
-- **B) Kotlin nativo (Leanback/Compose TV)** — melhor performance de player, mas o código Kotlin **não** vive dentro do Lovable; eu só criaria o esqueleto e o workflow, e você editaria em Android Studio.
+2. **Favoritos** — DataStore (`favorites: Set<String>` por `stream_id`). Botão amarelo (Y) no controle alterna favorito. Linha dedicada no topo.
 
-**Vou seguir com a opção A**, que atende seu pedido "app nativo para TV, mostrar igual ao Roku" e permite build automático de APK pelo GitHub Actions sem você precisar de Android Studio.
+3. **Continue assistindo** — salva `positionMs` + `durationMs` por stream ao pausar/sair do `PlayerActivity`. Linha "Continuar" mostra itens com `< 95%` assistido. Ao abrir, `player.seekTo(pos)`.
 
-## Escopo desta primeira entrega
+4. **Busca** — `SearchSupportFragment` do Leanback. Digitação/voz filtra por `name` ignorando acentos.
 
-Escala grande — vou dividir em fases. Esta fase implementa a **fundação + tela de Login** (equivalente ao `LoginScene.brs`), com todo o pipeline de build de APK pronto. As telas restantes (Home, Live, Categorias, Detalhes, Player, Playlist, Settings, Requests, Actor) virão em fases seguintes, uma por vez, para manter qualidade.
+5. **EPG (XMLTV)** — painel devolve `epg_url` junto com `m3u_url`. Parser XMLTV (`<programme channel="..." start="..." stop="...">`) → mapa `channelId → List<Programme>`. Card mostra "Agora / Depois". Tecla ▶ Info abre timeline.
 
-### Fase 1 (este turno)
-1. **Assets** — Extrair `images/` e `videos/intro.mp4` do zip, subir pra CDN via `lovable-assets`, gerar ícone Android a partir de `icon_focus_hd.png` e splash a partir de `splash_fhd.jpg`.
-2. **UI base TV** — Tema escuro Asterplay (fundo `bg_gradient.jpg`, cor de foco, tipografia), layout fullscreen 1920×1080 com escala responsiva, sistema de foco por D-pad (setas + Enter + Back) usando `@noriginmedia/norigin-spatial-navigation`.
-3. **Rotas** — `/` → intro (vídeo `intro.mp4` + splash) → `/login`. Estrutura pronta para `/home`, `/live`, `/category/:type`, `/details/:id`, `/player`, `/settings`, `/requests`, `/playlist`.
-4. **Tela de Login** — Replica `LoginScene.xml/.brs`:
-   - Detecção de "MAC" do device (no web: hash persistente em localStorage, análogo ao `ResolveStreamCodesMac`)
-   - Chamada ao painel de ativação (`PanelTask`) — vou extrair a URL/protocolo do `.brs`
-   - Card com MAC, device key, QR de ativação (`qr_activate.png`), texto de status
-   - Campos host/usuário/senha manuais quando o painel falha
-   - Persistência em localStorage (equivalente ao `RegWrite`)
-5. **Capacitor Android** — Adicionar `@capacitor/core`, `@capacitor/android`, `capacitor.config.ts` com `appId=com.asterplay.tv`, `appName=Asterplay`. Pasta `android/` commitada com Leanback (`<uses-feature android:name="android.software.leanback">`, banner TV, category `LEANBACK_LAUNCHER`).
-6. **GitHub Actions** — `.github/workflows/android-apk.yml`: build web → `npx cap sync android` → `./gradlew assembleRelease` → assinar com keystore (secrets do repo) → publicar APK como artifact e em Releases a cada tag `v*`.
-7. **Docs** — `ANDROID_BUILD.md` explicando: secrets a criar (`ANDROID_KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`), como gerar o keystore, como instalar o APK numa Android TV / Fire TV.
+6. **Legendas externas** — no `PlayerActivity`, botão "CC" lista `.srt`/`.vtt` do stream (campo `subtitles` do M3U extendido) e permite anexar via `MergingMediaSource` + `SingleSampleMediaSource` (Media3).
 
-### Fases seguintes (turnos futuros, uma por pedido seu)
-- Fase 2: `MainScene` + `HomeScene` (grid principal com Filmes/Séries/TV/Playlist/Requests/Settings + faixa "Continue assistindo")
-- Fase 3: `PlaylistScene` (parser M3U + `PlaylistActionTask`) e `CategoryScene` + `CategoryGrid` + `PosterItem`
-- Fase 4: `DetailsScene` + `ActorScene` + `InfoTask` (TMDB/painel)
-- Fase 5: `LiveScene` + `EpgTask`
-- Fase 6: `PlayerScene` (hls.js + controles ctrl_play/pause/forward/rewind, legendas, resume)
-- Fase 7: `SettingsScene` + `RequestsScene` + `TranslateTask`
+7. **Controle parental (PIN)**
+   - Primeira vez em Ajustes: cria PIN 4 dígitos (DataStore, hash SHA-256).
+   - Categoria marcada como "adulto" (`group-title` contendo "XXX", "Adult", "+18") exige PIN antes de abrir.
+   - Tela Ajustes: alterar PIN, listar categorias bloqueadas.
 
-## Detalhes técnicos
+## Arquitetura
 
-**Stack:** React 19 + TanStack Router (já no projeto), Zustand para estado global (creds, playlist, favoritos), `@noriginmedia/norigin-spatial-navigation` para foco D-pad, `hls.js` para streams, Capacitor 6 para APK.
-
-**Manifest Android TV:**
-```xml
-<uses-feature android:name="android.software.leanback" android:required="true"/>
-<uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
-<application android:banner="@drawable/banner">
-  <activity ...>
-    <intent-filter>
-      <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
-    </intent-filter>
-  </activity>
-</application>
-```
-
-**Workflow (esboço):**
 ```text
-on: push tags v*, workflow_dispatch
-jobs.build:
-  - checkout
-  - setup-node + bun install + bun run build
-  - setup-java 17
-  - npx cap sync android
-  - decode keystore secret
-  - ./gradlew assembleRelease
-  - upload-artifact + softprops/action-gh-release
+data/
+  FavoritesStore.kt      DataStore<Set<String>>
+  ResumeStore.kt         DataStore<Map<streamId, ResumePoint>>
+  ParentalStore.kt       DataStore<pinHash, blockedGroups>
+  XmltvParser.kt         XmlPullParser → List<Programme>
+  EpgRepository.kt       cache 30 min em disco (files/epg.xml)
+  Models.kt              Channel, Programme, ResumePoint
+ui/
+  BrowseActivity.kt      substitui lista por BrowseSupportFragment
+  fragments/
+    MainBrowseFragment.kt      linhas: Continuar / Favoritos / <categorias>
+    GridCategoryFragment.kt    grid de uma categoria
+    SearchFragment.kt          SearchSupportFragment
+    SettingsFragment.kt        PIN + info
+  presenters/
+    PosterCardPresenter.kt     ImageCardView 220x330, título embaixo
+  PlayerActivity.kt      + resume, + legendas, + parental gate
 ```
 
-**Repo Yalespatrique/appasterplay:** o Lovable sincroniza para GitHub via a integração nativa (Plus → GitHub → Connect). Eu não consigo apontar pra um repo já existente — o fluxo padrão é criar o repo pelo Lovable. Se você **precisa** que seja exatamente esse repo, temos duas opções: (1) você renomeia/apaga o repo atual e deixa o Lovable criar `appasterplay` na sua conta, ou (2) depois de eu terminar, você exporta o código e faz push manual. **Confirma qual prefere** antes de eu concluir o build final.
+## Contrato com painel (mínimo, sem breaking change)
+Resposta atual `{ m3u_url }` passa a aceitar campos opcionais:
+```json
+{ "m3u_url": "...", "epg_url": "...", "user_expires_at": "..." }
+```
+Se `epg_url` faltar, EPG some silenciosamente. Nada quebra pra painéis antigos.
 
-## Perguntas que travam a Fase 1
+## Entrega em 2 sub-fases
 
-1. **Endpoint do painel de ativação** — no `.brs` deve estar a URL base. Vou extrair automaticamente, mas se você tiver uma URL de painel diferente, me diz.
-2. **Repo GitHub** — opção (1) recriar no Lovable ou (2) push manual depois? (não bloqueia o desenvolvimento, só o passo final)
+**Sub-fase A (essencial visual + comportamento)**
+Grid Leanback, PosterCardPresenter, Favoritos, Continue assistindo, Busca.
 
-Se tudo estiver ok, aprova que eu começo a Fase 1 já.
+**Sub-fase B (avançado)**
+EPG XMLTV, Legendas externas, PIN parental, tela de Ajustes.
+
+Começo pela **Sub-fase A** — é o que muda a cara do app pra "estilo XCIPTV/Roku". Depois que compilar e você validar no emulador de TV, sigo pra B.
+
+## Observações
+- Nada no painel precisa mudar hoje; `epg_url` é opt-in.
+- Play Store OK: continua BYO playlist, sem conteúdo embutido.
+- Preview Lovable seguirá mostrando só a página estática (é projeto nativo).
+
+Confirma que posso executar Sub-fase A agora?
