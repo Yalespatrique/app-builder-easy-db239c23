@@ -4,14 +4,15 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/bg_gradient"
-    android:padding="40dp">
+    android:background="@drawable/bg_gradient">
 
-    <!-- Logo tamanho ícone (figurinha) -->
+    <!-- ===== Header ===== -->
     <ImageView
         android:id="@+id/imgLogo"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_marginStart="40dp"
+        android:layout_marginTop="32dp"
         android:contentDescription="Asterplay"
         android:src="@drawable/logo_asterplay"
         app:layout_constraintTop_toTopOf="parent"
@@ -21,84 +22,202 @@
         android:id="@+id/txtDisclaimer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Asterplay é apenas um reprodutor de mídia. O usuário é responsável pelo conteúdo carregado."
-        android:textColor="#FFFFFFFF"
-        android:textSize="20sp"
         android:layout_marginStart="20dp"
-        android:layout_marginEnd="32dp"
+        android:layout_marginEnd="40dp"
+        android:text="Asterplay é apenas um reprodutor de mídia.\nO usuário é responsável pelo conteúdo carregado."
+        android:textColor="#DDFFFFFF"
+        android:textSize="16sp"
+        android:lineSpacingExtra="2dp"
         app:layout_constraintTop_toTopOf="@id/imgLogo"
         app:layout_constraintBottom_toBottomOf="@id/imgLogo"
         app:layout_constraintStart_toEndOf="@id/imgLogo"
-        app:layout_constraintEnd_toStartOf="@id/loginBox"/>
+        app:layout_constraintEnd_toStartOf="@id/loginCard"/>
 
-    <!-- Login por Código/Usuário/Senha -->
-    <LinearLayout
-        android:id="@+id/loginBox"
-        android:layout_width="420dp"
+    <!-- ===== Card de login (direita) ===== -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/loginCard"
+        android:layout_width="380dp"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#CC101019"
-        android:padding="24dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="40dp"
+        app:cardBackgroundColor="#E60F1620"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="8dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Entrar com código" android:textColor="#FFD700" android:textSize="22sp" android:textStyle="bold"/>
-        <EditText android:id="@+id/edtDns" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:hint="Código" android:textColorHint="#888" android:textColor="#FFF" android:textSize="18sp" android:layout_marginTop="14dp"/>
-        <EditText android:id="@+id/edtUser" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:hint="Usuário" android:textColorHint="#888" android:textColor="#FFF" android:textSize="18sp"/>
-        <EditText android:id="@+id/edtPass" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:hint="Senha" android:inputType="textPassword" android:textColorHint="#888" android:textColor="#FFF" android:textSize="18sp"/>
-        <Button android:id="@+id/btnLoginCode" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="ENTRAR" android:textSize="18sp" android:layout_marginTop="16dp"/>
-    </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
 
-    <!-- MAC (inferior esquerdo) -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Entrar com código"
+                android:textColor="#FFD54A"
+                android:textSize="20sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Use os dados fornecidos pelo seu provedor"
+                android:textColor="#99FFFFFF"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp"/>
+
+            <EditText
+                android:id="@+id/edtDns"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Código"
+                android:textColorHint="#77FFFFFF"
+                android:textColor="#FFFFFFFF"
+                android:textSize="16sp"
+                android:inputType="text"
+                android:layout_marginTop="6dp"/>
+
+            <EditText
+                android:id="@+id/edtUser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Usuário"
+                android:textColorHint="#77FFFFFF"
+                android:textColor="#FFFFFFFF"
+                android:textSize="16sp"
+                android:inputType="text"
+                android:layout_marginTop="6dp"/>
+
+            <EditText
+                android:id="@+id/edtPass"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Senha"
+                android:textColorHint="#77FFFFFF"
+                android:textColor="#FFFFFFFF"
+                android:textSize="16sp"
+                android:inputType="textPassword"
+                android:layout_marginTop="6dp"/>
+
+            <Button
+                android:id="@+id/btnLoginCode"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="ENTRAR"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="18dp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- ===== Rodapé: MAC (esq) | Painel + Chave (centro) | Ativar (dir) ===== -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/footerTop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.68"/>
+
+    <!-- MAC -->
     <LinearLayout
         android:id="@+id/macBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintBottom_toTopOf="@id/txtVersion"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="24dp">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="MAC" android:textColor="#AAA" android:textSize="18sp"/>
-        <TextView android:id="@+id/txtMac" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textColor="#FFD700" android:textSize="36sp" android:textStyle="bold"/>
-        <Button android:id="@+id/btnCheckMac" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Verificar ativação" android:textSize="16sp" android:layout_marginTop="10dp"/>
+        android:layout_marginStart="40dp"
+        app:layout_constraintTop_toTopOf="@id/footerTop"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MAC"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:letterSpacing="0.15"/>
+
+        <TextView
+            android:id="@+id/txtMac"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFD54A"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:layout_marginTop="4dp"
+            android:fontFamily="monospace"/>
     </LinearLayout>
 
-    <!-- Painel + Key (centro inferior) -->
+    <!-- Painel + Chave (centro) -->
     <LinearLayout
         android:id="@+id/panelBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
-        app:layout_constraintBottom_toTopOf="@id/txtVersion"
+        app:layout_constraintTop_toTopOf="@id/footerTop"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="24dp">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Painel" android:textColor="#AAA" android:textSize="18sp"/>
-        <TextView android:id="@+id/txtPanel" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="appasterplay.top" android:textColor="#00E676" android:textSize="30sp" android:textStyle="bold"/>
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Chave" android:textColor="#AAA" android:textSize="18sp" android:layout_marginTop="10dp"/>
-        <TextView android:id="@+id/txtKey" android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textColor="#FFD700" android:textSize="34sp" android:textStyle="bold"/>
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PAINEL"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:letterSpacing="0.15"/>
+
+        <TextView
+            android:id="@+id/txtPanel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="appasterplay.top"
+            android:textColor="#00E676"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:layout_marginTop="2dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CHAVE"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:letterSpacing="0.15"
+            android:layout_marginTop="14dp"/>
+
+        <TextView
+            android:id="@+id/txtKey"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFD54A"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.2"
+            android:fontFamily="monospace"/>
     </LinearLayout>
 
-    <!-- Versão (rodapé) -->
+    <!-- Botão Verificar Ativação -->
+    <Button
+        android:id="@+id/btnCheckMac"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Verificar ativação"
+        android:textSize="14sp"
+        android:layout_marginEnd="40dp"
+        app:layout_constraintTop_toTopOf="@id/footerTop"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- Versão -->
     <TextView
         android:id="@+id/txtVersion"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="#888"
-        android:textSize="14sp"
+        android:textColor="#888888"
+        android:textSize="12sp"
+        android:layout_marginBottom="18dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
