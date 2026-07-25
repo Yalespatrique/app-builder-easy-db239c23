@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="aster_bg">#0B0F1A</color>
+    <color name="aster_surface">#141B2D</color>
+    <color name="aster_primary">#F5B841</color>
+    <color name="aster_on_primary">#0B0F1A</color>
+    <color name="aster_text">#F5F7FA</color>
+    <color name="aster_text_muted">#93A0B8</color>
+</resources>

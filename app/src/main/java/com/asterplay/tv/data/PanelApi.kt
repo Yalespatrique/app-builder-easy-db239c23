@@ -1,0 +1,69 @@
+package com.asterplay.tv.data
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
+
+/**
+ * Cliente do painel de ativação — mesmo contrato do Roku
+ * (components/tasks/PanelTask.xml). Ordem de fallback:
+ *   1) https://appasterplay.top/api/public/playlist
+ *   2) https://painel.appasterplay.top/api/public/playlist
+ *
+ * Resposta esperada (JSON): { ok, m3u_url, status, days_left, message }
+ */
+data class PanelResponse(
+    val ok: Boolean,
+    val m3uUrl: String? = null,
+    val status: String? = null,
+    val daysLeft: String? = null,
+    val message: String? = null,
+)
+
+object PanelApi {
+    private val HOSTS = listOf(
+        "https://appasterplay.top",
+        "https://painel.appasterplay.top",
+    )
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
+
+    suspend fun fetch(mac: String, deviceKey: String): PanelResponse = withContext(Dispatchers.IO) {
+        val encMac = URLEncoder.encode(mac, "UTF-8")
+        val token = (System.currentTimeMillis() / 1000).toString()
+        var lastError: String? = null
+
+        for (host in HOSTS) {
+            val url = "$host/api/public/playlist?mac=$encMac&key=$deviceKey&_=$token"
+            try {
+                val req = Request.Builder().url(url).header("Accept", "application/json").build()
+                client.newCall(req).execute().use { res ->
+                    if (!res.isSuccessful) {
+                        lastError = "HTTP ${res.code}"; return@use
+                    }
+                    val body = res.body?.string().orEmpty()
+                    val json = JSONObject(body)
+                    val m3u = json.optString("m3u_url", "")
+                    val ok = json.optBoolean("ok", m3u.isNotEmpty())
+                    return@withContext PanelResponse(
+                        ok = ok,
+                        m3uUrl = m3u.ifEmpty { null },
+                        status = json.optString("status").ifEmpty { null },
+                        daysLeft = json.optString("days_left").ifEmpty { null },
+                        message = json.optString("message").ifEmpty { null },
+                    )
+                }
+            } catch (t: Throwable) {
+                lastError = t.message
+            }
+        }
+        PanelResponse(ok = false, message = lastError ?: "Painel indisponível")
+    }
+}

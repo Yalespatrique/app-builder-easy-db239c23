@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Asterplay" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/aster_bg</item>
+        <item name="android:colorBackground">@color/aster_bg</item>
+        <item name="colorPrimary">@color/aster_primary</item>
+        <item name="colorAccent">@color/aster_primary</item>
+        <item name="android:textColorPrimary">@color/aster_text</item>
+        <item name="android:textColorSecondary">@color/aster_text_muted</item>
+    </style>
+
+    <style name="Theme.Asterplay.Splash" parent="Theme.Asterplay">
+        <item name="android:windowBackground">@drawable/bg_gradient</item>
+    </style>
+</resources>
