@@ -11,8 +11,8 @@ android {
         applicationId = "com.asterplay.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1-roku-assets"
+        versionCode = 3
+        versionName = "1.0.2-cache-menu"
     }
 
     buildTypes {

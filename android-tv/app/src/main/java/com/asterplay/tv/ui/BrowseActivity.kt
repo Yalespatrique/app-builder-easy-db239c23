@@ -103,6 +103,11 @@ class BrowseActivity : AppCompatActivity() {
             .toSortedMap()
 
         val rv = RecyclerView(this)
+        rv.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
         rv.layoutManager = GridLayoutManager(this, 4)
         rv.adapter = CategoryAdapter(groups.map { (name, list) -> name to list.size }) { name ->
             startActivity(Intent(this, BrowseActivity::class.java).apply {
@@ -111,6 +116,7 @@ class BrowseActivity : AppCompatActivity() {
             })
         }
         container.addView(rv)
+        rv.requestFocus()
     }
 
     private fun renderContents(container: LinearLayout, group: String, items: List<Channel>) {
@@ -125,6 +131,11 @@ class BrowseActivity : AppCompatActivity() {
         container.addView(title)
 
         val rv = RecyclerView(this)
+        rv.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
         rv.layoutManager = GridLayoutManager(this, 5)
         rv.adapter = ChannelAdapter(items) { ch ->
             startActivity(Intent(this, PlayerActivity::class.java).apply {
@@ -132,5 +143,6 @@ class BrowseActivity : AppCompatActivity() {
             })
         }
         container.addView(rv)
+        rv.requestFocus()
     }
 }
