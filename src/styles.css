@@ -137,8 +137,109 @@
     border-color: var(--color-border);
   }
 
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
+  html,
+  body,
+  #root {
+    height: 100%;
   }
+
+  body {
+    background-color: #05070d;
+    color: #f5f5f7;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ============================================================
+   Asterplay TV theme — 10-foot UI, D-pad focus
+   ============================================================ */
+:root {
+  --aster-bg: #05070d;
+  --aster-panel: rgba(16, 22, 40, 0.72);
+  --aster-panel-border: rgba(255, 255, 255, 0.08);
+  --aster-text: #f5f5f7;
+  --aster-text-dim: #9aa3b8;
+  --aster-accent: #ff2e5b;
+  --aster-accent-2: #ffb14e;
+  --aster-focus: #ffffff;
+  --aster-danger: #f87171;
+  --aster-success: #34d399;
+}
+
+.aster-app {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(255, 46, 91, 0.18), transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(255, 177, 78, 0.10), transparent 60%),
+    linear-gradient(180deg, #05070d 0%, #0b1020 100%);
+  color: var(--aster-text);
+  overflow: hidden;
+}
+.aster-bg-image {
+  position: fixed;
+  inset: 0;
+  background: url("/tv/bg_gradient.jpg") center/cover no-repeat;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.aster-focusable {
+  outline: none;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+  will-change: transform;
+}
+.aster-focusable[data-focused="true"] {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 3px var(--aster-focus),
+    0 12px 40px rgba(255, 46, 91, 0.35);
+  z-index: 2;
+}
+
+.aster-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  padding: 0.9em 1.6em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--aster-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aster-btn-primary {
+  background: linear-gradient(135deg, var(--aster-accent), #d9204a);
+  border-color: transparent;
+}
+
+.aster-input {
+  width: 100%;
+  padding: 0.85em 1.1em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--aster-text);
+  font-size: 1.05rem;
+}
+.aster-input[data-focused="true"] {
+  border-color: var(--aster-accent);
+  box-shadow: 0 0 0 3px rgba(255, 46, 91, 0.35);
+}
+
+.aster-card {
+  background: var(--aster-panel);
+  border: 1px solid var(--aster-panel-border);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
 }
