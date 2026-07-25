@@ -77,14 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Asterplay Android TV" },
+      { name: "description", content: "Projeto do reprodutor Asterplay para Android TV com assets originais do Roku." },
+      { name: "author", content: "Asterplay" },
+      { property: "og:title", content: "Asterplay Android TV" },
+      { property: "og:description", content: "APK nativo Android TV do Asterplay com splash, vídeo, logos e player." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@Asterplay" },
     ],
     links: [
       {

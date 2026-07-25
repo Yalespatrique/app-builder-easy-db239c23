@@ -16,6 +16,7 @@ class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setTheme(R.style.Theme_Leanback)
         setContentView(R.layout.activity_splash)
 
         val video = findViewById<VideoView>(R.id.videoIntro)
@@ -23,7 +24,11 @@ class SplashActivity : AppCompatActivity() {
 
         val uri = Uri.parse("android.resource://" + packageName + "/" + R.raw.intro)
         video.setVideoURI(uri)
-        video.setOnPreparedListener { mp -> mp.isLooping = false }
+        video.setOnPreparedListener { mp ->
+            mp.isLooping = false
+            img.visibility = android.view.View.GONE
+            video.visibility = android.view.View.VISIBLE
+        }
         video.setOnCompletionListener { advance() }
         video.setOnErrorListener { _, _, _ ->
             video.visibility = android.view.View.GONE
