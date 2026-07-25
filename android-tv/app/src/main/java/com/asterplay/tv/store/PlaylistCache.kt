@@ -13,15 +13,21 @@ object PlaylistCache {
     fun saveFromM3uLines(ctx: Context, url: String, lines: Sequence<String>): Int {
         val db = ChannelDb.get(ctx)
         db.clearAll()
-        var count = 0
-        val seq = sequence {
-            M3UParser.forEach(lines) { c ->
-                yield(c to ChannelDb.classify(c))
+        val buffer = ArrayList<Pair<Channel, String>>(2048)
+        var total = 0
+        M3UParser.forEach(lines) { c ->
+            buffer += c to ChannelDb.classify(c)
+            if (buffer.size >= 2000) {
+                total += db.bulkInsert(buffer)
+                buffer.clear()
             }
         }
-        count = db.bulkInsert(seq)
-        if (count > 0) db.setMeta(url, count) else db.clearAll()
-        return count
+        if (buffer.isNotEmpty()) {
+            total += db.bulkInsert(buffer)
+            buffer.clear()
+        }
+        if (total > 0) db.setMeta(url, total) else db.clearAll()
+        return total
     }
 
     fun has(ctx: Context, url: String): Boolean {
