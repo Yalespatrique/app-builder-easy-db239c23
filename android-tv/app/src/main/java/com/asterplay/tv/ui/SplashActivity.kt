@@ -9,6 +9,7 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.datasource.RawResourceDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.asterplay.tv.R
@@ -19,6 +20,7 @@ class SplashActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var player: ExoPlayer? = null
     private val stuckFallback = Runnable { advance() }
+    private val endFallback = Runnable { advance() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,7 +35,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun startVideo(splashPhase: View, playerView: PlayerView) {
-        val uri = Uri.parse("android.resource://" + packageName + "/" + R.raw.intro)
+        val uri = RawResourceDataSource.buildRawResourceUri(R.raw.intro)
         val exoPlayer = ExoPlayer.Builder(this).build()
         player = exoPlayer
         playerView.player = exoPlayer
@@ -45,13 +47,19 @@ class SplashActivity : AppCompatActivity() {
                         splashPhase.visibility = View.GONE
                         playerView.visibility = View.VISIBLE
                         handler.removeCallbacks(stuckFallback)
+                        handler.postDelayed(endFallback, 7500)
+                        exoPlayer.play()
                     }
-                    Player.STATE_ENDED -> advance()
+                    Player.STATE_ENDED -> {
+                        handler.removeCallbacks(endFallback)
+                        advance()
+                    }
                 }
             }
 
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 handler.removeCallbacks(stuckFallback)
+                handler.removeCallbacks(endFallback)
                 advance()
             }
         })
