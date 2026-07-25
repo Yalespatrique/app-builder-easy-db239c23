@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.VideoView
@@ -14,36 +15,40 @@ import com.asterplay.tv.store.PlaylistStore
 
 class SplashActivity : AppCompatActivity() {
     private var advanced = false
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setTheme(R.style.Theme_Leanback)
         setContentView(R.layout.activity_splash)
 
-        val video = findViewById<VideoView>(R.id.videoIntro)
-        val img = findViewById<ImageView>(R.id.imgSplash)
+        val splashPhase = findViewById<View>(R.id.splashPhase)
         val logo = findViewById<ImageView>(R.id.imgLogoSpin)
+        val video = findViewById<VideoView>(R.id.videoIntro)
 
-        // Logo girando na frente do vídeo
+        // Fase 1: logo girando sobre o splash
         logo.startAnimation(AnimationUtils.loadAnimation(this, R.anim.spin))
 
+        // Após 2.2s: esconde a logo/splash e toca o vídeo limpo
+        handler.postDelayed({ startVideo(splashPhase, video) }, 2200)
+    }
+
+    private fun startVideo(splashPhase: View, video: VideoView) {
         val uri = Uri.parse("android.resource://" + packageName + "/" + R.raw.intro)
         video.setVideoURI(uri)
         video.setOnPreparedListener { mp ->
             mp.isLooping = false
-            img.visibility = android.view.View.GONE
-            video.visibility = android.view.View.VISIBLE
+            splashPhase.visibility = View.GONE
+            video.visibility = View.VISIBLE
         }
         video.setOnCompletionListener { advance() }
         video.setOnErrorListener { _, _, _ ->
-            video.visibility = android.view.View.GONE
-            img.visibility = android.view.View.VISIBLE
-            Handler(Looper.getMainLooper()).postDelayed({ advance() }, 1500)
-            true
+            advance(); true
         }
         video.start()
 
-        Handler(Looper.getMainLooper()).postDelayed({ advance() }, 8000)
+        // Fallback: se algo travar, avança em 10s
+        handler.postDelayed({ advance() }, 10000)
     }
 
     private fun advance() {
