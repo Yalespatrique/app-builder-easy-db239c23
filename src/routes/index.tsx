@@ -8,7 +8,7 @@ export const Route = createFileRoute("/")({
       { title: "Ative sua lista — Asterplay" },
       { name: "description", content: "Painel para ativar sua lista M3U no reprodutor Asterplay Android TV." },
       { property: "og:title", content: "Ative sua lista — Asterplay" },
-      { property: "og:description", content: "Cadastre sua lista M3U via MAC + Chave ou Código, usuário e senha." },
+      { property: "og:description", content: "Painel para ativar sua lista M3U no reprodutor Asterplay Android TV." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
