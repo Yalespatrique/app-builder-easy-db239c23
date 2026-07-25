@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,10 @@ class SplashActivity : AppCompatActivity() {
 
         val video = findViewById<VideoView>(R.id.videoIntro)
         val img = findViewById<ImageView>(R.id.imgSplash)
+        val logo = findViewById<ImageView>(R.id.imgLogoSpin)
+
+        // Logo girando na frente do vídeo
+        logo.startAnimation(AnimationUtils.loadAnimation(this, R.anim.spin))
 
         val uri = Uri.parse("android.resource://" + packageName + "/" + R.raw.intro)
         video.setVideoURI(uri)
@@ -38,7 +43,6 @@ class SplashActivity : AppCompatActivity() {
         }
         video.start()
 
-        // fallback máximo: 8s
         Handler(Looper.getMainLooper()).postDelayed({ advance() }, 8000)
     }
 
