@@ -2,6 +2,7 @@ package com.asterplay.tv.store
 
 import android.content.Context
 import com.asterplay.tv.net.Channel
+import com.asterplay.tv.net.M3UParser
 import org.json.JSONObject
 import java.io.File
 
@@ -19,24 +20,24 @@ object PlaylistCache {
     fun save(ctx: Context, url: String, channels: List<Channel>) {
         file(ctx).bufferedWriter().use { writer ->
             channels.forEach { c ->
-                writer.write(
-                    JSONObject().apply {
-                        put("name", c.name)
-                        put("url", c.url)
-                        put("logo", c.logo ?: "")
-                        put("group", c.group ?: "")
-                        put("tvgId", c.tvgId ?: "")
-                    }.toString()
-                )
+                writer.write(toJson(c).toString())
                 writer.newLine()
             }
         }
-        legacyFile(ctx).delete()
-        ctx.getSharedPreferences(META, Context.MODE_PRIVATE).edit()
-            .putString(KEY_URL, url)
-            .putLong(KEY_TS, System.currentTimeMillis())
-            .putInt(KEY_COUNT, channels.size)
-            .apply()
+        commitMeta(ctx, url, channels.size)
+    }
+
+    fun saveFromM3uLines(ctx: Context, url: String, lines: Sequence<String>): Int {
+        var count = 0
+        file(ctx).bufferedWriter().use { writer ->
+            M3UParser.forEach(lines) { c ->
+                writer.write(toJson(c).toString())
+                writer.newLine()
+                count++
+            }
+        }
+        if (count > 0) commitMeta(ctx, url, count) else file(ctx).delete()
+        return count
     }
 
     fun has(ctx: Context, url: String): Boolean {
@@ -95,6 +96,23 @@ object PlaylistCache {
         group = o.optString("group").ifEmpty { null },
         tvgId = o.optString("tvgId").ifEmpty { null }
     )
+
+    private fun toJson(c: Channel) = JSONObject().apply {
+        put("name", c.name)
+        put("url", c.url)
+        put("logo", c.logo ?: "")
+        put("group", c.group ?: "")
+        put("tvgId", c.tvgId ?: "")
+    }
+
+    private fun commitMeta(ctx: Context, url: String, count: Int) {
+        legacyFile(ctx).delete()
+        ctx.getSharedPreferences(META, Context.MODE_PRIVATE).edit()
+            .putString(KEY_URL, url)
+            .putLong(KEY_TS, System.currentTimeMillis())
+            .putInt(KEY_COUNT, count)
+            .apply()
+    }
 
     fun clear(ctx: Context) {
         file(ctx).delete()

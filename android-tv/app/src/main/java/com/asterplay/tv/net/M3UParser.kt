@@ -17,6 +17,11 @@ object M3UParser {
 
     fun parseLines(lines: Sequence<String>): List<Channel> {
         val out = mutableListOf<Channel>()
+        forEach(lines) { out += it }
+        return out
+    }
+
+    fun forEach(lines: Sequence<String>, onChannel: (Channel) -> Unit) {
         var pending: Map<String, String>? = null
         var pendingName: String? = null
         for (raw in lines) {
@@ -27,17 +32,18 @@ object M3UParser {
                 pendingName = line.substringAfterLast(",").trim()
             } else if (line.isNotEmpty() && !line.startsWith("#")) {
                 val attrs = pending ?: continue
-                out += Channel(
-                    name = pendingName ?: "Sem nome",
-                    url = line,
-                    logo = attrs["tvg-logo"],
-                    group = attrs["group-title"],
-                    tvgId = attrs["tvg-id"]
+                onChannel(
+                    Channel(
+                        name = pendingName ?: "Sem nome",
+                        url = line,
+                        logo = attrs["tvg-logo"],
+                        group = attrs["group-title"],
+                        tvgId = attrs["tvg-id"]
+                    )
                 )
                 pending = null
                 pendingName = null
             }
         }
-        return out
     }
 }

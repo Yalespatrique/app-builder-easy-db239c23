@@ -6,7 +6,6 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.asterplay.tv.R
-import com.asterplay.tv.net.M3UParser
 import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
 import kotlinx.coroutines.Dispatchers
@@ -33,9 +32,8 @@ class LoadingActivity : AppCompatActivity() {
                 goHome(); return@launch
             }
             status.text = "Carregando informações da lista..."
-            val channels = withContext(Dispatchers.IO) { downloadAndParse(url) }
-            if (channels.isNotEmpty()) {
-                withContext(Dispatchers.IO) { PlaylistCache.save(this@LoadingActivity, url, channels) }
+            val count = withContext(Dispatchers.IO) { downloadAndCache(url) }
+            if (count > 0) {
                 goHome()
             } else {
                 status.text = "Não foi possível carregar sua lista."
@@ -54,17 +52,17 @@ class LoadingActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun downloadAndParse(url: String) = try {
+    private fun downloadAndCache(url: String) = try {
         val client = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
         client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-            if (!resp.isSuccessful) return@use emptyList()
-            val body = resp.body ?: return@use emptyList()
+            if (!resp.isSuccessful) return@use 0
+            val body = resp.body ?: return@use 0
             body.charStream().buffered().useLines { lines ->
-                M3UParser.parseLines(lines)
+                PlaylistCache.saveFromM3uLines(this, url, lines)
             }
         }
-    } catch (_: Exception) { emptyList() }
+    } catch (_: Exception) { 0 }
 }
