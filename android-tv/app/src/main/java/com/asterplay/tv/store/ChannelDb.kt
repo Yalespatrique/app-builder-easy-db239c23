@@ -73,7 +73,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
     fun currentUrl(): String? = getMeta("url")
     fun currentCount(): Int = getMeta("count")?.toIntOrNull() ?: 0
 
-    fun bulkInsert(channels: Sequence<Pair<Channel, String>>): Int {
+    fun bulkInsert(channels: Iterable<Pair<Channel, String>>): Int {
         val db = writableDatabase
         var count = 0
         db.beginTransactionNonExclusive()
