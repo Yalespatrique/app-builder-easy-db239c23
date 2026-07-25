@@ -19,19 +19,20 @@ object M3UParser {
         val out = mutableListOf<Channel>()
         var pending: Map<String, String>? = null
         var pendingName: String? = null
-        lines.forEach { raw ->
+        for (raw in lines) {
             val line = raw.trim()
             if (line.startsWith("#EXTINF")) {
                 val attrs = attrRegex.findAll(line).associate { it.groupValues[1] to it.groupValues[2] }
                 pending = attrs
                 pendingName = line.substringAfterLast(",").trim()
-            } else if (line.isNotEmpty() && !line.startsWith("#") && pending != null) {
+            } else if (line.isNotEmpty() && !line.startsWith("#")) {
+                val attrs = pending ?: continue
                 out += Channel(
                     name = pendingName ?: "Sem nome",
                     url = line,
-                    logo = pending["tvg-logo"],
-                    group = pending["group-title"],
-                    tvgId = pending["tvg-id"]
+                    logo = attrs["tvg-logo"],
+                    group = attrs["group-title"],
+                    tvgId = attrs["tvg-id"]
                 )
                 pending = null
                 pendingName = null

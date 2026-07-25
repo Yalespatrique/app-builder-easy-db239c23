@@ -8,20 +8,15 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.asterplay.tv.R
 import com.asterplay.tv.net.Channel
-import com.asterplay.tv.net.M3UParser
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
 
 class BrowseActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,20 +55,6 @@ class BrowseActivity : AppCompatActivity() {
             }
         }
     }
-
-    private fun downloadAndParse(url: String): List<Channel> = try {
-        val client = OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build()
-        client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
-            if (!resp.isSuccessful) return@use emptyList()
-            val body = resp.body ?: return@use emptyList()
-            body.charStream().buffered().useLines { lines ->
-                M3UParser.parseLines(lines)
-            }
-        }
-    } catch (_: Exception) { emptyList() }
 
     private fun filterByType(all: List<Channel>, type: String?): List<Channel> {
         return when (type) {
