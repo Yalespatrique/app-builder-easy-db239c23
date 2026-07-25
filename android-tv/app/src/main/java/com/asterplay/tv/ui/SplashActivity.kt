@@ -6,8 +6,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.view.animation.AnimationUtils
-import android.widget.ImageView
 import android.widget.VideoView
 import androidx.appcompat.app.AppCompatActivity
 import com.asterplay.tv.R
@@ -23,14 +21,10 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
 
         val splashPhase = findViewById<View>(R.id.splashPhase)
-        val logo = findViewById<ImageView>(R.id.imgLogoSpin)
         val video = findViewById<VideoView>(R.id.videoIntro)
 
-        // Fase 1: logo girando sobre o splash
-        logo.startAnimation(AnimationUtils.loadAnimation(this, R.anim.spin))
-
-        // Após 2.2s: esconde a logo/splash e toca o vídeo limpo
-        handler.postDelayed({ startVideo(splashPhase, video) }, 2200)
+        // Fase 1: splash estático com a logo. Após 1.4s, inicia o vídeo.
+        handler.postDelayed({ startVideo(splashPhase, video) }, 1400)
     }
 
     private fun startVideo(splashPhase: View, video: VideoView) {
@@ -38,17 +32,19 @@ class SplashActivity : AppCompatActivity() {
         video.setVideoURI(uri)
         video.setOnPreparedListener { mp ->
             mp.isLooping = false
+            // Só troca de fase quando o vídeo está realmente pronto para tocar
             splashPhase.visibility = View.GONE
             video.visibility = View.VISIBLE
+            video.start()
         }
         video.setOnCompletionListener { advance() }
         video.setOnErrorListener { _, _, _ ->
-            advance(); true
+            // Se o vídeo falhar, avança direto após breve delay
+            handler.postDelayed({ advance() }, 800)
+            true
         }
-        video.start()
-
-        // Fallback: se algo travar, avança em 10s
-        handler.postDelayed({ advance() }, 10000)
+        // Fallback duro caso o player trave
+        handler.postDelayed({ advance() }, 15000)
     }
 
     private fun advance() {
