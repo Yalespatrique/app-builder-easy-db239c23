@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/splash">
+    android:background="@android:color/black">
 
     <ImageView
         android:id="@+id/imgSplash"
@@ -18,8 +18,9 @@
         android:layout_gravity="center" />
 
     <ImageView
-        android:layout_width="220dp"
-        android:layout_height="166dp"
+        android:id="@+id/imgLogoSpin"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
         android:layout_gravity="center"
         android:contentDescription="Asterplay"
         android:src="@drawable/logo_asterplay" />
