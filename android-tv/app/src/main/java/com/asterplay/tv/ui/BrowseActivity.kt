@@ -79,9 +79,10 @@ class BrowseActivity : AppCompatActivity() {
                 PlaylistCache.byGroup(this@BrowseActivity, type, group)
             }
             gridContents.adapter = ChannelAdapter(items) { ch ->
-                startActivity(Intent(this, PlayerActivity::class.java).apply {
-                    putExtra("url", ch.url); putExtra("name", ch.name)
-                })
+                val i = Intent(this@BrowseActivity, PlayerActivity::class.java)
+                i.putExtra("url", ch.url)
+                i.putExtra("name", ch.name)
+                startActivity(i)
             }
         }
     }
