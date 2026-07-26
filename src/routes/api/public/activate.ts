@@ -36,23 +36,25 @@ export const Route = createFileRoute("/api/public/activate")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       GET: async ({ request }) => {
         const u = new URL(request.url);
-        const rawMac = (u.searchParams.get("mac") ?? "").trim().toUpperCase();
-        const key = (u.searchParams.get("key") ?? "").trim().toUpperCase();
-        if (!rawMac || !key) return json(400, { ok: false, message: "mac e key obrigatórios" });
-        // Aceita MAC com ou sem separadores. Gera variantes para casar com o formato salvo.
-        const hex = rawMac.replace(/[^0-9A-F]/g, "");
-        const colon = hex.match(/.{1,2}/g)?.join(":") ?? hex;
-        const dash = hex.match(/.{1,2}/g)?.join("-") ?? hex;
-        const variants = Array.from(new Set([rawMac, hex, colon, dash]));
+        const rawMac = (u.searchParams.get("mac") ?? "").trim();
+        const rawKey = (u.searchParams.get("key") ?? "").trim();
+        if (!rawMac || !rawKey) return json(400, { ok: false, message: "mac e key obrigatórios" });
+        // Normaliza: só hex maiúsculo, sem separadores. Compara dos dois lados desse jeito.
+        const macHex = rawMac.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
+        const keyNorm = rawKey.toUpperCase();
+        if (macHex.length !== 12) return json(400, { ok: false, message: "MAC inválido" });
+        // Busca pela chave (curta) e casa o MAC normalizado no servidor.
         const { data, error } = await sb()
           .from("activations")
           .select("playlist_url, active, mac, device_key")
-          .in("mac", variants)
-          .eq("device_key", key)
-          .maybeSingle();
+          .eq("device_key", keyNorm);
         if (error) return json(500, { ok: false, message: error.message });
-        if (!data || !data.active) return json(404, { ok: false, message: "Ativação não encontrada" });
-        return json(200, { ok: true, playlist_url: data.playlist_url });
+        const match = (data ?? []).find(
+          (row) => (row.mac ?? "").replace(/[^0-9a-fA-F]/g, "").toUpperCase() === macHex,
+        );
+        if (!match) return json(404, { ok: false, message: "Ativação não encontrada" });
+        if (!match.active) return json(403, { ok: false, message: "Ativação inativa" });
+        return json(200, { ok: true, playlist_url: match.playlist_url });
       },
     },
   },
