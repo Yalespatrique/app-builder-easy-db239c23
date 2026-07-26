@@ -11,8 +11,8 @@ android {
         applicationId = "com.asterplay.tv"
         minSdk = 21
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.0.3-sqlite"
+        versionCode = 5
+        versionName = "1.0.4-categorias"
     }
 
     buildTypes {

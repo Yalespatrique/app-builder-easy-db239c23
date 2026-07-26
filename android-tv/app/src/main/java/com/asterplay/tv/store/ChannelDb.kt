@@ -103,7 +103,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
     fun groupsByType(type: String): List<Pair<String, Int>> {
         val out = mutableListOf<Pair<String, Int>>()
         readableDatabase.rawQuery(
-            "SELECT grp, COUNT(*) FROM channels WHERE type=? GROUP BY grp ORDER BY grp COLLATE NOCASE",
+            "SELECT COALESCE(NULLIF(TRIM(grp),''),'Outros') AS g, COUNT(*) FROM channels WHERE type=? GROUP BY g ORDER BY g COLLATE NOCASE",
             arrayOf(type)
         ).use {
             while (it.moveToNext()) out += it.getString(0) to it.getInt(1)
