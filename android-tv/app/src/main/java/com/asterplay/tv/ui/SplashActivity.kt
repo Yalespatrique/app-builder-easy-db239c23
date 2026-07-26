@@ -89,12 +89,18 @@ class SplashActivity : AppCompatActivity() {
         if (advanced) return
         advanced = true
         val url = PlaylistStore.get(this)
-        val next = when {
-            url == null -> PairingActivity::class.java
-            PlaylistCache.has(this, url) -> HomeActivity::class.java
-            else -> LoadingActivity::class.java
+        // Só vai direto pro menu se já tiver cache pronto.
+        // Se tem URL salva mas o cache foi invalidado, esquece a URL e volta pro login,
+        // assim o download acontece UMA vez só, logo após ativar.
+        val next = if (url != null && PlaylistCache.has(this, url)) {
+            HomeActivity::class.java
+        } else {
+            if (url != null) PlaylistStore.clear(this)
+            PairingActivity::class.java
         }
-        startActivity(Intent(this, next))
+        val i = Intent(this, next)
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(i)
         finish()
     }
 }
