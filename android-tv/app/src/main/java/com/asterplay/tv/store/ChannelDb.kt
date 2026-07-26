@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.asterplay.tv.net.Channel
+import java.text.Normalizer
 
 class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, null, DB_VERSION) {
 
@@ -102,7 +103,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
     fun groupsByType(type: String): List<Pair<String, Int>> {
         val out = mutableListOf<Pair<String, Int>>()
         readableDatabase.rawQuery(
-            "SELECT COALESCE(NULLIF(TRIM(grp),''),'Outros') AS g, COUNT(*) FROM channels WHERE type=? GROUP BY g ORDER BY g COLLATE NOCASE",
+            "SELECT grp, COUNT(*) FROM channels WHERE type=? GROUP BY grp ORDER BY grp COLLATE NOCASE",
             arrayOf(type)
         ).use {
             while (it.moveToNext()) out += it.getString(0) to it.getInt(1)
@@ -113,10 +114,10 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
     fun channelsByGroup(type: String, group: String, limit: Int = 500): List<Channel> {
         val out = ArrayList<Channel>()
         val sql = if (group == "Outros")
-            "SELECT name,url,logo,grp,tvg FROM channels WHERE type=? AND (grp IS NULL OR TRIM(grp)='') ORDER BY name COLLATE NOCASE LIMIT ?"
+            "SELECT name,url,logo,grp,tvg FROM channels WHERE type=? AND (grp=? OR grp IS NULL OR TRIM(grp)='') ORDER BY name COLLATE NOCASE LIMIT ?"
         else
             "SELECT name,url,logo,grp,tvg FROM channels WHERE type=? AND grp=? ORDER BY name COLLATE NOCASE LIMIT ?"
-        val args = if (group == "Outros") arrayOf(type, limit.toString())
+        val args = if (group == "Outros") arrayOf(type, group, limit.toString())
                    else arrayOf(type, group, limit.toString())
         readableDatabase.rawQuery(sql, args).use {
             while (it.moveToNext()) {
@@ -153,7 +154,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
 
     companion object {
         private const val DB_NAME = "asterplay.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
 
         @Volatile private var INSTANCE: ChannelDb? = null
         fun get(ctx: Context): ChannelDb {
@@ -163,14 +164,52 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
         }
 
         fun classify(c: Channel): String {
-            val g = c.group?.lowercase().orEmpty()
+            val group = normalize(c.group.orEmpty())
+            val name = normalize(c.name)
+            val source = "$group $name"
             val u = c.url.lowercase()
-            val isSeries = g.contains("serie") || g.contains("série") || g.contains("temporada") || g.contains("novela") || u.contains("/series/")
+
+            if (u.contains("/series/") || u.contains("/serie/")) return "series"
+            if (u.contains("/movie/") || u.contains("/movies/") || u.contains("/vod/")) return "vod"
+            if (u.contains("/live/")) return "live"
+
+            if (isLiveGroup(group)) return "live"
+
+            val isSeries = hasAny(source, listOf("serie", "series", "seriado", "seriados", "temporada", "temporadas", "episodio", "episodios", "capitulo", "capitulos", "novela", "novelas"))
             if (isSeries) return "series"
-            val isMovie = g.contains("filme") || g.contains("movie") || g.contains("vod") || g.contains("cinema") ||
-                    u.contains("/movie/") || u.endsWith(".mp4") || u.endsWith(".mkv") || u.endsWith(".avi")
+
+            val isLive = hasAny(source, listOf("canal", "canais", "ao vivo", "tv", "televisao", "esporte ao vivo", "jornal", "noticias", "infantil ao vivo"))
+            if (isLive) return "live"
+
+            val isMovie = hasAny(source, listOf("filme", "filmes", "movie", "movies", "cinema", "vod", "lancamento", "lancamentos", "dublado", "legendado", "acao", "comedia", "terror"))
             if (isMovie) return "vod"
+
+            if (u.endsWith(".mp4") || u.endsWith(".mkv") || u.endsWith(".avi") || u.endsWith(".mov") || u.endsWith(".m4v")) return "vod"
             return "live"
+        }
+
+        private fun normalize(value: String): String {
+            return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replace("\\p{Mn}+".toRegex(), "")
+                .lowercase()
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .trim()
+        }
+
+        private fun isLiveGroup(group: String): Boolean {
+            return group.startsWith("canais") ||
+                group.startsWith("canal ") ||
+                group.startsWith("ao vivo") ||
+                group.startsWith("tv ") ||
+                group.contains("|| canais") ||
+                group.contains("| canais")
+        }
+
+        private fun hasAny(text: String, terms: List<String>): Boolean {
+            return terms.any { term ->
+                Regex("(^|[^a-z0-9])${Regex.escape(term)}([^a-z0-9]|$)").containsMatchIn(text)
+            }
         }
     }
 }
