@@ -60,12 +60,12 @@ fun SplashScreen(onDone: (Context) -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         if (!showVideo) {
-            // Fase 1: logo estático (usa o mipmap do launcher; ajusta se tiver outra logo).
+            // Fase 1: logo em tela cheia.
             Image(
-                painter = painterResource(R.mipmap.ic_launcher),
+                painter = painterResource(R.drawable.logo_asterplay),
                 contentDescription = "Asterplay",
-                modifier = Modifier.size(200.dp),
-                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
             )
         } else {
             var player by remember { mutableStateOf<ExoPlayer?>(null) }
