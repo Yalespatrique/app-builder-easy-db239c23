@@ -359,3 +359,40 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
         )
     }
 }
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun MoviePreviewVideo(url: String) {
+    val ctx = LocalContext.current
+    val player = remember(url) {
+        ExoPlayer.Builder(ctx).build().apply {
+            volume = 0f
+            repeatMode = Player.REPEAT_MODE_OFF
+            setMediaItem(MediaItem.fromUri(url))
+            playWhenReady = true
+            addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == Player.STATE_READY) {
+                        val dur = duration
+                        val target = if (dur > 0) dur / 2 else 20 * 60 * 1000L
+                        if (currentPosition < 1000L) seekTo(target)
+                    }
+                }
+            })
+            prepare()
+        }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = { c ->
+            PlayerView(c).apply {
+                useController = false
+                this.player = player
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            }
+        },
+    )
+}
