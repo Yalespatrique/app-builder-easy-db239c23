@@ -365,11 +365,12 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun MoviePreviewVideo(url: String) {
+private fun MoviePreviewVideo(url: String, onFirstFrame: () -> Unit = {}) {
     val ctx = LocalContext.current
+    val firstFrameCb = rememberUpdatedState(onFirstFrame)
     val player = remember(url) {
         ExoPlayer.Builder(ctx).build().apply {
-            volume = 0f
+            volume = 1f
             repeatMode = Player.REPEAT_MODE_OFF
             setMediaItem(MediaItem.fromUri(url))
             playWhenReady = true
@@ -380,6 +381,9 @@ private fun MoviePreviewVideo(url: String) {
                         val target = if (dur > 0) dur / 2 else 20 * 60 * 1000L
                         if (currentPosition < 1000L) seekTo(target)
                     }
+                }
+                override fun onRenderedFirstFrame() {
+                    firstFrameCb.value()
                 }
             })
             prepare()
