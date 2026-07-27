@@ -22,21 +22,29 @@ object TopHomePreload {
         val account = CacheDb.accountKey(creds.host, creds.username)
         val cachedM = TopCacheStore.read(ctx, account, "movie")
         val cachedS = TopCacheStore.read(ctx, account, "series")
-        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty()) return
+        val cachedRecentM = TopCacheStore.read(ctx, account, "recent_movie")
+        val cachedRecentS = TopCacheStore.read(ctx, account, "recent_series")
+        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty() &&
+            !cachedRecentM.isNullOrEmpty() && !cachedRecentS.isNullOrEmpty()
+        ) return
 
-        val (tmdbM, tmdbS, srvM, srvS) = withContext(Dispatchers.IO) {
+        val (tmdbM, tmdbS, srvM, srvS, recentM, recentS) = withContext(Dispatchers.IO) {
             coroutineScope {
                 val a = async { TmdbApi.topMovies(25) }
                 val b = async { TmdbApi.topSeries(25) }
                 val c = async { XtreamApi.allStreams(creds, "vod") }
                 val d = async { XtreamApi.allStreams(creds, "series") }
-                val r = listOf(a, b, c, d).awaitAll()
+                val e = async { XtreamApi.recentStreams(creds, "vod", 20) }
+                val f = async { XtreamApi.recentStreams(creds, "series", 20) }
+                val r = listOf(a, b, c, d, e, f).awaitAll()
                 @Suppress("UNCHECKED_CAST")
-                Quad(
+                HomePayload(
                     r[0] as List<TmdbApi.Item>,
                     r[1] as List<TmdbApi.Item>,
                     r[2] as List<Channel>,
                     r[3] as List<Channel>,
+                    r[4] as List<Channel>,
+                    r[5] as List<Channel>,
                 )
             }
         }
@@ -45,11 +53,25 @@ object TopHomePreload {
         val series = match(tmdbS, srvS, 10)
         if (movies.isNotEmpty()) TopCacheStore.write(ctx, account, "movie", movies)
         if (series.isNotEmpty()) TopCacheStore.write(ctx, account, "series", series)
+        if (recentM.isNotEmpty()) TopCacheStore.write(ctx, account, "recent_movie", recentM.map { it.toCacheEntry() })
+        if (recentS.isNotEmpty()) TopCacheStore.write(ctx, account, "recent_series", recentS.map { it.toCacheEntry() })
     }
 
-    private data class Quad(
+    private data class HomePayload(
         val a: List<TmdbApi.Item>, val b: List<TmdbApi.Item>,
         val c: List<Channel>, val d: List<Channel>,
+        val e: List<Channel>, val f: List<Channel>,
+    )
+
+    private fun Channel.toCacheEntry() = TopCacheStore.Entry(
+        title = name,
+        poster = logo,
+        tmdbId = 0L,
+        chName = name,
+        chUrl = url,
+        chLogo = logo,
+        chGroup = group,
+        chTvg = tvgId,
     )
 
     private val STRIP_TAGS = Regex("\\[[^\\]]*]|\\([^)]*\\)|\\bs\\d{1,2}e\\d{1,3}\\b|\\bs\\d{1,2}\\b|\\b\\d{4}\\b|\\b(4k|fhd|hd|sd|hevc|dub|dublado|leg|legendado|br|nac|multi|imax|remux)\\b")
