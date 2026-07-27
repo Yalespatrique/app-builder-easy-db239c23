@@ -117,10 +117,11 @@ fun PairingScreen(onActivated: () -> Unit) {
         ) {
             // Cabeçalho
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(48.dp).background(BrandGradient, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(Icons.Default.QrCode2, null, tint = Color.White) }
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = com.asterplay.tv.R.drawable.logo_asterplay),
+                    contentDescription = "Asterplay",
+                    modifier = Modifier.size(64.dp),
+                )
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text(
