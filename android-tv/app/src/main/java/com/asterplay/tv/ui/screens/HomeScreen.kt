@@ -104,9 +104,9 @@ fun HomeScreen(
         // 1) Cache local: mostra imediatamente se houver.
         val cachedM = TopCacheStore.read(ctx, account, "movie")
         val cachedS = TopCacheStore.read(ctx, account, "series")
-        if (cachedM != null) topMovies = cachedM.map { it.toHit() }
-        if (cachedS != null) topSeries = cachedS.map { it.toHit() }
-        if (cachedM != null && cachedS != null) {
+        if (!cachedM.isNullOrEmpty()) topMovies = cachedM.map { it.toHit() }
+        if (!cachedS.isNullOrEmpty()) topSeries = cachedS.map { it.toHit() }
+        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty()) {
             loaded = true
             return@LaunchedEffect
         }
@@ -128,8 +128,9 @@ fun HomeScreen(
         val sHits = matchTop(tmdbSeries, srvSeries, 10)
         topMovies = mHits
         topSeries = sHits
-        TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
-        TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
+        // Só cacheia se tiver dado — evita "prender" resultado vazio por 24h.
+        if (mHits.isNotEmpty()) TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
+        if (sHits.isNotEmpty()) TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
         loaded = true
     }
 
