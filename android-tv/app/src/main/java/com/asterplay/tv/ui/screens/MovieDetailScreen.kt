@@ -171,19 +171,12 @@ fun MovieDetailScreen(onBack: () -> Unit) {
 
         // Preview de vídeo (mantém montado enquanto wantVideo, revela após 1º frame)
         if (wantVideo) {
-            AnimatedVisibility(
-                visible = showPreview,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.fillMaxSize(),
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .then(if (showPreview) Modifier else Modifier.alpha(0f))
             ) {
                 MoviePreviewVideo(url = channel.url, onFirstFrame = { videoReady = true })
-            }
-            if (!showPreview) {
-                // renderiza off-screen para carregar frames antes de exibir
-                Box(Modifier.fillMaxSize()) {
-                    MoviePreviewVideo(url = channel.url, onFirstFrame = { videoReady = true })
-                }
             }
         }
         // Dark gradient overlay
