@@ -62,6 +62,7 @@ import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
+import com.asterplay.tv.store.TopCacheStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.PosterCard
 import com.asterplay.tv.ui.theme.Accent
@@ -98,26 +99,37 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         val creds = XtreamStore.get(ctx)
         if (creds == null) { loaded = true; return@LaunchedEffect }
+        val account = CacheDb.accountKey(creds.host, creds.username)
 
-        // Busca em paralelo TMDB (10+10) + catálogo do servidor (vod + series)
+        // 1) Cache local: mostra imediatamente se houver.
+        val cachedM = TopCacheStore.read(ctx, account, "movie")
+        val cachedS = TopCacheStore.read(ctx, account, "series")
+        if (cachedM != null) topMovies = cachedM.map { it.toHit() }
+        if (cachedS != null) topSeries = cachedS.map { it.toHit() }
+        if (cachedM != null && cachedS != null) {
+            loaded = true
+            return@LaunchedEffect
+        }
+
+        // 2) Rede: TMDB top 25 + catálogo do servidor em paralelo; match até 10.
         val res = withContext(Dispatchers.IO) {
-            val tmdbM = async { TmdbApi.topMovies(10) }
-            val tmdbS = async { TmdbApi.topSeries(10) }
+            val tmdbM = async { TmdbApi.topMovies(25) }
+            val tmdbS = async { TmdbApi.topSeries(25) }
             val srvM = async { XtreamApi.allStreams(creds, "vod") }
             val srvS = async { XtreamApi.allStreams(creds, "series") }
             listOf(tmdbM, tmdbS, srvM, srvS).awaitAll()
         }
-        @Suppress("UNCHECKED_CAST")
-        val tmdbMovies = res[0] as List<TmdbApi.Item>
-        @Suppress("UNCHECKED_CAST")
-        val tmdbSeries = res[1] as List<TmdbApi.Item>
-        @Suppress("UNCHECKED_CAST")
-        val srvMovies = res[2] as List<Channel>
-        @Suppress("UNCHECKED_CAST")
-        val srvSeries = res[3] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val tmdbMovies = res[0] as List<TmdbApi.Item>
+        @Suppress("UNCHECKED_CAST") val tmdbSeries = res[1] as List<TmdbApi.Item>
+        @Suppress("UNCHECKED_CAST") val srvMovies = res[2] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val srvSeries = res[3] as List<Channel>
 
-        topMovies = matchTop(tmdbMovies, srvMovies)
-        topSeries = matchTop(tmdbSeries, srvSeries)
+        val mHits = matchTop(tmdbMovies, srvMovies, 10)
+        val sHits = matchTop(tmdbSeries, srvSeries, 10)
+        topMovies = mHits
+        topSeries = sHits
+        TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
+        TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
         loaded = true
     }
 
@@ -156,7 +168,7 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.Favorite, "Favoritos") { /* futuro */ }
                 Spacer(Modifier.weight(1f))
                 SideMenuItem(Icons.Default.Logout, "Sair") {
-                    PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); onLogout()
+                    PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx); onLogout()
                 }
                 Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
                 Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
@@ -214,21 +226,20 @@ private fun norm(s: String): String {
     return n.replace(Regex("[^a-z0-9]+"), " ").trim()
 }
 
-private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>): List<TopHit> {
+private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>, limit: Int = 10): List<TopHit> {
     if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
-    // Index normalizado do servidor → primeiro Channel encontrado
     val index = HashMap<String, Channel>(server.size)
     for (c in server) {
         val k = norm(c.name)
         if (k.isNotEmpty() && !index.containsKey(k)) index[k] = c
     }
-    val out = ArrayList<TopHit>()
+    val out = ArrayList<TopHit>(limit)
     for (t in tmdb) {
+        if (out.size >= limit) break
         val tk = norm(t.title)
         if (tk.isEmpty()) continue
         var hit = index[tk]
         if (hit == null) {
-            // fallback: qualquer chave do servidor que contenha o título (ou vice-versa)
             for ((k, ch) in index) {
                 if (k.contains(tk) || tk.contains(k)) { hit = ch; break }
             }
@@ -237,6 +248,17 @@ private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>): List<TopH
     }
     return out
 }
+
+private fun TopHit.toEntry() = TopCacheStore.Entry(
+    title = tmdb.title, poster = tmdb.poster, tmdbId = tmdb.tmdbId,
+    chName = channel.name, chUrl = channel.url, chLogo = channel.logo,
+    chGroup = channel.group, chTvg = channel.tvgId,
+)
+
+private fun TopCacheStore.Entry.toHit() = TopHit(
+    tmdb = TmdbApi.Item(title = title, poster = poster, tmdbId = tmdbId),
+    channel = Channel(name = chName, url = chUrl, logo = chLogo, group = chGroup, tvgId = chTvg),
+)
 
 private fun play(ctx: android.content.Context, ch: Channel) {
     if (ch.url.startsWith("asterplay://series/")) {
@@ -265,7 +287,7 @@ private fun TopRow(
         } else {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(28.dp),
-                contentPadding = PaddingValues(start = 40.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
+                contentPadding = PaddingValues(start = 40.dp, end = 40.dp, top = 12.dp, bottom = 24.dp),
             ) {
                 itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
                     RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
@@ -292,31 +314,31 @@ private fun EmptyBar(msg: String) {
 @Composable
 private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
     // Layout estilo Netflix Top 10: número gigante sobreposto à esquerda do pôster.
-    BoxWithConstraints(Modifier.width(200.dp).height(230.dp)) {
+    BoxWithConstraints(Modifier.width(220.dp).height(260.dp)) {
         // Número grande atrás
         Text(
             text = rank.toString(),
             style = TextStyle(
-                fontSize = 180.sp,
+                fontSize = 150.sp,
                 fontWeight = FontWeight.Black,
                 color = Color(0xFF0B0B14),
             ),
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-14).dp, y = 20.dp),
+                .offset(x = (-8).dp, y = 6.dp),
         )
         // Contorno neon do número
         Text(
             text = rank.toString(),
             style = TextStyle(
-                fontSize = 180.sp,
+                fontSize = 150.sp,
                 fontWeight = FontWeight.Black,
                 color = Accent.copy(alpha = 0.85f),
             ),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-10).dp, y = 24.dp),
+                .offset(x = (-4).dp, y = 10.dp),
         )
         // Pôster deslocado à direita para o número aparecer
         Box(
