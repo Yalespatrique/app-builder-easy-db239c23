@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -47,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
@@ -253,19 +255,32 @@ private fun TopRow(
     emptyMsg: String,
     onPick: (TopHit) -> Unit,
 ) {
+    val visible = remember(items) { items.take(4) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (!loaded) {
             EmptyBar("Carregando…")
-        } else if (items.isEmpty()) {
+        } else if (visible.isEmpty()) {
             EmptyBar(emptyMsg)
         } else {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
-            ) {
-                itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
-                    RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val maxCardWidth = 180.dp
+                val spacing = 12.dp
+                // start padding maior para acomodar o badge de rank deslocado à esquerda
+                val startPadding = 20.dp
+                val endPadding = 16.dp
+                val totalSpacing = startPadding + endPadding + spacing * (visible.size - 1)
+                val available = maxWidth - totalSpacing
+                val cardWidth = (available / visible.size).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                    contentPadding = PaddingValues(start = startPadding, end = endPadding, top = 6.dp, bottom = 10.dp),
+                    userScrollEnabled = false,
+                ) {
+                    itemsIndexed(visible, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
+                        RankedPoster(rank = index + 1, hit = hit, width = cardWidth, onClick = { onPick(hit) })
+                    }
                 }
             }
         }
@@ -323,9 +338,9 @@ private fun EmptyBar(msg: String) {
 }
 
 @Composable
-private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
+private fun RankedPoster(rank: Int, hit: TopHit, width: Dp, onClick: () -> Unit) {
     // Card uniforme para todos os ranks; badge pequeno no canto superior esquerdo.
-    Box(Modifier.width(140.dp)) {
+    Box(Modifier.width(width)) {
         PosterCard(
             title = hit.tmdb.title,
             logo = hit.tmdb.poster,
@@ -337,7 +352,7 @@ private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
         Box(
             Modifier
                 .align(Alignment.TopStart)
-                .offset(x = (-8).dp, y = (-8).dp)
+                .offset(x = (-10).dp, y = (-10).dp)
                 .background(Accent, RoundedCornerShape(8.dp))
                 .padding(horizontal = 8.dp, vertical = 3.dp),
             contentAlignment = Alignment.Center,
