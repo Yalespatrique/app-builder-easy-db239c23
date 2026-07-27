@@ -50,7 +50,6 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     LaunchedEffect(Unit) {
         val c = XtreamStore.get(ctx)
         if (c == null) { onFail(); return@LaunchedEffect }
-        sub = c.host
         val ok = XtreamApi.authenticate(c)
         if (ok) {
             TopHomePreload.run(ctx)
@@ -62,6 +61,7 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             XtreamStore.clear(ctx); onFail()
         }
     }
+
 
     val imageLoader = remember {
         ImageLoader.Builder(ctx)
