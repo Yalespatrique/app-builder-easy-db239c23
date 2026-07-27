@@ -48,10 +48,10 @@ fun AsterplayApp() {
                 composable(Routes.Splash) {
                     SplashScreen(onDone = {
                         val ctx = it
-                        val url = PlaylistStore.get(ctx)
-                        val target = if (url != null && PlaylistCache.has(ctx, url)) Routes.Home
+                        val hasCreds = XtreamStore.get(ctx) != null
+                        val target = if (hasCreds) Routes.Home
                         else {
-                            if (url != null) PlaylistStore.clear(ctx)
+                            PlaylistStore.clear(ctx)
                             Routes.Pairing
                         }
                         nav.navigate(target) {
