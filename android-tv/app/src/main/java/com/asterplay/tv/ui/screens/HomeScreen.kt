@@ -58,7 +58,7 @@ import com.asterplay.tv.R
 import com.asterplay.tv.core.DeviceId
 import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.TmdbApi
-import com.asterplay.tv.net.XtreamApi
+import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
@@ -72,12 +72,7 @@ import com.asterplay.tv.ui.theme.BgSurface
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.text.Normalizer
 
 /** Item TMDB já resolvido com um Channel real do servidor do usuário. */
 private data class TopHit(val tmdb: TmdbApi.Item, val channel: Channel)
@@ -106,34 +101,27 @@ fun HomeScreen(
         // 1) Cache local: mostra imediatamente se houver.
         val cachedM = TopCacheStore.read(ctx, account, "movie")
         val cachedS = TopCacheStore.read(ctx, account, "series")
+        val cachedRecentM = TopCacheStore.read(ctx, account, "recent_movie")
+        val cachedRecentS = TopCacheStore.read(ctx, account, "recent_series")
         if (!cachedM.isNullOrEmpty()) topMovies = cachedM.map { it.toHit() }
         if (!cachedS.isNullOrEmpty()) topSeries = cachedS.map { it.toHit() }
+        if (!cachedRecentM.isNullOrEmpty()) recentMovies = cachedRecentM.map { it.toChannel() }
+        if (!cachedRecentS.isNullOrEmpty()) recentSeries = cachedRecentS.map { it.toChannel() }
 
-        // 2) Rede: TMDB top 25 + catálogo do servidor + recentes em paralelo.
-        val res = withContext(Dispatchers.IO) {
-            val tmdbM = async { TmdbApi.topMovies(25) }
-            val tmdbS = async { TmdbApi.topSeries(25) }
-            val srvM = async { XtreamApi.allStreams(creds, "vod") }
-            val srvS = async { XtreamApi.allStreams(creds, "series") }
-            val recM = async { XtreamApi.recentStreams(creds, "vod", 20) }
-            val recS = async { XtreamApi.recentStreams(creds, "series", 20) }
-            listOf(tmdbM, tmdbS, srvM, srvS, recM, recS).awaitAll()
+        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty() &&
+            !cachedRecentM.isNullOrEmpty() && !cachedRecentS.isNullOrEmpty()
+        ) {
+            loaded = true
+            return@LaunchedEffect
         }
-        @Suppress("UNCHECKED_CAST") val tmdbMovies = res[0] as List<TmdbApi.Item>
-        @Suppress("UNCHECKED_CAST") val tmdbSeries = res[1] as List<TmdbApi.Item>
-        @Suppress("UNCHECKED_CAST") val srvMovies = res[2] as List<Channel>
-        @Suppress("UNCHECKED_CAST") val srvSeries = res[3] as List<Channel>
-        @Suppress("UNCHECKED_CAST") val rMovies = res[4] as List<Channel>
-        @Suppress("UNCHECKED_CAST") val rSeries = res[5] as List<Channel>
 
-        val mHits = matchTop(tmdbMovies, srvMovies, 10)
-        val sHits = matchTop(tmdbSeries, srvSeries, 10)
-        topMovies = mHits
-        topSeries = sHits
-        recentMovies = rMovies
-        recentSeries = rSeries
-        if (mHits.isNotEmpty()) TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
-        if (sHits.isNotEmpty()) TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
+        // 2) Fallback: se alguém entrou no Home sem passar pela tela de loading,
+        // pré-carrega aqui uma única vez e lê tudo do cache.
+        TopHomePreload.run(ctx)
+        topMovies = TopCacheStore.read(ctx, account, "movie")?.map { it.toHit() }.orEmpty()
+        topSeries = TopCacheStore.read(ctx, account, "series")?.map { it.toHit() }.orEmpty()
+        recentMovies = TopCacheStore.read(ctx, account, "recent_movie")?.map { it.toChannel() }.orEmpty()
+        recentSeries = TopCacheStore.read(ctx, account, "recent_series")?.map { it.toChannel() }.orEmpty()
         loaded = true
     }
 
@@ -234,49 +222,17 @@ fun HomeScreen(
     }
 }
 
-// -------- Matching TMDB × servidor --------
-
-private val STRIP_TAGS = Regex("\\[[^\\]]*]|\\([^)]*\\)|\\bs\\d{1,2}e\\d{1,3}\\b|\\bs\\d{1,2}\\b|\\b\\d{4}\\b|\\b(4k|fhd|hd|sd|hevc|dub|dublado|leg|legendado|br|nac|multi|imax|remux)\\b")
-
-private fun norm(s: String): String {
-    val stripped = s.lowercase().replace(STRIP_TAGS, " ")
-    val n = Normalizer.normalize(stripped, Normalizer.Form.NFD)
-        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-    return n.replace(Regex("[^a-z0-9]+"), " ").trim()
-}
-
-private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>, limit: Int = 10): List<TopHit> {
-    if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
-    data class IdxEntry(val key: String, val ch: Channel)
-    val index = ArrayList<IdxEntry>(server.size)
-    val seen = HashSet<String>()
-    for (c in server) {
-        val k = norm(c.name)
-        if (k.isNotEmpty() && seen.add(k)) index += IdxEntry(k, c)
-    }
-    val out = ArrayList<TopHit>(limit)
-    val usedUrls = HashSet<String>()
-    for (t in tmdb) {
-        if (out.size >= limit) break
-        val tk = norm(t.title); if (tk.isEmpty()) continue
-        var hit: Channel? = index.firstOrNull { it.key == tk }?.ch
-        if (hit == null) hit = index.firstOrNull { it.key.startsWith("$tk ") || it.key.endsWith(" $tk") }?.ch
-        if (hit == null) hit = index.firstOrNull { it.key.contains(" $tk ") }?.ch
-        if (hit == null && tk.length >= 4) hit = index.firstOrNull { it.key.contains(tk) || tk.contains(it.key) }?.ch
-        if (hit != null && usedUrls.add(hit.url)) out += TopHit(t, hit)
-    }
-    return out
-}
-
-private fun TopHit.toEntry() = TopCacheStore.Entry(
-    title = tmdb.title, poster = tmdb.poster, tmdbId = tmdb.tmdbId,
-    chName = channel.name, chUrl = channel.url, chLogo = channel.logo,
-    chGroup = channel.group, chTvg = channel.tvgId,
-)
-
 private fun TopCacheStore.Entry.toHit() = TopHit(
     tmdb = TmdbApi.Item(title = title, poster = poster, tmdbId = tmdbId),
     channel = Channel(name = chName, url = chUrl, logo = chLogo, group = chGroup, tvgId = chTvg),
+)
+
+private fun TopCacheStore.Entry.toChannel() = Channel(
+    name = chName,
+    url = chUrl,
+    logo = chLogo ?: poster,
+    group = chGroup,
+    tvgId = chTvg,
 )
 
 private fun play(ctx: android.content.Context, ch: Channel) {
