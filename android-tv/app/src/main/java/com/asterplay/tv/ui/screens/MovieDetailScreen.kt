@@ -296,12 +296,12 @@ private fun PrimaryButton(
         modifier = modifier,
     ) {
         Row(
-            Modifier.padding(horizontal = 22.dp, vertical = 14.dp),
+            Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, null, tint = Color.Black, modifier = Modifier.width(22.dp).height(22.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(label, color = Color.Black, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black)
+            Icon(icon, null, tint = Color.Black, modifier = Modifier.width(18.dp).height(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, color = Color.Black, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Black)
         }
     }
 }
