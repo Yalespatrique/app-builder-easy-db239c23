@@ -315,7 +315,8 @@ private fun EmptyBar(msg: String) {
 @Composable
 private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
     // Layout estilo Netflix Top 10: número gigante sobreposto à esquerda do pôster.
-    BoxWithConstraints(Modifier.width(220.dp).height(260.dp)) {
+    val cardW = if (rank >= 10) 300.dp else 220.dp
+    BoxWithConstraints(Modifier.width(cardW).height(260.dp)) {
         // Número grande atrás
         Text(
             text = rank.toString(),
