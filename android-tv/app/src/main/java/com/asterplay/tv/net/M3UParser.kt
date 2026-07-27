@@ -9,8 +9,6 @@ data class Channel(
 )
 
 object M3UParser {
-    private val attrRegex = Regex("""(\S+?)="([^"]*)"""")
-
     fun parse(text: String): List<Channel> {
         return parseLines(text.lineSequence())
     }
@@ -21,29 +19,75 @@ object M3UParser {
         return out
     }
 
-    fun forEach(lines: Sequence<String>, onChannel: (Channel) -> Unit) {
-        var pending: Map<String, String>? = null
+    fun parseSequence(lines: Sequence<String>): Sequence<Channel> = sequence {
         var pendingName: String? = null
+        var pendingLogo: String? = null
+        var pendingGroup: String? = null
+        var pendingTvgId: String? = null
         for (raw in lines) {
             val line = raw.trim()
             if (line.startsWith("#EXTINF")) {
-                val attrs = attrRegex.findAll(line).associate { it.groupValues[1] to it.groupValues[2] }
-                pending = attrs
-                pendingName = line.substringAfterLast(",").trim()
+                pendingLogo = readAttr(line, "tvg-logo")
+                pendingGroup = readAttr(line, "group-title")
+                pendingTvgId = readAttr(line, "tvg-id")
+                pendingName = line.substringAfterLast(",", "Sem nome").trim().ifEmpty { "Sem nome" }
             } else if (line.isNotEmpty() && !line.startsWith("#")) {
-                val attrs = pending ?: continue
-                onChannel(
+                val name = pendingName ?: continue
+                yield(
                     Channel(
-                        name = pendingName ?: "Sem nome",
+                        name = name,
                         url = line,
-                        logo = attrs["tvg-logo"],
-                        group = attrs["group-title"],
-                        tvgId = attrs["tvg-id"]
+                        logo = pendingLogo,
+                        group = pendingGroup,
+                        tvgId = pendingTvgId
                     )
                 )
-                pending = null
                 pendingName = null
+                pendingLogo = null
+                pendingGroup = null
+                pendingTvgId = null
             }
         }
+    }
+
+    fun forEach(lines: Sequence<String>, onChannel: (Channel) -> Unit) {
+        var pendingName: String? = null
+        var pendingLogo: String? = null
+        var pendingGroup: String? = null
+        var pendingTvgId: String? = null
+        for (raw in lines) {
+            val line = raw.trim()
+            if (line.startsWith("#EXTINF")) {
+                pendingLogo = readAttr(line, "tvg-logo")
+                pendingGroup = readAttr(line, "group-title")
+                pendingTvgId = readAttr(line, "tvg-id")
+                pendingName = line.substringAfterLast(",", "Sem nome").trim().ifEmpty { "Sem nome" }
+            } else if (line.isNotEmpty() && !line.startsWith("#")) {
+                val name = pendingName ?: continue
+                onChannel(
+                    Channel(
+                        name = name,
+                        url = line,
+                        logo = pendingLogo,
+                        group = pendingGroup,
+                        tvgId = pendingTvgId
+                    )
+                )
+                pendingName = null
+                pendingLogo = null
+                pendingGroup = null
+                pendingTvgId = null
+            }
+        }
+    }
+
+    private fun readAttr(line: String, key: String): String? {
+        val marker = "$key=\""
+        val start = line.indexOf(marker)
+        if (start < 0) return null
+        val valueStart = start + marker.length
+        val valueEnd = line.indexOf('"', valueStart)
+        if (valueEnd <= valueStart) return null
+        return line.substring(valueStart, valueEnd)
     }
 }
