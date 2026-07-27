@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
-import androidx.tv.material3.SurfaceDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.asterplay.tv.ui.theme.Accent
@@ -59,11 +59,11 @@ fun PosterCard(
     ) {
         Surface(
             onClick = onClick,
-            colors = SurfaceDefaults.colors(
+            colors = ClickableSurfaceDefaults.colors(
                 containerColor = BgSurface,
                 focusedContainerColor = BgElevated,
             ),
-            shape = SurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
+            shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspect)

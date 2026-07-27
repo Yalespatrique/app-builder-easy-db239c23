@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
-import androidx.tv.material3.SurfaceDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.asterplay.tv.BuildConfig
 import com.asterplay.tv.core.DeviceId
@@ -126,11 +126,11 @@ private fun SideMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) 
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        colors = SurfaceDefaults.colors(
+        colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = BgElevated,
         ),
-        shape = SurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
         modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     ) {
         Row(
@@ -151,11 +151,11 @@ private fun BigTile(title: String, subtitle: String, icon: ImageVector, modifier
     val scale = if (focused) 1.05f else 1f
     Surface(
         onClick = onClick,
-        colors = SurfaceDefaults.colors(
+        colors = ClickableSurfaceDefaults.colors(
             containerColor = BgSurface,
             focusedContainerColor = BgElevated,
         ),
-        shape = SurfaceDefaults.shape(shape = RoundedCornerShape(16.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(16.dp)),
         modifier = modifier
             .aspectRatio(1.6f)
             .scale(scale)
@@ -183,11 +183,11 @@ private fun SmallTile(title: String, icon: ImageVector, modifier: Modifier = Mod
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        colors = SurfaceDefaults.colors(
+        colors = ClickableSurfaceDefaults.colors(
             containerColor = BgSurface,
             focusedContainerColor = BgElevated,
         ),
-        shape = SurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(14.dp)),
         modifier = modifier
             .height(96.dp)
             .onFocusChanged { focused = it.isFocused }

@@ -68,7 +68,7 @@ class LoadingActivity : AppCompatActivity() {
         finish()
     }
 
-    private fun downloadAndCache(url: String): Int = try {
+    private fun downloadAndCache(url: String): Int { return try {
         val client = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
@@ -123,5 +123,5 @@ class LoadingActivity : AppCompatActivity() {
             }
         }
         lastCount
-    } catch (_: Exception) { 0 }
+    } catch (_: Exception) { 0 } }
 }

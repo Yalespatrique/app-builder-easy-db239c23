@@ -103,7 +103,7 @@ private fun downloadAndCache(
     url: String,
     onBytes: (Double) -> Unit,
     onItems: (Int) -> Unit,
-): Int = try {
+): Int { return try {
     val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
@@ -138,7 +138,7 @@ private fun downloadAndCache(
     }
 
     val file = PlaylistCache.sourceFile(ctx)
-    if (!file.exists() || file.length() == 0L) return@try 0
+    if (!file.exists() || file.length() == 0L) return 0
 
     var lastAt = 0L
     var last = 0
@@ -150,4 +150,4 @@ private fun downloadAndCache(
         }
     }
     last
-} catch (_: Exception) { 0 }
+} catch (_: Exception) { 0 } }

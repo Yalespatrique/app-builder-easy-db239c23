@@ -24,7 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
-import androidx.tv.material3.SurfaceDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgElevated
@@ -55,11 +55,11 @@ fun CategoryItem(
 
     Surface(
         onClick = onClick,
-        colors = SurfaceDefaults.colors(
+        colors = ClickableSurfaceDefaults.colors(
             containerColor = container,
             focusedContainerColor = BgElevated,
         ),
-        shape = SurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
         modifier = modifier
             .fillMaxWidth()
             .onFocusChanged {
