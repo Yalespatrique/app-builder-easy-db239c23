@@ -366,41 +366,36 @@ private fun RankedPoster(
     cardWidth: Dp,
     onClick: () -> Unit,
 ) {
-    // Estilo Netflix: número grande fica ATRÁS do pôster, com a parte esquerda visível.
-    // Todas as medidas são derivadas proporcionalmente do cardWidth para manter o alinhamento
-    // perfeito em qualquer densidade de tela ou tamanho de card.
+    // Estilo Netflix: número gigante à esquerda, pôster sobrepondo a metade direita.
     val visibleRatio = 0.28f
-    val overlapRatio = 0.72f
     val visiblePart = cardWidth * visibleRatio
-    val overlap = cardWidth * overlapRatio
     val itemWidth = cardWidth + visiblePart
-    val numberHeight = cardWidth * 0.95f
+    // Altura do número casa com a altura do pôster (aspect 2/3 → altura = 1.5 * cardWidth).
+    val numberFontSize = cardWidth.value * 1.6f
 
-    Box(
-        Modifier.width(itemWidth),
-        contentAlignment = Alignment.CenterEnd,
-    ) {
-        // Número gigante atrás, alinhado à direita (mesma linha do pôster) e deslocado
-        // para a esquerda exatamente o quanto deve aparecer por trás da capa.
+    Box(Modifier.width(itemWidth)) {
+        // Número gigante ancorado à esquerda do item, ocupando toda a altura do pôster.
         BasicText(
             text = rank.toString(),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .offset(x = -(cardWidth - overlap)),
+            modifier = Modifier.align(Alignment.CenterStart),
             style = TextStyle(
-                fontSize = numberHeight.value.sp,
+                fontSize = numberFontSize.sp,
                 fontWeight = FontWeight.Black,
                 brush = BrandGradient,
                 shadow = Shadow(
-                    color = Color(0xFF000000).copy(alpha = 0.45f),
-                    offset = Offset(2f, 4f),
-                    blurRadius = 6f,
+                    color = Color(0xFF000000).copy(alpha = 0.55f),
+                    offset = Offset(3f, 5f),
+                    blurRadius = 8f,
                 ),
             ),
         )
 
-        // Pôster na frente, ocupando o cardWidth exato à direita do item.
-        Box(Modifier.width(cardWidth)) {
+        // Pôster na frente, alinhado à direita — cobre a metade direita do número.
+        Box(
+            Modifier
+                .align(Alignment.CenterEnd)
+                .width(cardWidth),
+        ) {
             PosterCard(
                 title = hit.tmdb.title,
                 logo = hit.tmdb.poster,
