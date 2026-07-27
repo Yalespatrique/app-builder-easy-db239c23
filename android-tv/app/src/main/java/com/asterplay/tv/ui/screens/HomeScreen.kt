@@ -278,10 +278,12 @@ private fun TopRow(
                 val visibleCount = 4
                 // Cada item ocupa a largura do card + 28% do card visível à esquerda (estilo Netflix).
                 val numberExtraRatio = 0.28f
+                val fixedSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
+                val cardWidth = ((maxWidth - fixedSpacing) / (visibleCount * (1 + numberExtraRatio)))
+                    .coerceAtMost(maxCardWidth)
+                    .coerceAtLeast(100.dp)
                 val numberExtra = cardWidth * numberExtraRatio
-                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1) + numberExtra * visibleCount
-                val available = maxWidth - totalSpacing
-                val cardWidth = (available / visibleCount).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
+
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(spacing),
