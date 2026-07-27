@@ -19,8 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LiveTv
@@ -91,6 +94,8 @@ fun HomeScreen(
 
     var topMovies by remember { mutableStateOf<List<TopHit>>(emptyList()) }
     var topSeries by remember { mutableStateOf<List<TopHit>>(emptyList()) }
+    var recentMovies by remember { mutableStateOf<List<Channel>>(emptyList()) }
+    var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -103,29 +108,30 @@ fun HomeScreen(
         val cachedS = TopCacheStore.read(ctx, account, "series")
         if (!cachedM.isNullOrEmpty()) topMovies = cachedM.map { it.toHit() }
         if (!cachedS.isNullOrEmpty()) topSeries = cachedS.map { it.toHit() }
-        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty()) {
-            loaded = true
-            return@LaunchedEffect
-        }
 
-        // 2) Rede: TMDB top 25 + catálogo do servidor em paralelo; match até 10.
+        // 2) Rede: TMDB top 25 + catálogo do servidor + recentes em paralelo.
         val res = withContext(Dispatchers.IO) {
             val tmdbM = async { TmdbApi.topMovies(25) }
             val tmdbS = async { TmdbApi.topSeries(25) }
             val srvM = async { XtreamApi.allStreams(creds, "vod") }
             val srvS = async { XtreamApi.allStreams(creds, "series") }
-            listOf(tmdbM, tmdbS, srvM, srvS).awaitAll()
+            val recM = async { XtreamApi.recentStreams(creds, "vod", 20) }
+            val recS = async { XtreamApi.recentStreams(creds, "series", 20) }
+            listOf(tmdbM, tmdbS, srvM, srvS, recM, recS).awaitAll()
         }
         @Suppress("UNCHECKED_CAST") val tmdbMovies = res[0] as List<TmdbApi.Item>
         @Suppress("UNCHECKED_CAST") val tmdbSeries = res[1] as List<TmdbApi.Item>
         @Suppress("UNCHECKED_CAST") val srvMovies = res[2] as List<Channel>
         @Suppress("UNCHECKED_CAST") val srvSeries = res[3] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val rMovies = res[4] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val rSeries = res[5] as List<Channel>
 
         val mHits = matchTop(tmdbMovies, srvMovies, 10)
         val sHits = matchTop(tmdbSeries, srvSeries, 10)
         topMovies = mHits
         topSeries = sHits
-        // Só cacheia se tiver dado — evita "prender" resultado vazio por 24h.
+        recentMovies = rMovies
+        recentSeries = rSeries
         if (mHits.isNotEmpty()) TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
         if (sHits.isNotEmpty()) TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
         loaded = true
@@ -173,7 +179,10 @@ fun HomeScreen(
             }
 
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp),
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 40.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -194,9 +203,7 @@ fun HomeScreen(
                     items = topMovies,
                     loaded = loaded,
                     emptyMsg = "Nenhum dos títulos em alta está na sua lista.",
-                    onPick = { hit ->
-                        scope.launch { play(ctx, hit.channel) }
-                    },
+                    onPick = { hit -> scope.launch { play(ctx, hit.channel) } },
                 )
 
                 TopRow(
@@ -204,11 +211,23 @@ fun HomeScreen(
                     items = topSeries,
                     loaded = loaded,
                     emptyMsg = "Nenhuma das séries em alta está na sua lista.",
-                    onPick = { hit ->
-                        // Séries: abre a tela de detalhes via BrowseScreen (futuro).
-                        // Por enquanto reproduz o primeiro se for movie-like; senão apenas informa.
-                        scope.launch { play(ctx, hit.channel) }
-                    },
+                    onPick = { hit -> scope.launch { play(ctx, hit.channel) } },
+                )
+
+                RecentRow(
+                    title = "🆕 FILMES RECENTES",
+                    items = recentMovies,
+                    loaded = loaded,
+                    emptyMsg = "Sem filmes recentes.",
+                    onPick = { ch -> scope.launch { play(ctx, ch) } },
+                )
+
+                RecentRow(
+                    title = "🆕 SÉRIES RECENTES",
+                    items = recentSeries,
+                    loaded = loaded,
+                    emptyMsg = "Sem séries recentes.",
+                    onPick = { ch -> scope.launch { play(ctx, ch) } },
                 )
             }
         }
@@ -291,6 +310,41 @@ private fun TopRow(
             ) {
                 itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
                     RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentRow(
+    title: String,
+    items: List<Channel>,
+    loaded: Boolean,
+    emptyMsg: String,
+    onPick: (Channel) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (!loaded) {
+            EmptyBar("Carregando…")
+        } else if (items.isEmpty()) {
+            EmptyBar(emptyMsg)
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
+            ) {
+                items(items, key = { it.url }) { ch ->
+                    Box(Modifier.width(150.dp)) {
+                        PosterCard(
+                            title = ch.name,
+                            logo = ch.logo,
+                            aspect = 2f / 3f,
+                            onClick = { onPick(ch) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }

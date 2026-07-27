@@ -138,6 +138,45 @@ object XtreamApi {
         return@withContext out
     }
 
+    /** Retorna os itens mais recentes (VOD ou séries) ordenados por data adicionada desc. */
+    suspend fun recentStreams(c: XtreamCreds, kind: String, limit: Int = 20): List<Channel> = withContext(Dispatchers.IO) {
+        val (action, path) = when (kind) {
+            "vod" -> "get_vod_streams" to "movie"
+            "series" -> "get_series" to "series"
+            else -> return@withContext emptyList()
+        }
+        val body = get(c.playerApi(action)) ?: return@withContext emptyList()
+        data class Row(val ts: Long, val ch: Channel)
+        val rows = ArrayList<Row>()
+        try {
+            val arr = JSONArray(body)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val name = o.optString("name").ifEmpty { o.optString("title") }
+                val streamId = o.optString("stream_id").ifEmpty { o.optString("series_id") }
+                if (name.isEmpty() || streamId.isEmpty()) continue
+                val logo = o.optString("stream_icon").ifEmpty { o.optString("cover") }
+                val ext = o.optString("container_extension").ifEmpty { "ts" }
+                val url = when (path) {
+                    "movie" -> "${c.host}/movie/${c.username}/${c.password}/$streamId.$ext"
+                    "series" -> "asterplay://series/$streamId"
+                    else -> ""
+                }
+                val ts = o.optString("added").toLongOrNull()
+                    ?: o.optString("last_modified").toLongOrNull()
+                    ?: 0L
+                rows += Row(ts, Channel(
+                    name = name, url = url,
+                    logo = logo.ifEmpty { null },
+                    group = o.optString("category_id").ifEmpty { null },
+                    tvgId = null,
+                ))
+            }
+        } catch (_: Exception) {}
+        rows.sortByDescending { it.ts }
+        return@withContext rows.take(limit).map { it.ch }
+    }
+
     // ---------- Séries (episódios) ----------
 
     data class Episode(val id: String, val title: String, val season: Int, val ext: String, val url: String)
