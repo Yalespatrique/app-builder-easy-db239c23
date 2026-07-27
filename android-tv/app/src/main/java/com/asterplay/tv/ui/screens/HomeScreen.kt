@@ -226,21 +226,20 @@ private fun norm(s: String): String {
     return n.replace(Regex("[^a-z0-9]+"), " ").trim()
 }
 
-private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>): List<TopHit> {
+private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>, limit: Int = 10): List<TopHit> {
     if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
-    // Index normalizado do servidor → primeiro Channel encontrado
     val index = HashMap<String, Channel>(server.size)
     for (c in server) {
         val k = norm(c.name)
         if (k.isNotEmpty() && !index.containsKey(k)) index[k] = c
     }
-    val out = ArrayList<TopHit>()
+    val out = ArrayList<TopHit>(limit)
     for (t in tmdb) {
+        if (out.size >= limit) break
         val tk = norm(t.title)
         if (tk.isEmpty()) continue
         var hit = index[tk]
         if (hit == null) {
-            // fallback: qualquer chave do servidor que contenha o título (ou vice-versa)
             for ((k, ch) in index) {
                 if (k.contains(tk) || tk.contains(k)) { hit = ch; break }
             }
@@ -249,6 +248,17 @@ private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>): List<TopH
     }
     return out
 }
+
+private fun TopHit.toEntry() = TopCacheStore.Entry(
+    title = tmdb.title, poster = tmdb.poster, tmdbId = tmdb.tmdbId,
+    chName = channel.name, chUrl = channel.url, chLogo = channel.logo,
+    chGroup = channel.group, chTvg = channel.tvgId,
+)
+
+private fun TopCacheStore.Entry.toHit() = TopHit(
+    tmdb = TmdbApi.Item(title = title, poster = poster, tmdbId = tmdbId),
+    channel = Channel(name = chName, url = chUrl, logo = chLogo, group = chGroup, tvgId = chTvg),
+)
 
 private fun play(ctx: android.content.Context, ch: Channel) {
     if (ch.url.startsWith("asterplay://series/")) {
