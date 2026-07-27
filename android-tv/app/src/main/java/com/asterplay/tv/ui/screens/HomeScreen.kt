@@ -355,30 +355,45 @@ private fun EmptyBar(msg: String) {
 }
 
 @Composable
-private fun RankedPoster(rank: Int, hit: TopHit, width: Dp, onClick: () -> Unit) {
-    // Card uniforme para todos os ranks; badge pequeno no canto superior esquerdo.
-    Box(Modifier.width(width)) {
-        PosterCard(
-            title = hit.tmdb.title,
-            logo = hit.tmdb.poster,
-            aspect = 2f / 3f,
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        // Badge de rank
-        Box(
-            Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (-10).dp, y = (-10).dp)
-                .background(Accent, RoundedCornerShape(8.dp))
-                .padding(horizontal = 8.dp, vertical = 3.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = rank.toString(),
-                color = Color.Black,
-                style = MaterialTheme.typography.titleSmall,
+private fun RankedPoster(
+    rank: Int,
+    hit: TopHit,
+    cardWidth: Dp,
+    numberVisible: Dp,
+    onClick: () -> Unit,
+) {
+    // Estilo Netflix: número grande fica ATRÁS do pôster, com a parte esquerda visível.
+    val overlap = 18.dp
+    Box(
+        Modifier.width(cardWidth + numberVisible - overlap),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        // Número gigante atrás, com sombra sutil e gradiente neon
+        MaterialText(
+            text = rank.toString(),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = (-6).dp),
+            style = TextStyle(
+                fontSize = 112.sp,
                 fontWeight = FontWeight.Black,
+                brush = BrandGradient,
+                shadow = Shadow(
+                    color = Color(0xFF000000).copy(alpha = 0.45f),
+                    offset = Offset(2f, 4f),
+                    blurRadius = 6f,
+                ),
+            ),
+        )
+
+        // Pôster na frente, ligeiramente deslocado para a direita para cobrir parte do número
+        Box(Modifier.width(cardWidth)) {
+            PosterCard(
+                title = hit.tmdb.title,
+                logo = hit.tmdb.poster,
+                aspect = 2f / 3f,
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
