@@ -179,7 +179,10 @@ fun HomeScreen(
             }
 
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp),
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 40.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -200,9 +203,7 @@ fun HomeScreen(
                     items = topMovies,
                     loaded = loaded,
                     emptyMsg = "Nenhum dos títulos em alta está na sua lista.",
-                    onPick = { hit ->
-                        scope.launch { play(ctx, hit.channel) }
-                    },
+                    onPick = { hit -> scope.launch { play(ctx, hit.channel) } },
                 )
 
                 TopRow(
@@ -210,11 +211,23 @@ fun HomeScreen(
                     items = topSeries,
                     loaded = loaded,
                     emptyMsg = "Nenhuma das séries em alta está na sua lista.",
-                    onPick = { hit ->
-                        // Séries: abre a tela de detalhes via BrowseScreen (futuro).
-                        // Por enquanto reproduz o primeiro se for movie-like; senão apenas informa.
-                        scope.launch { play(ctx, hit.channel) }
-                    },
+                    onPick = { hit -> scope.launch { play(ctx, hit.channel) } },
+                )
+
+                RecentRow(
+                    title = "🆕 FILMES RECENTES",
+                    items = recentMovies,
+                    loaded = loaded,
+                    emptyMsg = "Sem filmes recentes.",
+                    onPick = { ch -> scope.launch { play(ctx, ch) } },
+                )
+
+                RecentRow(
+                    title = "🆕 SÉRIES RECENTES",
+                    items = recentSeries,
+                    loaded = loaded,
+                    emptyMsg = "Sem séries recentes.",
+                    onPick = { ch -> scope.launch { play(ctx, ch) } },
                 )
             }
         }
