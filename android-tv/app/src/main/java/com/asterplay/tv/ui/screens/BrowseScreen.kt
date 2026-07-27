@@ -82,7 +82,16 @@ fun BrowseScreen(type: String, onBack: () -> Unit) {
         loadingCats = false
         if (cats.isNotEmpty()) {
             selectedIdx = 0
-            loadCategory(cats[0].id, account, creds) { items = it; loadingItems = false }
+            loadingItems = true
+            val first = withContext(Dispatchers.IO) {
+                val db = CacheDb.get(ctx)
+                db.readStreams(account, type, cats[0].id) ?: run {
+                    val fresh = XtreamApi.streams(creds, type, cats[0].id)
+                    if (fresh.isNotEmpty()) db.writeStreams(account, type, cats[0].id, fresh, CacheDb.TTL_STREAMS)
+                    fresh
+                }
+            }
+            items = first; loadingItems = false
         }
     }
 
