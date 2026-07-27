@@ -319,9 +319,9 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
         Text(
             label,
             color = TextPrimary,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp),
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
         )
     }
 }
