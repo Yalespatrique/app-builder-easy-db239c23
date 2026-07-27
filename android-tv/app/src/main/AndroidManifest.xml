@@ -11,15 +11,14 @@
 
     <application
         android:allowBackup="false"
-        android:banner="@drawable/tv_banner"
         android:icon="@mipmap/ic_launcher"
         android:label="Asterplay"
-        android:theme="@style/Theme.Leanback"
+        android:theme="@style/Theme.Asterplay.Splash"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
         <activity
-            android:name=".ui.SplashActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Asterplay.Splash">
             <intent-filter>
@@ -29,12 +28,8 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".ui.PairingActivity" android:exported="false" />
-        <activity android:name=".ui.HomeActivity" android:exported="false" />
-        <activity android:name=".ui.LoadingActivity" android:exported="false" />
-        <activity android:name=".ui.BrowseActivity" android:exported="false" />
-        <activity android:name=".ui.SearchActivity" android:exported="false" />
         <activity android:name=".player.PlayerActivity" android:exported="false"
-            android:configChanges="keyboardHidden|orientation|screenSize" />
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            android:theme="@style/Theme.Asterplay.Splash" />
     </application>
 </manifest>
