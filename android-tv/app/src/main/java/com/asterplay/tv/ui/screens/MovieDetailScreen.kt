@@ -149,7 +149,7 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     var videoReady by remember { mutableStateOf(false) }
     val showPreview = wantVideo && videoReady
     LaunchedEffect(channel.url) {
-        delay(2500)
+        delay(800)
         while (true) {
             wantVideo = true
             delay(50_000)
@@ -371,25 +371,49 @@ private fun MoviePreviewVideo(url: String, onFirstFrame: () -> Unit = {}) {
     val ctx = LocalContext.current
     val firstFrameCb = rememberUpdatedState(onFirstFrame)
     val player = remember(url) {
-        ExoPlayer.Builder(ctx).build().apply {
-            volume = 1f
-            repeatMode = Player.REPEAT_MODE_OFF
-            setMediaItem(MediaItem.fromUri(url))
-            playWhenReady = true
-            addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_READY) {
-                        val dur = duration
-                        val target = if (dur > 0) dur / 2 else 20 * 60 * 1000L
-                        if (currentPosition < 1000L) seekTo(target)
-                    }
-                }
-                override fun onRenderedFirstFrame() {
-                    firstFrameCb.value()
-                }
-            })
-            prepare()
+        // LoadControl leve: buffers pequenos para começar rápido e usar pouca memória.
+        val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 2_000,
+                /* maxBufferMs = */ 8_000,
+                /* bufferForPlaybackMs = */ 500,
+                /* bufferForPlaybackAfterRebufferMs = */ 1_000,
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
+
+        // Track selector: força resolução baixa para preview (economiza banda/CPU).
+        val trackSelector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(ctx).apply {
+            setParameters(
+                buildUponParameters()
+                    .setMaxVideoSize(854, 480)
+                    .setMaxVideoBitrate(1_500_000)
+                    .setForceLowestBitrate(false)
+            )
         }
+
+        ExoPlayer.Builder(ctx)
+            .setLoadControl(loadControl)
+            .setTrackSelector(trackSelector)
+            .build().apply {
+                volume = 1f
+                repeatMode = Player.REPEAT_MODE_OFF
+                setMediaItem(MediaItem.fromUri(url))
+                playWhenReady = true
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_READY) {
+                            val dur = duration
+                            val target = if (dur > 0) dur / 2 else 20 * 60 * 1000L
+                            if (currentPosition < 1000L) seekTo(target)
+                        }
+                    }
+                    override fun onRenderedFirstFrame() {
+                        firstFrameCb.value()
+                    }
+                })
+                prepare()
+            }
     }
     DisposableEffect(player) {
         onDispose { player.release() }
