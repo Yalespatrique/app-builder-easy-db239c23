@@ -52,30 +52,34 @@ object TopHomePreload {
         val c: List<Channel>, val d: List<Channel>,
     )
 
+    private val STRIP_TAGS = Regex("\\[[^\\]]*]|\\([^)]*\\)|\\bs\\d{1,2}e\\d{1,3}\\b|\\bs\\d{1,2}\\b|\\b\\d{4}\\b|\\b(4k|fhd|hd|sd|hevc|dub|dublado|leg|legendado|br|nac|multi|imax|remux)\\b")
+
     private fun norm(s: String): String {
-        val n = Normalizer.normalize(s, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "").lowercase()
+        val stripped = s.lowercase().replace(STRIP_TAGS, " ")
+        val n = Normalizer.normalize(stripped, Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
         return n.replace(Regex("[^a-z0-9]+"), " ").trim()
     }
 
     private fun match(tmdb: List<TmdbApi.Item>, server: List<Channel>, limit: Int): List<TopCacheStore.Entry> {
         if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
-        val index = HashMap<String, Channel>(server.size)
+        data class IdxEntry(val key: String, val ch: Channel)
+        val index = ArrayList<IdxEntry>(server.size)
+        val seen = HashSet<String>()
         for (c in server) {
             val k = norm(c.name)
-            if (k.isNotEmpty() && !index.containsKey(k)) index[k] = c
+            if (k.isNotEmpty() && seen.add(k)) index += IdxEntry(k, c)
         }
         val out = ArrayList<TopCacheStore.Entry>(limit)
+        val usedUrls = HashSet<String>()
         for (t in tmdb) {
             if (out.size >= limit) break
             val tk = norm(t.title); if (tk.isEmpty()) continue
-            var hit = index[tk]
-            if (hit == null) {
-                for ((k, ch) in index) {
-                    if (k.contains(tk) || tk.contains(k)) { hit = ch; break }
-                }
-            }
-            if (hit != null) out += TopCacheStore.Entry(
+            var hit: Channel? = index.firstOrNull { it.key == tk }?.ch
+            if (hit == null) hit = index.firstOrNull { it.key.startsWith("$tk ") || it.key.endsWith(" $tk") }?.ch
+            if (hit == null) hit = index.firstOrNull { it.key.contains(" $tk ") }?.ch
+            if (hit == null && tk.length >= 4) hit = index.firstOrNull { it.key.contains(tk) || tk.contains(it.key) }?.ch
+            if (hit != null && usedUrls.add(hit.url)) out += TopCacheStore.Entry(
                 title = t.title, poster = t.poster, tmdbId = t.tmdbId,
                 chName = hit.name, chUrl = hit.url, chLogo = hit.logo,
                 chGroup = hit.group, chTvg = hit.tvgId,
