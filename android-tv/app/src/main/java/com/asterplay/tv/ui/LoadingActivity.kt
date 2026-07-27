@@ -2,6 +2,7 @@ package com.asterplay.tv.ui
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -76,8 +77,15 @@ class LoadingActivity : AppCompatActivity() {
         client.newCall(Request.Builder().url(url).build()).execute().use { resp ->
             if (!resp.isSuccessful) return@use 0
             val body = resp.body ?: return@use 0
+            var lastProgressAt = 0L
             body.charStream().buffered(64 * 1024).useLines { lines ->
-                PlaylistCache.saveFromM3uLines(applicationContext, url, lines)
+                PlaylistCache.saveFromM3uLines(applicationContext, url, lines) { loaded ->
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastProgressAt > 500L) {
+                        lastProgressAt = now
+                        runOnUiThread { sub.text = "$loaded itens encontrados" }
+                    }
+                }
             }
         }
     } catch (_: Exception) { 0 }

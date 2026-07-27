@@ -6,8 +6,16 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.asterplay.tv.net.Channel
 import java.text.Normalizer
+import java.util.Locale
 
 class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, null, DB_VERSION) {
+
+    override fun onConfigure(db: SQLiteDatabase) {
+        super.onConfigure(db)
+        db.enableWriteAheadLogging()
+        db.execSQL("PRAGMA synchronous=NORMAL")
+        db.execSQL("PRAGMA temp_store=MEMORY")
+    }
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -43,8 +51,15 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
     }
 
     fun clearAll() {
-        writableDatabase.execSQL("DELETE FROM channels")
-        writableDatabase.execSQL("DELETE FROM meta")
+        val db = writableDatabase
+        db.beginTransactionNonExclusive()
+        try {
+            db.execSQL("DELETE FROM channels")
+            db.execSQL("DELETE FROM meta")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
     fun setMeta(url: String, count: Int) {
@@ -82,16 +97,20 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
             val stmt = db.compileStatement(
                 "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,?)"
             )
-            for ((c, type) in channels) {
-                stmt.clearBindings()
-                stmt.bindString(1, c.name)
-                stmt.bindString(2, c.url)
-                if (c.logo != null) stmt.bindString(3, c.logo) else stmt.bindNull(3)
-                if (c.group != null) stmt.bindString(4, c.group) else stmt.bindNull(4)
-                if (c.tvgId != null) stmt.bindString(5, c.tvgId) else stmt.bindNull(5)
-                stmt.bindString(6, type)
-                stmt.executeInsert()
-                count++
+            try {
+                for ((c, type) in channels) {
+                    stmt.clearBindings()
+                    stmt.bindString(1, c.name)
+                    stmt.bindString(2, c.url)
+                    if (c.logo != null) stmt.bindString(3, c.logo) else stmt.bindNull(3)
+                    if (c.group != null) stmt.bindString(4, c.group) else stmt.bindNull(4)
+                    if (c.tvgId != null) stmt.bindString(5, c.tvgId) else stmt.bindNull(5)
+                    stmt.bindString(6, type)
+                    stmt.executeInsert()
+                    count++
+                }
+            } finally {
+                stmt.close()
             }
             db.setTransactionSuccessful()
         } finally {
@@ -154,7 +173,22 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
 
     companion object {
         private const val DB_NAME = "asterplay.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
+
+        private val DIACRITICS = "\\p{Mn}+".toRegex()
+        private val SEPARATORS = "[_\\-]+".toRegex()
+        private val SERIES_REGEX = termsRegex(
+            "serie", "series", "seriado", "seriados", "temporada", "temporadas",
+            "episodio", "episodios", "capitulo", "capitulos", "novela", "novelas"
+        )
+        private val LIVE_REGEX = termsRegex(
+            "canal", "canais", "ao vivo", "tv", "televisao", "esporte ao vivo",
+            "jornal", "noticias", "infantil ao vivo"
+        )
+        private val MOVIE_REGEX = termsRegex(
+            "filme", "filmes", "movie", "movies", "cinema", "vod", "lancamento",
+            "lancamentos", "dublado", "legendado", "acao", "comedia", "terror"
+        )
 
         @Volatile private var INSTANCE: ChannelDb? = null
         fun get(ctx: Context): ChannelDb {
@@ -167,7 +201,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
             val group = normalize(c.group.orEmpty())
             val name = normalize(c.name)
             val source = "$group $name"
-            val u = c.url.lowercase()
+            val u = c.url.lowercase(Locale.ROOT)
 
             if (u.contains("/series/") || u.contains("/serie/")) return "series"
             if (u.contains("/movie/") || u.contains("/movies/") || u.contains("/vod/")) return "vod"
@@ -175,25 +209,24 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
 
             if (isLiveGroup(group)) return "live"
 
-            val isSeries = hasAny(source, listOf("serie", "series", "seriado", "seriados", "temporada", "temporadas", "episodio", "episodios", "capitulo", "capitulos", "novela", "novelas"))
-            if (isSeries) return "series"
-
-            val isLive = hasAny(source, listOf("canal", "canais", "ao vivo", "tv", "televisao", "esporte ao vivo", "jornal", "noticias", "infantil ao vivo"))
-            if (isLive) return "live"
-
-            val isMovie = hasAny(source, listOf("filme", "filmes", "movie", "movies", "cinema", "vod", "lancamento", "lancamentos", "dublado", "legendado", "acao", "comedia", "terror"))
-            if (isMovie) return "vod"
+            if (SERIES_REGEX.containsMatchIn(source)) return "series"
+            if (LIVE_REGEX.containsMatchIn(source)) return "live"
+            if (MOVIE_REGEX.containsMatchIn(source)) return "vod"
 
             if (u.endsWith(".mp4") || u.endsWith(".mkv") || u.endsWith(".avi") || u.endsWith(".mov") || u.endsWith(".m4v")) return "vod"
             return "live"
         }
 
         private fun normalize(value: String): String {
-            return Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replace("\\p{Mn}+".toRegex(), "")
-                .lowercase()
-                .replace('_', ' ')
-                .replace('-', ' ')
+            if (value.isEmpty()) return ""
+            val noAccent = if (value.any { it.code > 127 }) {
+                Normalizer.normalize(value, Normalizer.Form.NFD).replace(DIACRITICS, "")
+            } else {
+                value
+            }
+            return noAccent
+                .lowercase(Locale.ROOT)
+                .replace(SEPARATORS, " ")
                 .trim()
         }
 
@@ -206,10 +239,9 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
                 group.contains("| canais")
         }
 
-        private fun hasAny(text: String, terms: List<String>): Boolean {
-            return terms.any { term ->
-                Regex("(^|[^a-z0-9])${Regex.escape(term)}([^a-z0-9]|$)").containsMatchIn(text)
-            }
+        private fun termsRegex(vararg terms: String): Regex {
+            val body = terms.joinToString("|") { Regex.escape(it) }
+            return Regex("(^|[^a-z0-9])(?:$body)([^a-z0-9]|$)")
         }
     }
 }

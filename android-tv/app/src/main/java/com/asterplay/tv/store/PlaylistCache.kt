@@ -10,21 +10,30 @@ import com.asterplay.tv.net.M3UParser
  */
 object PlaylistCache {
 
-    fun saveFromM3uLines(ctx: Context, url: String, lines: Sequence<String>): Int {
+    private const val INSERT_BATCH_SIZE = 10_000
+
+    fun saveFromM3uLines(
+        ctx: Context,
+        url: String,
+        lines: Sequence<String>,
+        onProgress: ((Int) -> Unit)? = null
+    ): Int {
         val db = ChannelDb.get(ctx)
         db.clearAll()
-        val buffer = ArrayList<Pair<Channel, String>>(2048)
+        val buffer = ArrayList<Pair<Channel, String>>(INSERT_BATCH_SIZE)
         var total = 0
         M3UParser.forEach(lines) { c ->
             buffer += c to ChannelDb.classify(c)
-            if (buffer.size >= 2000) {
+            if (buffer.size >= INSERT_BATCH_SIZE) {
                 total += db.bulkInsert(buffer)
                 buffer.clear()
+                onProgress?.invoke(total)
             }
         }
         if (buffer.isNotEmpty()) {
             total += db.bulkInsert(buffer)
             buffer.clear()
+            onProgress?.invoke(total)
         }
         if (total > 0) db.setMeta(url, total) else db.clearAll()
         return total
