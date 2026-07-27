@@ -141,24 +141,26 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
-    // Preview de vídeo: começa no meio do filme, roda 15s e volta para o backdrop
-    var showPreview by remember { mutableStateOf(false) }
+    // Preview de vídeo: começa na metade do filme, roda 50s com áudio.
+    // A capa de fundo só some quando o vídeo já está renderizando frames.
+    var wantVideo by remember { mutableStateOf(false) }
+    var videoReady by remember { mutableStateOf(false) }
+    val showPreview = wantVideo && videoReady
     LaunchedEffect(channel.url) {
-        // aguarda um pouco antes de iniciar o preview
         delay(2500)
         while (true) {
-            showPreview = true
-            delay(15_000)
-            showPreview = false
-            // intervalo antes de rodar de novo, mostrando a capa
+            wantVideo = true
+            delay(50_000)
+            wantVideo = false
+            videoReady = false
             delay(20_000)
         }
     }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Backdrop
+        // Backdrop (permanece visível até o vídeo renderizar)
         val d = detail
-        if (d?.backdropUrl != null) {
+        if (d?.backdropUrl != null && !showPreview) {
             AsyncImage(
                 model = d.backdropUrl,
                 contentDescription = null,
@@ -167,14 +169,22 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             )
         }
 
-        // Preview de vídeo por cima da capa de fundo
-        AnimatedVisibility(
-            visible = showPreview,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            MoviePreviewVideo(url = channel.url)
+        // Preview de vídeo (mantém montado enquanto wantVideo, revela após 1º frame)
+        if (wantVideo) {
+            AnimatedVisibility(
+                visible = showPreview,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                MoviePreviewVideo(url = channel.url, onFirstFrame = { videoReady = true })
+            }
+            if (!showPreview) {
+                // renderiza off-screen para carregar frames antes de exibir
+                Box(Modifier.fillMaxSize()) {
+                    MoviePreviewVideo(url = channel.url, onFirstFrame = { videoReady = true })
+                }
+            }
         }
         // Dark gradient overlay
         Box(
