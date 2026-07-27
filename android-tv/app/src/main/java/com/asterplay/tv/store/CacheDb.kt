@@ -169,7 +169,7 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         val args = ArrayList<String>(urls.size + 1).apply { add(account); addAll(urls) }
         val out = HashMap<String, Channel>()
         readableDatabase.rawQuery(
-            "SELECT name,url,logo,cat_id,tvg,kind FROM streams_cache WHERE account=? AND url IN ($placeholders)",
+            "SELECT name,url,logo,cat_id,tvg FROM streams_cache WHERE account=? AND url IN ($placeholders)",
             args.toTypedArray(),
         ).use {
             while (it.moveToNext()) {
