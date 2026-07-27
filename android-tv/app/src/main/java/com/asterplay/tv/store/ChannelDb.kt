@@ -36,6 +36,16 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
         db.execSQL("CREATE INDEX idx_name ON channels(name)")
         db.execSQL(
             """
+            CREATE TABLE categories (
+              type TEXT NOT NULL,
+              name TEXT NOT NULL,
+              cnt  INTEGER NOT NULL DEFAULT 0,
+              PRIMARY KEY(type, name)
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
             CREATE TABLE meta (
               k TEXT PRIMARY KEY,
               v TEXT
@@ -46,6 +56,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS channels")
+        db.execSQL("DROP TABLE IF EXISTS categories")
         db.execSQL("DROP TABLE IF EXISTS meta")
         onCreate(db)
     }
@@ -55,6 +66,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
         db.beginTransactionNonExclusive()
         try {
             db.execSQL("DELETE FROM channels")
+            db.execSQL("DELETE FROM categories")
             db.execSQL("DELETE FROM meta")
             db.setTransactionSuccessful()
         } finally {
@@ -62,21 +74,10 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
         }
     }
 
-    fun setMeta(url: String, count: Int) {
+    fun setMeta(key: String, value: String) {
         val db = writableDatabase
-        db.beginTransaction()
-        try {
-            fun put(k: String, v: String) {
-                val cv = ContentValues().apply { put("k", k); put("v", v) }
-                db.insertWithOnConflict("meta", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
-            }
-            put("url", url)
-            put("ts", System.currentTimeMillis().toString())
-            put("count", count.toString())
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
+        val cv = ContentValues().apply { put("k", key); put("v", value) }
+        db.insertWithOnConflict("meta", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
     fun getMeta(key: String): String? {
@@ -88,100 +89,130 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
 
     fun currentUrl(): String? = getMeta("url")
     fun currentCount(): Int = getMeta("count")?.toIntOrNull() ?: 0
+    fun sourceFile(): String? = getMeta("file")
 
-    fun bulkInsert(channels: Iterable<Pair<Channel, String>>): Int {
+    /**
+     * Parses the playlist in a single pass:
+     *  - Live channels are stored fully in [channels].
+     *  - VOD and Series entries only aggregate group counts in [categories]
+     *    (their rows are loaded on-demand from the cached raw file).
+     */
+    fun replaceAll(
+        url: String,
+        sourceFile: String?,
+        channels: Sequence<Channel>,
+        onProgress: ((Int) -> Unit)? = null
+    ): Int {
         val db = writableDatabase
-        var count = 0
-        db.beginTransactionNonExclusive()
-        try {
-            val stmt = db.compileStatement(
-                "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,?)"
-            )
-            try {
-                for ((c, type) in channels) {
-                    stmt.clearBindings()
-                    stmt.bindString(1, c.name)
-                    stmt.bindString(2, c.url)
-                    if (c.logo != null) stmt.bindString(3, c.logo) else stmt.bindNull(3)
-                    if (c.group != null) stmt.bindString(4, c.group) else stmt.bindNull(4)
-                    if (c.tvgId != null) stmt.bindString(5, c.tvgId) else stmt.bindNull(5)
-                    stmt.bindString(6, type)
-                    stmt.executeInsert()
-                    count++
-                }
-            } finally {
-                stmt.close()
-            }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
-        return count
-    }
+        var scanned = 0
+        val vodCounts = HashMap<String, Int>()
+        val serCounts = HashMap<String, Int>()
 
-    fun replaceAll(url: String, channels: Sequence<Channel>, onProgress: ((Int) -> Unit)? = null): Int {
-        val db = writableDatabase
-        var count = 0
         db.beginTransactionNonExclusive()
         try {
             db.execSQL("DELETE FROM channels")
+            db.execSQL("DELETE FROM categories")
             db.execSQL("DELETE FROM meta")
-            val stmt = db.compileStatement(
-                "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,?)"
+
+            val ins = db.compileStatement(
+                "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,'live')"
             )
             try {
                 for (c in channels) {
-                    stmt.clearBindings()
-                    stmt.bindString(1, c.name)
-                    stmt.bindString(2, c.url)
-                    if (c.logo != null) stmt.bindString(3, c.logo) else stmt.bindNull(3)
-                    if (c.group != null) stmt.bindString(4, c.group) else stmt.bindNull(4)
-                    if (c.tvgId != null) stmt.bindString(5, c.tvgId) else stmt.bindNull(5)
-                    stmt.bindString(6, classify(c))
-                    stmt.executeInsert()
-                    count++
-                    if (count % 5_000 == 0) onProgress?.invoke(count)
+                    scanned++
+                    when (classify(c)) {
+                        "live" -> {
+                            ins.clearBindings()
+                            ins.bindString(1, c.name)
+                            ins.bindString(2, c.url)
+                            if (c.logo != null) ins.bindString(3, c.logo) else ins.bindNull(3)
+                            if (c.group != null) ins.bindString(4, c.group) else ins.bindNull(4)
+                            if (c.tvgId != null) ins.bindString(5, c.tvgId) else ins.bindNull(5)
+                            ins.executeInsert()
+                        }
+                        "vod" -> {
+                            val g = c.group?.trim().takeUnless { it.isNullOrEmpty() } ?: "Outros"
+                            vodCounts[g] = (vodCounts[g] ?: 0) + 1
+                        }
+                        "series" -> {
+                            val g = c.group?.trim().takeUnless { it.isNullOrEmpty() } ?: "Outros"
+                            serCounts[g] = (serCounts[g] ?: 0) + 1
+                        }
+                    }
+                    if (scanned % 5_000 == 0) onProgress?.invoke(scanned)
                 }
             } finally {
-                stmt.close()
+                ins.close()
             }
-            if (count > 0) {
+
+            val insCat = db.compileStatement(
+                "INSERT INTO categories(type,name,cnt) VALUES(?,?,?)"
+            )
+            try {
+                for ((g, n) in vodCounts) {
+                    insCat.clearBindings()
+                    insCat.bindString(1, "vod")
+                    insCat.bindString(2, g)
+                    insCat.bindLong(3, n.toLong())
+                    insCat.executeInsert()
+                }
+                for ((g, n) in serCounts) {
+                    insCat.clearBindings()
+                    insCat.bindString(1, "series")
+                    insCat.bindString(2, g)
+                    insCat.bindLong(3, n.toLong())
+                    insCat.executeInsert()
+                }
+            } finally {
+                insCat.close()
+            }
+
+            if (scanned > 0) {
                 fun put(k: String, v: String) {
                     val cv = ContentValues().apply { put("k", k); put("v", v) }
                     db.insertWithOnConflict("meta", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
                 }
                 put("url", url)
                 put("ts", System.currentTimeMillis().toString())
-                put("count", count.toString())
-                onProgress?.invoke(count)
+                put("count", scanned.toString())
+                if (sourceFile != null) put("file", sourceFile)
+                onProgress?.invoke(scanned)
             }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
         }
-        return count
+        return scanned
     }
 
     fun groupsByType(type: String): List<Pair<String, Int>> {
         val out = mutableListOf<Pair<String, Int>>()
-        readableDatabase.rawQuery(
-            "SELECT COALESCE(NULLIF(TRIM(grp),''),'Outros') AS g, COUNT(*) FROM channels WHERE type=? GROUP BY g ORDER BY g COLLATE NOCASE",
-            arrayOf(type)
-        ).use {
-            while (it.moveToNext()) out += it.getString(0) to it.getInt(1)
+        if (type == "live") {
+            readableDatabase.rawQuery(
+                "SELECT COALESCE(NULLIF(TRIM(grp),''),'Outros') AS g, COUNT(*) FROM channels WHERE type='live' GROUP BY g ORDER BY g COLLATE NOCASE",
+                null
+            ).use {
+                while (it.moveToNext()) out += it.getString(0) to it.getInt(1)
+            }
+        } else {
+            readableDatabase.rawQuery(
+                "SELECT name, cnt FROM categories WHERE type=? ORDER BY name COLLATE NOCASE",
+                arrayOf(type)
+            ).use {
+                while (it.moveToNext()) out += it.getString(0) to it.getInt(1)
+            }
         }
         return out
     }
 
     fun channelsByGroup(type: String, group: String, limit: Int = 500): List<Channel> {
+        if (type != "live") return emptyList()
         val out = ArrayList<Channel>()
         val sql = if (group == "Outros")
-            "SELECT name,url,logo,grp,tvg FROM channels WHERE type=? AND (grp=? OR grp IS NULL OR TRIM(grp)='') ORDER BY name COLLATE NOCASE LIMIT ?"
+            "SELECT name,url,logo,grp,tvg FROM channels WHERE type='live' AND (grp=? OR grp IS NULL OR TRIM(grp)='') ORDER BY name COLLATE NOCASE LIMIT ?"
         else
-            "SELECT name,url,logo,grp,tvg FROM channels WHERE type=? AND grp=? ORDER BY name COLLATE NOCASE LIMIT ?"
-        val args = if (group == "Outros") arrayOf(type, group, limit.toString())
-                   else arrayOf(type, group, limit.toString())
-        readableDatabase.rawQuery(sql, args).use {
+            "SELECT name,url,logo,grp,tvg FROM channels WHERE type='live' AND grp=? ORDER BY name COLLATE NOCASE LIMIT ?"
+        readableDatabase.rawQuery(sql, arrayOf(group, limit.toString())).use {
             while (it.moveToNext()) {
                 out += Channel(
                     name = it.getString(0),
@@ -216,7 +247,7 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
 
     companion object {
         private const val DB_NAME = "asterplay.db"
-        private const val DB_VERSION = 3
+        private const val DB_VERSION = 4
 
         private val DIACRITICS = "\\p{Mn}+".toRegex()
         private val SEPARATORS = "[_\\-]+".toRegex()
