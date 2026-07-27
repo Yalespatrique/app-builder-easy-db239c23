@@ -367,19 +367,40 @@ private fun RankedPoster(
     cardWidth: Dp,
     onClick: () -> Unit,
 ) {
-    // Estilo Netflix: número em PRIMEIRO PLANO à esquerda, pôster ATRÁS/à direita.
-    val overlapRatio = 0.35f
+    // Estilo Netflix: número à esquerda, "saindo" do pôster; pôster limpo à direita.
+    // Número maior para dois dígitos (rank 10).
+    val overlapRatio = if (rank >= 10) 0.75f else 0.50f
     val overlap = cardWidth * overlapRatio
     val itemWidth = cardWidth + overlap
     val posterHeight = cardWidth * 1.5f
-    val numberFontSize = cardWidth.value * 1.9f
+    // Altura do número ≈ 70% da altura do pôster; converte para sp aproximado.
+    val numberFontSize = (posterHeight.value * 0.75f)
 
     Box(
         modifier = Modifier
             .width(itemWidth)
             .height(posterHeight),
     ) {
-        // Pôster ATRÁS, alinhado à direita
+        // Número À FRENTE, canto inferior esquerdo, sobressaindo à esquerda do pôster
+        BasicText(
+            text = rank.toString(),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .wrapContentWidth(align = Alignment.Start, unbounded = true),
+            style = TextStyle(
+                fontSize = numberFontSize.sp,
+                fontWeight = FontWeight.Black,
+                brush = BrandGradient,
+                shadow = Shadow(
+                    color = Color(0xFF000000).copy(alpha = 0.85f),
+                    offset = Offset(4f, 6f),
+                    blurRadius = 14f,
+                ),
+            ),
+        )
+
+        // Pôster ATRÁS visualmente (desenhado depois → fica por cima do trecho sobreposto),
+        // mas alinhado à direita para deixar o número visível à esquerda.
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -393,24 +414,6 @@ private fun RankedPoster(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-
-        // Número À FRENTE, alinhado à esquerda-baixo, sobrepondo o pôster
-        BasicText(
-            text = rank.toString(),
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .wrapContentWidth(align = Alignment.Start, unbounded = true),
-            style = TextStyle(
-                fontSize = numberFontSize.sp,
-                fontWeight = FontWeight.Black,
-                brush = BrandGradient,
-                shadow = Shadow(
-                    color = Color(0xFF000000).copy(alpha = 0.85f),
-                    offset = Offset(4f, 6f),
-                    blurRadius = 12f,
-                ),
-            ),
-        )
     }
 }
 
