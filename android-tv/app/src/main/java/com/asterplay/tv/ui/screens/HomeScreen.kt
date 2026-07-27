@@ -339,9 +339,9 @@ private fun EmptyBar(msg: String) {
 }
 
 @Composable
-private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
+private fun RankedPoster(rank: Int, hit: TopHit, width: Dp, onClick: () -> Unit) {
     // Card uniforme para todos os ranks; badge pequeno no canto superior esquerdo.
-    Box(Modifier.width(140.dp)) {
+    Box(Modifier.width(width)) {
         PosterCard(
             title = hit.tmdb.title,
             logo = hit.tmdb.poster,
@@ -353,7 +353,7 @@ private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
         Box(
             Modifier
                 .align(Alignment.TopStart)
-                .offset(x = (-8).dp, y = (-8).dp)
+                .offset(x = (-10).dp, y = (-10).dp)
                 .background(Accent, RoundedCornerShape(8.dp))
                 .padding(horizontal = 8.dp, vertical = 3.dp),
             contentAlignment = Alignment.Center,
