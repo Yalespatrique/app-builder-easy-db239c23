@@ -25,6 +25,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.RawResourceDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.asterplay.tv.R
 import com.asterplay.tv.ui.theme.BgBase
@@ -35,6 +36,7 @@ fun SplashScreen(onDone: (Context) -> Unit) {
     val ctx = LocalContext.current
     var showVideo by remember { mutableStateOf(false) }
     var finished by remember { mutableStateOf(false) }
+    var player by remember { mutableStateOf<ExoPlayer?>(null) }
 
     fun finishOnce() {
         if (!finished) {
@@ -43,10 +45,41 @@ fun SplashScreen(onDone: (Context) -> Unit) {
         }
     }
 
-    // 1) Logo estático por 1.6s, depois o vídeo aparece.
+    // Prepara o vídeo enquanto a logo está na tela. Assim, quando a intro entra,
+    // o decoder já está aquecido e evita áudio picotando/travadas no início.
+    DisposableEffect(Unit) {
+        val p = ExoPlayer.Builder(ctx).build().apply {
+            repeatMode = Player.REPEAT_MODE_OFF
+            setMediaItem(MediaItem.fromUri(RawResourceDataSource.buildRawResourceUri(R.raw.intro)))
+            addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == Player.STATE_ENDED) finishOnce()
+                }
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    finishOnce()
+                }
+            })
+            prepare()
+            playWhenReady = false
+        }
+        player = p
+        onDispose {
+            p.release()
+            player = null
+        }
+    }
+
+    // 1) Logo estático por 1.6s, depois o vídeo aparece já preparado.
     LaunchedEffect(Unit) {
         delay(1600)
         showVideo = true
+    }
+
+    LaunchedEffect(showVideo, player) {
+        if (showVideo) {
+            player?.playWhenReady = true
+            player?.play()
+        }
     }
 
     // Fallback duro: se algo travar, avança em 12s.
@@ -68,35 +101,13 @@ fun SplashScreen(onDone: (Context) -> Unit) {
                 contentScale = ContentScale.Crop,
             )
         } else {
-            var player by remember { mutableStateOf<ExoPlayer?>(null) }
-
-            DisposableEffect(Unit) {
-                val p = ExoPlayer.Builder(ctx).build().apply {
-                    repeatMode = Player.REPEAT_MODE_OFF
-                    setMediaItem(MediaItem.fromUri(RawResourceDataSource.buildRawResourceUri(R.raw.intro)))
-                    addListener(object : Player.Listener {
-                        override fun onPlaybackStateChanged(state: Int) {
-                            if (state == Player.STATE_ENDED) finishOnce()
-                        }
-                        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                            finishOnce()
-                        }
-                    })
-                    prepare()
-                    playWhenReady = true
-                }
-                player = p
-                onDispose {
-                    p.release()
-                    player = null
-                }
-            }
-
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { c ->
                     PlayerView(c).apply {
                         useController = false
+                        keepScreenOn = true
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         setBackgroundColor(0xFF000000.toInt())
                         setShutterBackgroundColor(0xFF000000.toInt())
                         systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
