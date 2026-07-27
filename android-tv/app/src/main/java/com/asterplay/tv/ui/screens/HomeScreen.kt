@@ -168,7 +168,7 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.Favorite, "Favoritos") { /* futuro */ }
                 Spacer(Modifier.weight(1f))
                 SideMenuItem(Icons.Default.Logout, "Sair") {
-                    PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); onLogout()
+                    PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx); onLogout()
                 }
                 Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
                 Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
