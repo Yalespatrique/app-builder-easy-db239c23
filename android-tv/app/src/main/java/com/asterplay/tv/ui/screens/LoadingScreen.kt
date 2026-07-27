@@ -138,7 +138,7 @@ private fun downloadAndCache(
     }
 
     val file = PlaylistCache.sourceFile(ctx)
-    if (!file.exists() || file.length() == 0L) return@try 0
+    if (!file.exists() || file.length() == 0L) return 0
 
     var lastAt = 0L
     var last = 0
