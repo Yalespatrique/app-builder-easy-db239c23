@@ -317,6 +317,41 @@ private fun TopRow(
 }
 
 @Composable
+private fun RecentRow(
+    title: String,
+    items: List<Channel>,
+    loaded: Boolean,
+    emptyMsg: String,
+    onPick: (Channel) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (!loaded) {
+            EmptyBar("Carregando…")
+        } else if (items.isEmpty()) {
+            EmptyBar(emptyMsg)
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
+            ) {
+                items(items, key = { it.url }) { ch ->
+                    Box(Modifier.width(150.dp)) {
+                        PosterCard(
+                            title = ch.name,
+                            logo = ch.logo,
+                            aspect = 2f / 3f,
+                            onClick = { onPick(ch) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun EmptyBar(msg: String) {
     Box(
         Modifier
