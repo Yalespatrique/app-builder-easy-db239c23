@@ -97,6 +97,7 @@ fun PairingScreen(onActivated: () -> Unit) {
             if (r.ok && r.playlistUrl != null && r.xtream != null) {
                 PlaylistStore.save(ctx, r.playlistUrl)
                 com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+                onActivated()
             } else message = r.message ?: "Falha no login"
         }
     }
