@@ -300,19 +300,30 @@ private fun RecentRow(
         } else if (items.isEmpty()) {
             EmptyBar(emptyMsg)
         } else {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
-            ) {
-                items(items, key = { it.url }) { ch ->
-                    Box(Modifier.width(140.dp)) {
-                        PosterCard(
-                            title = ch.name,
-                            logo = ch.logo,
-                            aspect = 2f / 3f,
-                            onClick = { onPick(ch) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val maxCardWidth = 180.dp
+                val spacing = 14.dp
+                val startPadding = 12.dp
+                val endPadding = 24.dp
+                val visibleCount = 4
+                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
+                val available = maxWidth - totalSpacing
+                val cardWidth = (available / visibleCount).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                    contentPadding = PaddingValues(start = startPadding, end = endPadding, top = 6.dp, bottom = 10.dp),
+                ) {
+                    items(items, key = { it.url }) { ch ->
+                        Box(Modifier.width(cardWidth)) {
+                            PosterCard(
+                                title = ch.name,
+                                logo = ch.logo,
+                                aspect = 2f / 3f,
+                                onClick = { onPick(ch) },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }
