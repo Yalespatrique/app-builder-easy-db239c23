@@ -38,27 +38,22 @@ import kotlinx.coroutines.delay
 
 
 /**
- * Valida as credenciais Xtream contra o servidor.
+ * Valida as credenciais Xtream contra o servidor e pré-carrega o menu.
  * Sem download de M3U — nada de OOM. Deve terminar em 1–3s.
  */
 @Composable
 fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     val ctx = LocalContext.current
-    var status by remember { mutableStateOf("Conectando ao servidor...") }
+    var status by remember { mutableStateOf("carregando informações da lista...") }
     var sub by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         val c = XtreamStore.get(ctx)
         if (c == null) { onFail(); return@LaunchedEffect }
-        status = "Validando credenciais..."
         sub = c.host
         val ok = XtreamApi.authenticate(c)
         if (ok) {
-            status = "Carregando destaques..."
-            sub = "Buscando Top 10 da semana"
             TopHomePreload.run(ctx)
-            status = "Pronto!"
-            sub = "Bem-vindo"
             delay(200); onReady()
         } else {
             status = "Não foi possível conectar"
@@ -68,18 +63,33 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
         }
     }
 
+    val imageLoader = remember {
+        ImageLoader.Builder(ctx)
+            .components {
+                if (Build.VERSION.SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+            }
+            .build()
+    }
+
     Box(Modifier.fillMaxSize().background(BgBase), contentAlignment = Alignment.Center) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 80.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            AsyncImage(
+                model = R.drawable.girar,
+                contentDescription = "Carregando",
+                imageLoader = imageLoader,
+                modifier = Modifier.size(96.dp)
+            )
+            Spacer(Modifier.height(16.dp))
             Text(status, color = TextPrimary, style = MaterialTheme.typography.headlineMedium)
             Text(sub, color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(16.dp))
-            Box(Modifier.fillMaxWidth().height(6.dp).background(BgElevated)) {
-                Box(Modifier.fillMaxWidth(0.4f).height(6.dp).background(Accent))
-            }
         }
     }
 }
