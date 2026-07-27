@@ -288,11 +288,11 @@ private fun RecentRow(
             EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 items(items, key = { it.url }) { ch ->
-                    Box(Modifier.width(150.dp)) {
+                    Box(Modifier.width(140.dp)) {
                         PosterCard(
                             title = ch.name,
                             logo = ch.logo,
