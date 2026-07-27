@@ -161,9 +161,6 @@ fun PairingScreen(onActivated: () -> Unit) {
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text("Ative com MAC + Chave", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-                    Text("Cadastre o MAC e a Chave abaixo no site de ativação.", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-
                     InfoRow("MAC", DeviceId.formatted(mac))
                     InfoRow("Chave", key)
 
