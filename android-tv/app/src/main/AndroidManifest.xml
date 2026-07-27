@@ -15,6 +15,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
         android:label="Asterplay"
+        android:largeHeap="true"
         android:theme="@style/Theme.Asterplay.Splash"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
