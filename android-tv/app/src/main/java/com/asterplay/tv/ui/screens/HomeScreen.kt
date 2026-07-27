@@ -367,51 +367,77 @@ private fun RankedPoster(
     cardWidth: Dp,
     onClick: () -> Unit,
 ) {
-    // Estilo Netflix: número à esquerda, "saindo" do pôster; pôster limpo à direita.
-    // Número maior para dois dígitos (rank 10).
-    val overlapRatio = if (rank >= 10) 0.75f else 0.50f
-    val overlap = cardWidth * overlapRatio
-    val itemWidth = cardWidth + overlap
+    // Estilo Netflix: número gigante à esquerda "saindo" do pôster.
+    // Escalonamento automático baseado na largura do card, com ratio
+    // reduzido para dois dígitos para o "10" nunca ser cortado.
+    val isDouble = rank >= 10
+    // Fonte escala com cardWidth. Single digit é bem alto; "10" fica menor
+    // para caber os dois dígitos na área reservada.
+    val numberFontSize = if (isDouble) cardWidth.value * 0.95f else cardWidth.value * 1.35f
+    // Largura aproximada de cada dígito ≈ 0.55 × fontSize (Black weight).
+    // Reserva horizontal para o número (com folga para não cortar).
+    val digitCount = if (isDouble) 2 else 1
+    val reservedWidth = (numberFontSize * 0.58f * digitCount).dp
     val posterHeight = cardWidth * 1.5f
-    // Altura do número ≈ 70% da altura do pôster; converte para sp aproximado.
-    val numberFontSize = (posterHeight.value * 0.75f)
+    val itemWidth = cardWidth + reservedWidth * 0.85f // pôster cobre ~15% do número
 
-    Box(
-        modifier = Modifier
-            .width(itemWidth)
-            .height(posterHeight),
+    Column(
+        modifier = Modifier.width(itemWidth),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Número À FRENTE, canto inferior esquerdo, sobressaindo à esquerda do pôster
-        BasicText(
-            text = rank.toString(),
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .wrapContentWidth(align = Alignment.Start, unbounded = true),
-            style = TextStyle(
-                fontSize = numberFontSize.sp,
-                fontWeight = FontWeight.Black,
-                brush = BrandGradient,
-                shadow = Shadow(
-                    color = Color(0xFF000000).copy(alpha = 0.85f),
-                    offset = Offset(4f, 6f),
-                    blurRadius = 14f,
-                ),
-            ),
-        )
-
-        // Pôster ATRÁS visualmente (desenhado depois → fica por cima do trecho sobreposto),
-        // mas alinhado à direita para deixar o número visível à esquerda.
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .width(cardWidth),
+                .width(itemWidth)
+                .height(posterHeight),
         ) {
-            PosterCard(
-                title = hit.tmdb.title,
-                logo = hit.tmdb.poster,
-                aspect = 2f / 3f,
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth(),
+            // Número À FRENTE, canto inferior esquerdo.
+            BasicText(
+                text = rank.toString(),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .wrapContentWidth(align = Alignment.Start, unbounded = true),
+                style = TextStyle(
+                    fontSize = numberFontSize.sp,
+                    fontWeight = FontWeight.Black,
+                    brush = BrandGradient,
+                    shadow = Shadow(
+                        color = Color(0xFF000000).copy(alpha = 0.85f),
+                        offset = Offset(4f, 6f),
+                        blurRadius = 14f,
+                    ),
+                ),
+            )
+
+            // Pôster alinhado à direita: cobre apenas a extremidade direita do número.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(cardWidth),
+            ) {
+                PosterCard(
+                    title = hit.tmdb.title,
+                    logo = hit.tmdb.poster,
+                    aspect = 2f / 3f,
+                    onClick = onClick,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // Título abaixo do pôster (alinhado ao card, não ao número).
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = itemWidth - cardWidth),
+        ) {
+            Text(
+                text = hit.tmdb.title,
+                color = TextPrimary,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width(cardWidth),
             )
         }
     }
