@@ -1,11 +1,11 @@
 package com.asterplay.tv.ui.screens
 
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,11 +14,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -42,8 +43,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -52,7 +56,9 @@ import androidx.tv.material3.Text
 import com.asterplay.tv.BuildConfig
 import com.asterplay.tv.R
 import com.asterplay.tv.core.DeviceId
+import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.TmdbApi
+import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
@@ -65,7 +71,15 @@ import com.asterplay.tv.ui.theme.BgSurface
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.Normalizer
+
+/** Item TMDB já resolvido com um Channel real do servidor do usuário. */
+private data class TopHit(val tmdb: TmdbApi.Item, val channel: Channel)
 
 @Composable
 fun HomeScreen(
@@ -77,12 +91,34 @@ fun HomeScreen(
     val mac = remember { DeviceId.getMac(ctx) }
     val scope = rememberCoroutineScope()
 
-    var topMovies by remember { mutableStateOf<List<TmdbApi.Item>>(emptyList()) }
-    var topSeries by remember { mutableStateOf<List<TmdbApi.Item>>(emptyList()) }
+    var topMovies by remember { mutableStateOf<List<TopHit>>(emptyList()) }
+    var topSeries by remember { mutableStateOf<List<TopHit>>(emptyList()) }
+    var loaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        topMovies = TmdbApi.topMovies(10)
-        topSeries = TmdbApi.topSeries(10)
+        val creds = XtreamStore.get(ctx)
+        if (creds == null) { loaded = true; return@LaunchedEffect }
+
+        // Busca em paralelo TMDB (10+10) + catálogo do servidor (vod + series)
+        val res = withContext(Dispatchers.IO) {
+            val tmdbM = async { TmdbApi.topMovies(10) }
+            val tmdbS = async { TmdbApi.topSeries(10) }
+            val srvM = async { XtreamApi.allStreams(creds, "vod") }
+            val srvS = async { XtreamApi.allStreams(creds, "series") }
+            listOf(tmdbM, tmdbS, srvM, srvS).awaitAll()
+        }
+        @Suppress("UNCHECKED_CAST")
+        val tmdbMovies = res[0] as List<TmdbApi.Item>
+        @Suppress("UNCHECKED_CAST")
+        val tmdbSeries = res[1] as List<TmdbApi.Item>
+        @Suppress("UNCHECKED_CAST")
+        val srvMovies = res[2] as List<Channel>
+        @Suppress("UNCHECKED_CAST")
+        val srvSeries = res[3] as List<Channel>
+
+        topMovies = matchTop(tmdbMovies, srvMovies)
+        topSeries = matchTop(tmdbSeries, srvSeries)
+        loaded = true
     }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
@@ -95,7 +131,6 @@ fun HomeScreen(
         Box(Modifier.fillMaxSize().background(Color(0xCC07070F)))
 
         Row(Modifier.fillMaxSize()) {
-            // Menu lateral
             Column(
                 Modifier
                     .width(240.dp)
@@ -147,16 +182,22 @@ fun HomeScreen(
                 TopRow(
                     title = "🔥 TOP 10 FILMES DA SEMANA",
                     items = topMovies,
-                    onPick = { item ->
-                        scope.launch { openIfAvailable(ctx, item.title, isSeries = false) }
+                    loaded = loaded,
+                    emptyMsg = "Nenhum dos títulos em alta está na sua lista.",
+                    onPick = { hit ->
+                        scope.launch { play(ctx, hit.channel) }
                     },
                 )
 
                 TopRow(
                     title = "🔥 TOP 10 SÉRIES DA SEMANA",
                     items = topSeries,
-                    onPick = { item ->
-                        scope.launch { openIfAvailable(ctx, item.title, isSeries = true) }
+                    loaded = loaded,
+                    emptyMsg = "Nenhuma das séries em alta está na sua lista.",
+                    onPick = { hit ->
+                        // Séries: abre a tela de detalhes via BrowseScreen (futuro).
+                        // Por enquanto reproduz o primeiro se for movie-like; senão apenas informa.
+                        scope.launch { play(ctx, hit.channel) }
                     },
                 )
             }
@@ -164,60 +205,131 @@ fun HomeScreen(
     }
 }
 
-private suspend fun openIfAvailable(
-    ctx: android.content.Context,
-    title: String,
-    isSeries: Boolean,
-) {
-    val creds = XtreamStore.get(ctx) ?: return
-    val account = CacheDb.accountKey(creds.host, creds.username)
-    val hit = CacheDb.get(ctx).findFirstByName(account, title)
-    if (hit != null && !hit.url.startsWith("asterplay://series/")) {
-        val i = Intent(ctx, PlayerActivity::class.java)
-        i.putExtra("url", hit.url); i.putExtra("name", hit.name)
-        ctx.startActivity(i)
-    } else {
-        val msg = if (isSeries) "Série ainda não disponível na sua lista"
-                  else "Filme ainda não disponível na sua lista"
-        Toast.makeText(ctx, "$title — $msg", Toast.LENGTH_SHORT).show()
+// -------- Matching TMDB × servidor --------
+
+private fun norm(s: String): String {
+    val n = Normalizer.normalize(s, Normalizer.Form.NFD)
+        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        .lowercase()
+    return n.replace(Regex("[^a-z0-9]+"), " ").trim()
+}
+
+private fun matchTop(tmdb: List<TmdbApi.Item>, server: List<Channel>): List<TopHit> {
+    if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
+    // Index normalizado do servidor → primeiro Channel encontrado
+    val index = HashMap<String, Channel>(server.size)
+    for (c in server) {
+        val k = norm(c.name)
+        if (k.isNotEmpty() && !index.containsKey(k)) index[k] = c
     }
+    val out = ArrayList<TopHit>()
+    for (t in tmdb) {
+        val tk = norm(t.title)
+        if (tk.isEmpty()) continue
+        var hit = index[tk]
+        if (hit == null) {
+            // fallback: qualquer chave do servidor que contenha o título (ou vice-versa)
+            for ((k, ch) in index) {
+                if (k.contains(tk) || tk.contains(k)) { hit = ch; break }
+            }
+        }
+        if (hit != null) out += TopHit(t, hit)
+    }
+    return out
+}
+
+private fun play(ctx: android.content.Context, ch: Channel) {
+    if (ch.url.startsWith("asterplay://series/")) {
+        // TODO: abrir tela de temporadas. Por ora, ignora.
+        return
+    }
+    val i = Intent(ctx, PlayerActivity::class.java)
+    i.putExtra("url", ch.url); i.putExtra("name", ch.name)
+    ctx.startActivity(i)
 }
 
 @Composable
 private fun TopRow(
     title: String,
-    items: List<TmdbApi.Item>,
-    onPick: (TmdbApi.Item) -> Unit,
+    items: List<TopHit>,
+    loaded: Boolean,
+    emptyMsg: String,
+    onPick: (TopHit) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        if (items.isEmpty()) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .background(BgSurface, RoundedCornerShape(12.dp))
-                    .padding(20.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Text("Carregando…", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            }
+        if (!loaded) {
+            EmptyBar("Carregando…")
+        } else if (items.isEmpty()) {
+            EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(28.dp),
+                contentPadding = PaddingValues(start = 40.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
             ) {
-                items(items, key = { it.tmdbId }) { it ->
-                    Box(Modifier.width(140.dp)) {
-                        PosterCard(
-                            title = it.title,
-                            logo = it.poster,
-                            aspect = 2f / 3f,
-                            onClick = { onPick(it) },
-                        )
-                    }
+                itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
+                    RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptyBar(msg: String) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .background(BgSurface, RoundedCornerShape(12.dp))
+            .padding(20.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(msg, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
+    // Layout estilo Netflix Top 10: número gigante sobreposto à esquerda do pôster.
+    BoxWithConstraints(Modifier.width(200.dp).height(230.dp)) {
+        // Número grande atrás
+        Text(
+            text = rank.toString(),
+            style = TextStyle(
+                fontSize = 180.sp,
+                fontWeight = FontWeight.Black,
+                color = Color(0xFF0B0B14),
+            ),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-14).dp, y = 20.dp),
+        )
+        // Contorno neon do número
+        Text(
+            text = rank.toString(),
+            style = TextStyle(
+                fontSize = 180.sp,
+                fontWeight = FontWeight.Black,
+                color = Accent.copy(alpha = 0.85f),
+            ),
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-10).dp, y = 24.dp),
+        )
+        // Pôster deslocado à direita para o número aparecer
+        Box(
+            Modifier
+                .align(Alignment.CenterEnd)
+                .width(130.dp),
+        ) {
+            PosterCard(
+                title = hit.tmdb.title,
+                logo = hit.tmdb.poster,
+                aspect = 2f / 3f,
+                onClick = onClick,
+            )
         }
     }
 }
