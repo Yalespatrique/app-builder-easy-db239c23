@@ -256,19 +256,32 @@ private fun TopRow(
     emptyMsg: String,
     onPick: (TopHit) -> Unit,
 ) {
+    val visible = remember(items) { items.take(4) }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (!loaded) {
             EmptyBar("Carregando…")
-        } else if (items.isEmpty()) {
+        } else if (visible.isEmpty()) {
             EmptyBar(emptyMsg)
         } else {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
-            ) {
-                itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
-                    RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val maxCardWidth = 180.dp
+                val spacing = 12.dp
+                // start padding maior para acomodar o badge de rank deslocado à esquerda
+                val startPadding = 20.dp
+                val endPadding = 16.dp
+                val totalSpacing = startPadding + endPadding + spacing * (visible.size - 1)
+                val available = maxWidth - totalSpacing
+                val cardWidth = min(available / visible.size, maxCardWidth).coerceAtLeast(100.dp)
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                    contentPadding = PaddingValues(start = startPadding, end = endPadding, top = 6.dp, bottom = 10.dp),
+                    userScrollEnabled = false,
+                ) {
+                    itemsIndexed(visible, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
+                        RankedPoster(rank = index + 1, hit = hit, width = cardWidth, onClick = { onPick(hit) })
+                    }
                 }
             }
         }
