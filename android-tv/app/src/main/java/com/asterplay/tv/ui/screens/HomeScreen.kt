@@ -77,6 +77,7 @@ import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgBase
 import com.asterplay.tv.ui.theme.BgElevated
 import com.asterplay.tv.ui.theme.BgSurface
+import com.asterplay.tv.ui.theme.BrandGradient
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
