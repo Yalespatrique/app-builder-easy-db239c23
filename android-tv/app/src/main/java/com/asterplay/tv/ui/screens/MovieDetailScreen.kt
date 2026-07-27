@@ -159,15 +159,15 @@ fun MovieDetailScreen(onBack: () -> Unit) {
         )
 
         Row(
-            Modifier.fillMaxSize().padding(horizontal = 56.dp, vertical = 48.dp),
-            horizontalArrangement = Arrangement.spacedBy(32.dp),
+            Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
         ) {
             // Poster à esquerda
             Box(
                 Modifier
-                    .width(260.dp)
+                    .width(190.dp)
                     .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(BgElevated),
                 contentAlignment = Alignment.Center,
             ) {
@@ -186,36 +186,34 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             // Info à direita
             Column(
                 Modifier.fillMaxHeight().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text("FILME", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text("FILME", color = Accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 Text(
                     d?.title ?: channel.name,
                     color = TextPrimary,
-                    style = MaterialTheme.typography.displaySmall,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Black,
-                    maxLines = 3,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
 
                 // Linha de meta: nota • ano • duração • gêneros
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     d?.rating?.let {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, null, tint = Color(0xFFF5C518), modifier = Modifier.width(18.dp).height(18.dp))
+                            Icon(Icons.Default.Star, null, tint = Color(0xFFF5C518), modifier = Modifier.width(16.dp).height(16.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(it, color = TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Text(it, color = TextPrimary, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                     }
                     d?.year?.let { MetaChip(it) }
                     d?.duration?.let { MetaChip(it) }
                     d?.genres?.take(3)?.forEach { MetaChip(it) }
                 }
-
-                Spacer(Modifier.height(4.dp))
 
                 // Sinopse
                 if (loading && d?.overview == null) {
@@ -224,33 +222,34 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                     Text(
                         d?.overview ?: "Sinopse não disponível.",
                         color = TextSecondary,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.width(720.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(640.dp),
                     )
                 }
 
                 if (!d?.cast.isNullOrEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("ELENCO", color = Accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("ELENCO", color = Accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     Text(
                         d?.cast?.joinToString(" · ").orEmpty(),
                         color = TextPrimary,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(720.dp),
+                        modifier = Modifier.width(640.dp),
                     )
                 }
 
                 d?.director?.let {
-                    Text("DIREÇÃO", color = Accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                    Text(it, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                    Text("DIREÇÃO", color = Accent, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(it, color = TextPrimary, style = MaterialTheme.typography.bodySmall)
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(8.dp))
 
                 // Botões
-                Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     PrimaryButton(
                         label = "ASSISTIR AGORA",
                         icon = Icons.Default.PlayArrow,
