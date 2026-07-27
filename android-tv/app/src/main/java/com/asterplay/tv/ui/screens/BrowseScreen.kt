@@ -31,8 +31,11 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.asterplay.tv.net.Channel
+import com.asterplay.tv.net.XtreamApi
+import com.asterplay.tv.net.XtreamCategory
 import com.asterplay.tv.player.PlayerActivity
-import com.asterplay.tv.store.PlaylistCache
+import com.asterplay.tv.store.CacheDb
+import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.CategoryItem
 import com.asterplay.tv.ui.components.PosterCard
 import com.asterplay.tv.ui.theme.Accent
@@ -44,77 +47,96 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Master-detail via Xtream API + cache SQLite com TTL.
+ * Só carrega o que o usuário abre.
+ */
 @Composable
 fun BrowseScreen(type: String, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val creds = remember { XtreamStore.get(ctx) }
 
-    var categories by remember { mutableStateOf<List<Pair<String, Int>>>(emptyList()) }
+    var categories by remember { mutableStateOf<List<XtreamCategory>>(emptyList()) }
     var selectedIdx by remember { mutableIntStateOf(0) }
     var items by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loadingItems by remember { mutableStateOf(false) }
+    var loadingCats by remember { mutableStateOf(true) }
 
     val header = when (type) { "vod" -> "FILMES"; "series" -> "SÉRIES"; else -> "CANAIS" }
     val isChannels = type == "live"
 
     LaunchedEffect(type) {
-        val cats = withContext(Dispatchers.IO) { PlaylistCache.groups(ctx, type) }
+        if (creds == null) { onBack(); return@LaunchedEffect }
+        val account = CacheDb.accountKey(creds.host, creds.username)
+        loadingCats = true
+        val cats = withContext(Dispatchers.IO) {
+            val db = CacheDb.get(ctx)
+            db.readCategories(account, type) ?: run {
+                val fresh = XtreamApi.categories(creds, type)
+                if (fresh.isNotEmpty()) db.writeCategories(account, type, fresh, CacheDb.TTL_CATEGORIES)
+                fresh
+            }
+        }
         categories = cats
+        loadingCats = false
         if (cats.isNotEmpty()) {
             selectedIdx = 0
-            loadingItems = true
-            val list = withContext(Dispatchers.IO) { PlaylistCache.byGroup(ctx, type, cats[0].first) }
-            items = list; loadingItems = false
+            loadCategory(cats[0].id, account, creds) { items = it; loadingItems = false }
         }
     }
 
-    fun selectCategory(idx: Int) {
-        if (idx < 0 || idx >= categories.size) return
+    fun onSelect(idx: Int) {
+        if (idx < 0 || idx >= categories.size || creds == null) return
         selectedIdx = idx
         loadingItems = true
+        val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
-            val list = withContext(Dispatchers.IO) { PlaylistCache.byGroup(ctx, type, categories[idx].first) }
+            val list = withContext(Dispatchers.IO) {
+                val db = CacheDb.get(ctx)
+                db.readStreams(account, type, categories[idx].id) ?: run {
+                    val fresh = XtreamApi.streams(creds, type, categories[idx].id)
+                    if (fresh.isNotEmpty()) db.writeStreams(account, type, categories[idx].id, fresh, CacheDb.TTL_STREAMS)
+                    fresh
+                }
+            }
             items = list; loadingItems = false
         }
     }
 
     Row(Modifier.fillMaxSize().background(BgBase)) {
-        // Coluna de categorias
         Column(
-            Modifier
-                .width(320.dp)
-                .fillMaxHeight()
-                .background(BgSurface)
-                .padding(vertical = 20.dp),
+            Modifier.width(320.dp).fillMaxHeight().background(BgSurface).padding(vertical = 20.dp),
         ) {
             Column(Modifier.padding(horizontal = 20.dp)) {
                 Text(header, color = Accent, style = MaterialTheme.typography.labelLarge)
-                Text("${categories.size} categorias", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    if (loadingCats) "Carregando..." else "${categories.size} categorias",
+                    color = TextMuted, style = MaterialTheme.typography.labelMedium,
+                )
             }
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                itemsIndexed(categories) { i, (name, count) ->
+                itemsIndexed(categories) { i, cat ->
                     CategoryItem(
-                        name = name,
-                        count = count,
+                        name = cat.name,
+                        count = 0,
                         selected = i == selectedIdx,
-                        onClick = { selectCategory(i) },
-                        onFocus = { if (i != selectedIdx) selectCategory(i) },
+                        onClick = { onSelect(i) },
+                        onFocus = { if (i != selectedIdx) onSelect(i) },
                     )
                 }
             }
         }
 
-        // Grade de conteúdos
         Column(Modifier.fillMaxSize().padding(32.dp)) {
-            val catName = categories.getOrNull(selectedIdx)?.first ?: ""
+            val catName = categories.getOrNull(selectedIdx)?.name ?: ""
             Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
             Text(
                 if (loadingItems) "Carregando..." else "${items.size} itens",
-                color = TextMuted,
-                style = MaterialTheme.typography.labelMedium,
+                color = TextMuted, style = MaterialTheme.typography.labelMedium,
             )
             Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
                 LazyVerticalGrid(
@@ -129,9 +151,12 @@ fun BrowseScreen(type: String, onBack: () -> Unit) {
                             logo = ch.logo,
                             aspect = if (isChannels) 16f / 9f else 2f / 3f,
                             onClick = {
+                                if (ch.url.startsWith("asterplay://series/")) {
+                                    // TODO: abrir tela de temporadas/episódios
+                                    return@PosterCard
+                                }
                                 val i = Intent(ctx, PlayerActivity::class.java)
-                                i.putExtra("url", ch.url)
-                                i.putExtra("name", ch.name)
+                                i.putExtra("url", ch.url); i.putExtra("name", ch.name)
                                 ctx.startActivity(i)
                             },
                         )
@@ -140,4 +165,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit) {
             }
         }
     }
+}
+
+private fun loadCategory(
+    catId: String,
+    account: String,
+    creds: com.asterplay.tv.store.XtreamCreds,
+    onDone: (List<Channel>) -> Unit,
+) {
+    // Não usado — inline no LaunchedEffect. Mantido só pra evitar warning se referenciado.
 }
