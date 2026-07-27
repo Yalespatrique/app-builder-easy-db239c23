@@ -141,6 +141,20 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
+    // Preview de vídeo: começa no meio do filme, roda 15s e volta para o backdrop
+    var showPreview by remember { mutableStateOf(false) }
+    LaunchedEffect(channel.url) {
+        // aguarda um pouco antes de iniciar o preview
+        delay(2500)
+        while (true) {
+            showPreview = true
+            delay(15_000)
+            showPreview = false
+            // intervalo antes de rodar de novo, mostrando a capa
+            delay(20_000)
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(BgBase)) {
         // Backdrop
         val d = detail
@@ -151,6 +165,16 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+
+        // Preview de vídeo por cima da capa de fundo
+        AnimatedVisibility(
+            visible = showPreview,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            MoviePreviewVideo(url = channel.url)
         }
         // Dark gradient overlay
         Box(
