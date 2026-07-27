@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/public/activate")({
         );
         if (!match) return json(404, { ok: false, message: "Ativação não encontrada" });
         if (!match.active) return json(403, { ok: false, message: "Ativação inativa" });
-        return json(200, { ok: true, playlist_url: match.playlist_url });
+        return json(200, { ok: true, playlist_url: match.playlist_url, xtream: parseXtream(match.playlist_url) });
       },
     },
   },
