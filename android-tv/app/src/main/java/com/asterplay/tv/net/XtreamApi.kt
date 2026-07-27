@@ -177,10 +177,53 @@ object XtreamApi {
         return@withContext rows.take(limit).map { it.ch }
     }
 
+    // ---------- Detalhes VOD (preview antes de reproduzir) ----------
+
+    data class VodInfo(
+        val plot: String? = null,
+        val cast: String? = null,
+        val director: String? = null,
+        val genre: String? = null,
+        val rating: String? = null,
+        val duration: String? = null,
+        val releaseDate: String? = null,
+        val backdrop: String? = null,
+        val cover: String? = null,
+        val tmdbId: Long? = null,
+        val youtubeTrailer: String? = null,
+    )
+
+    suspend fun vodInfo(c: XtreamCreds, streamId: String): VodInfo? = withContext(Dispatchers.IO) {
+        val body = get(c.playerApi("get_vod_info", "&vod_id=$streamId")) ?: return@withContext null
+        try {
+            val root = JSONObject(body)
+            val info = root.optJSONObject("info") ?: root.optJSONObject("movie_data") ?: return@withContext null
+            val backdrops = info.optJSONArray("backdrop_path")
+            val backdrop = when {
+                backdrops != null && backdrops.length() > 0 -> backdrops.optString(0).ifBlank { null }
+                else -> info.optString("backdrop_path").ifBlank { null }
+            }
+            VodInfo(
+                plot = info.optString("plot").ifBlank { info.optString("description") }.ifBlank { null },
+                cast = info.optString("cast").ifBlank { info.optString("actors") }.ifBlank { null },
+                director = info.optString("director").ifBlank { null },
+                genre = info.optString("genre").ifBlank { null },
+                rating = info.optString("rating").ifBlank { info.optString("rating_5based") }.ifBlank { null },
+                duration = info.optString("duration").ifBlank { info.optString("episode_run_time") }.ifBlank { null },
+                releaseDate = info.optString("releasedate").ifBlank { info.optString("release_date") }.ifBlank { null },
+                backdrop = backdrop,
+                cover = info.optString("movie_image").ifBlank { info.optString("cover_big") }.ifBlank { null },
+                tmdbId = info.optString("tmdb_id").toLongOrNull()?.takeIf { it > 0 },
+                youtubeTrailer = info.optString("youtube_trailer").ifBlank { null },
+            )
+        } catch (_: Exception) { null }
+    }
+
     // ---------- Séries (episódios) ----------
 
     data class Episode(val id: String, val title: String, val season: Int, val ext: String, val url: String)
     data class SeriesInfo(val seasons: List<Int>, val episodes: Map<Int, List<Episode>>)
+
 
     suspend fun seriesInfo(c: XtreamCreds, seriesId: String): SeriesInfo? = withContext(Dispatchers.IO) {
         val body = get(c.playerApi("get_series_info", "&series_id=$seriesId")) ?: return@withContext null

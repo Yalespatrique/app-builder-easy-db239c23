@@ -52,7 +52,8 @@ import kotlinx.coroutines.withContext
  * Só carrega o que o usuário abre.
  */
 @Composable
-fun BrowseScreen(type: String, onBack: () -> Unit) {
+fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) -> Unit = {}) {
+
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val creds = remember { XtreamStore.get(ctx) }
@@ -164,10 +165,15 @@ fun BrowseScreen(type: String, onBack: () -> Unit) {
                                     // TODO: abrir tela de temporadas/episódios
                                     return@PosterCard
                                 }
+                                if (type == "vod") {
+                                    onOpenMovieDetail(ch)
+                                    return@PosterCard
+                                }
                                 val i = Intent(ctx, PlayerActivity::class.java)
                                 i.putExtra("url", ch.url); i.putExtra("name", ch.name)
                                 ctx.startActivity(i)
                             },
+
                         )
                     }
                 }

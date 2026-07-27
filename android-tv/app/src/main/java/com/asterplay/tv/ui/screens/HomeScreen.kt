@@ -93,7 +93,9 @@ fun HomeScreen(
     onOpenBrowse: (String) -> Unit,
     onOpenSearch: () -> Unit,
     onLogout: () -> Unit,
+    onOpenMovieDetail: (Channel, Long?) -> Unit,
 ) {
+
     val ctx = LocalContext.current
     val mac = remember { DeviceId.getMac(ctx) }
     val scope = rememberCoroutineScope()
@@ -202,7 +204,8 @@ fun HomeScreen(
                     items = topMovies,
                     loaded = loaded,
                     emptyMsg = "Nenhum dos títulos em alta está na sua lista.",
-                    onPick = { hit -> scope.launch { play(ctx, hit.channel) } },
+                    onPick = { hit -> onOpenMovieDetail(hit.channel, hit.tmdb.tmdbId) },
+
                 )
 
                 TopRow(
@@ -218,7 +221,8 @@ fun HomeScreen(
                     items = recentMovies,
                     loaded = loaded,
                     emptyMsg = "Sem filmes recentes.",
-                    onPick = { ch -> scope.launch { play(ctx, ch) } },
+                    onPick = { ch -> onOpenMovieDetail(ch, null) },
+
                 )
 
                 RecentRow(

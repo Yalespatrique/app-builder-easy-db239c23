@@ -16,9 +16,12 @@ import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.screens.BrowseScreen
 import com.asterplay.tv.ui.screens.HomeScreen
 import com.asterplay.tv.ui.screens.LoadingScreen
+import com.asterplay.tv.ui.screens.MovieDetailArgs
+import com.asterplay.tv.ui.screens.MovieDetailScreen
 import com.asterplay.tv.ui.screens.PairingScreen
 import com.asterplay.tv.ui.screens.SearchScreen
 import com.asterplay.tv.ui.screens.SplashScreen
+
 import com.asterplay.tv.ui.theme.AsterplayTheme
 import com.asterplay.tv.ui.theme.BgBase
 
@@ -36,8 +39,10 @@ object Routes {
     const val Home = "home"
     const val Browse = "browse/{type}"
     const val Search = "search"
+    const val MovieDetail = "movie_detail"
     fun browse(type: String) = "browse/$type"
 }
+
 
 @Composable
 fun AsterplayApp() {
@@ -91,17 +96,32 @@ fun AsterplayApp() {
                             nav.navigate(Routes.Pairing) {
                                 popUpTo(Routes.Home) { inclusive = true }
                             }
-                        }
+                        },
+                        onOpenMovieDetail = { ch, tmdbId ->
+                            MovieDetailArgs.set(ch, tmdbId, kind = "movie")
+                            nav.navigate(Routes.MovieDetail)
+                        },
                     )
                 }
                 composable(Routes.Browse) { backStack ->
                     val type = backStack.arguments?.getString("type") ?: "live"
-                    BrowseScreen(type = type, onBack = { nav.popBackStack() })
+                    BrowseScreen(
+                        type = type,
+                        onBack = { nav.popBackStack() },
+                        onOpenMovieDetail = { ch ->
+                            MovieDetailArgs.set(ch, null, kind = "movie")
+                            nav.navigate(Routes.MovieDetail)
+                        },
+                    )
                 }
                 composable(Routes.Search) {
                     SearchScreen(onBack = { nav.popBackStack() })
                 }
+                composable(Routes.MovieDetail) {
+                    MovieDetailScreen(onBack = { nav.popBackStack() })
+                }
             }
+
         }
     }
 }
