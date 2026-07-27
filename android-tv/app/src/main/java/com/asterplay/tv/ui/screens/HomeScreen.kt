@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tv
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,14 +44,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -71,6 +77,7 @@ import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgBase
 import com.asterplay.tv.ui.theme.BgElevated
 import com.asterplay.tv.ui.theme.BgSurface
+import com.asterplay.tv.ui.theme.BrandGradient
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
@@ -263,21 +270,25 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val numberVisible = 45.dp   // parte do número que fica à esquerda do pôster
+                val overlap = 18.dp       // quanto do número fica escondido atrás do pôster
                 val maxCardWidth = 180.dp
                 val spacing = 12.dp
                 val startPadding = 20.dp
                 val endPadding = 16.dp
                 val visibleCount = 4
-                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
+                val numberExtra = (numberVisible - overlap) * visibleCount
+                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1) + numberExtra
                 val available = maxWidth - totalSpacing
                 val cardWidth = (available / visibleCount).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
+
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     contentPadding = PaddingValues(start = startPadding, end = endPadding, top = 6.dp, bottom = 10.dp),
                 ) {
                     itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
-                        RankedPoster(rank = index + 1, hit = hit, width = cardWidth, onClick = { onPick(hit) })
+                        RankedPoster(rank = index + 1, hit = hit, cardWidth = cardWidth, numberVisible = numberVisible, onClick = { onPick(hit) })
                     }
                 }
             }
@@ -347,30 +358,45 @@ private fun EmptyBar(msg: String) {
 }
 
 @Composable
-private fun RankedPoster(rank: Int, hit: TopHit, width: Dp, onClick: () -> Unit) {
-    // Card uniforme para todos os ranks; badge pequeno no canto superior esquerdo.
-    Box(Modifier.width(width)) {
-        PosterCard(
-            title = hit.tmdb.title,
-            logo = hit.tmdb.poster,
-            aspect = 2f / 3f,
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        // Badge de rank
-        Box(
-            Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (-10).dp, y = (-10).dp)
-                .background(Accent, RoundedCornerShape(8.dp))
-                .padding(horizontal = 8.dp, vertical = 3.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = rank.toString(),
-                color = Color.Black,
-                style = MaterialTheme.typography.titleSmall,
+private fun RankedPoster(
+    rank: Int,
+    hit: TopHit,
+    cardWidth: Dp,
+    numberVisible: Dp,
+    onClick: () -> Unit,
+) {
+    // Estilo Netflix: número grande fica ATRÁS do pôster, com a parte esquerda visível.
+    val overlap = 18.dp
+    Box(
+        Modifier.width(cardWidth + numberVisible - overlap),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        // Número gigante atrás, com sombra sutil e gradiente neon
+        BasicText(
+            text = rank.toString(),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset(x = (-6).dp),
+            style = TextStyle(
+                fontSize = 112.sp,
                 fontWeight = FontWeight.Black,
+                brush = BrandGradient,
+                shadow = Shadow(
+                    color = Color(0xFF000000).copy(alpha = 0.45f),
+                    offset = Offset(2f, 4f),
+                    blurRadius = 6f,
+                ),
+            ),
+        )
+
+        // Pôster na frente, ligeiramente deslocado para a direita para cobrir parte do número
+        Box(Modifier.width(cardWidth)) {
+            PosterCard(
+                title = hit.tmdb.title,
+                logo = hit.tmdb.poster,
+                aspect = 2f / 3f,
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
