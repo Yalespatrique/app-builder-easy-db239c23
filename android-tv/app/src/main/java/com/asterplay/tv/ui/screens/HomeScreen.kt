@@ -278,7 +278,7 @@ private fun TopRow(
                 val endPadding = 16.dp
                 val visibleCount = 4
                 // Cada item ocupa a largura do card + 28% do card visível à esquerda (estilo Netflix).
-                val numberExtraRatio = 0.42f
+                val numberExtraRatio = 0.35f
                 val fixedSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
                 val cardWidth = ((maxWidth - fixedSpacing) / (visibleCount * (1 + numberExtraRatio)))
                     .coerceAtMost(maxCardWidth)
