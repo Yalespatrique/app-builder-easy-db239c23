@@ -270,17 +270,19 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val numberVisible = 45.dp   // parte do número que fica à esquerda do pôster
-                val overlap = 18.dp       // quanto do número fica escondido atrás do pôster
+                // Proporções derivadas do cardWidth para manter o número alinhado em qualquer tamanho.
                 val maxCardWidth = 180.dp
                 val spacing = 12.dp
                 val startPadding = 20.dp
                 val endPadding = 16.dp
                 val visibleCount = 4
-                val numberExtra = (numberVisible - overlap) * visibleCount
-                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1) + numberExtra
-                val available = maxWidth - totalSpacing
-                val cardWidth = (available / visibleCount).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
+                // Cada item ocupa a largura do card + 28% do card visível à esquerda (estilo Netflix).
+                val numberExtraRatio = 0.28f
+                val fixedSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
+                val cardWidth = ((maxWidth - fixedSpacing) / (visibleCount * (1 + numberExtraRatio)))
+                    .coerceAtMost(maxCardWidth)
+                    .coerceAtLeast(100.dp)
+                val numberExtra = cardWidth * numberExtraRatio
 
 
                 LazyRow(
@@ -288,7 +290,7 @@ private fun TopRow(
                     contentPadding = PaddingValues(start = startPadding, end = endPadding, top = 6.dp, bottom = 10.dp),
                 ) {
                     itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
-                        RankedPoster(rank = index + 1, hit = hit, cardWidth = cardWidth, numberVisible = numberVisible, onClick = { onPick(hit) })
+                        RankedPoster(rank = index + 1, hit = hit, cardWidth = cardWidth, onClick = { onPick(hit) })
                     }
                 }
             }
@@ -362,23 +364,31 @@ private fun RankedPoster(
     rank: Int,
     hit: TopHit,
     cardWidth: Dp,
-    numberVisible: Dp,
     onClick: () -> Unit,
 ) {
     // Estilo Netflix: número grande fica ATRÁS do pôster, com a parte esquerda visível.
-    val overlap = 18.dp
+    // Todas as medidas são derivadas proporcionalmente do cardWidth para manter o alinhamento
+    // perfeito em qualquer densidade de tela ou tamanho de card.
+    val visibleRatio = 0.28f
+    val overlapRatio = 0.72f
+    val visiblePart = cardWidth * visibleRatio
+    val overlap = cardWidth * overlapRatio
+    val itemWidth = cardWidth + visiblePart
+    val numberHeight = cardWidth * 0.95f
+
     Box(
-        Modifier.width(cardWidth + numberVisible - overlap),
+        Modifier.width(itemWidth),
         contentAlignment = Alignment.CenterEnd,
     ) {
-        // Número gigante atrás, com sombra sutil e gradiente neon
+        // Número gigante atrás, alinhado à direita (mesma linha do pôster) e deslocado
+        // para a esquerda exatamente o quanto deve aparecer por trás da capa.
         BasicText(
             text = rank.toString(),
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset(x = (-6).dp),
+                .align(Alignment.CenterEnd)
+                .offset(x = -(cardWidth - overlap)),
             style = TextStyle(
-                fontSize = 112.sp,
+                fontSize = numberHeight.value.sp,
                 fontWeight = FontWeight.Black,
                 brush = BrandGradient,
                 shadow = Shadow(
@@ -389,7 +399,7 @@ private fun RankedPoster(
             ),
         )
 
-        // Pôster na frente, ligeiramente deslocado para a direita para cobrir parte do número
+        // Pôster na frente, ocupando o cardWidth exato à direita do item.
         Box(Modifier.width(cardWidth)) {
             PosterCard(
                 title = hit.tmdb.title,
