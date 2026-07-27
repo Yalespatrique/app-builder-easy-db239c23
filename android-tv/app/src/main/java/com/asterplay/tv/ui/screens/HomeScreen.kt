@@ -222,12 +222,6 @@ fun HomeScreen(
     }
 }
 
-private fun TopHit.toEntry() = TopCacheStore.Entry(
-    title = tmdb.title, poster = tmdb.poster, tmdbId = tmdb.tmdbId,
-    chName = channel.name, chUrl = channel.url, chLogo = channel.logo,
-    chGroup = channel.group, chTvg = channel.tvgId,
-)
-
 private fun TopCacheStore.Entry.toHit() = TopHit(
     tmdb = TmdbApi.Item(title = title, poster = poster, tmdbId = tmdbId),
     channel = Channel(name = chName, url = chUrl, logo = chLogo, group = chGroup, tvgId = chTvg),
