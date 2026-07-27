@@ -170,7 +170,7 @@ fun HomeScreen(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 40.dp, vertical = 24.dp),
+                    .padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -261,8 +261,8 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
                     RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
@@ -288,11 +288,11 @@ private fun RecentRow(
             EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
-                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 items(items, key = { it.url }) { ch ->
-                    Box(Modifier.width(150.dp)) {
+                    Box(Modifier.width(140.dp)) {
                         PosterCard(
                             title = ch.name,
                             logo = ch.logo,
@@ -325,7 +325,7 @@ private fun EmptyBar(msg: String) {
 @Composable
 private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
     // Card uniforme para todos os ranks; badge pequeno no canto superior esquerdo.
-    Box(Modifier.width(150.dp)) {
+    Box(Modifier.width(140.dp)) {
         PosterCard(
             title = hit.tmdb.title,
             logo = hit.tmdb.poster,
@@ -337,15 +337,15 @@ private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
         Box(
             Modifier
                 .align(Alignment.TopStart)
-                .offset(x = (-10).dp, y = (-10).dp)
+                .offset(x = (-8).dp, y = (-8).dp)
                 .background(Accent, RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 3.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = rank.toString(),
                 color = Color.Black,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Black,
             )
         }
