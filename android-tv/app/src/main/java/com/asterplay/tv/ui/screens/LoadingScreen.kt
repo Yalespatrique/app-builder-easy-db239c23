@@ -150,4 +150,7 @@ private fun downloadAndCache(
         }
     }
     last
-} catch (_: Exception) { 0 } }
+} catch (e: Exception) {
+    android.util.Log.e("LoadingScreen", "downloadAndCache failed", e)
+    0
+} }

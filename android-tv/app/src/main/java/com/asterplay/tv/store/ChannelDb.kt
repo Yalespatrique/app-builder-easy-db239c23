@@ -107,66 +107,80 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
         var scanned = 0
         val vodCounts = HashMap<String, Int>()
         val serCounts = HashMap<String, Int>()
+        val chunkSize = 5_000
 
+        // Wipe previous state up-front so a crash mid-import doesn't leave stale rows.
         db.beginTransactionNonExclusive()
         try {
             db.execSQL("DELETE FROM channels")
             db.execSQL("DELETE FROM categories")
             db.execSQL("DELETE FROM meta")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
 
-            val ins = db.compileStatement(
-                "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,'live')"
-            )
-            try {
-                for (c in channels) {
-                    scanned++
-                    when (classify(c)) {
-                        "live" -> {
-                            ins.clearBindings()
-                            ins.bindString(1, c.name)
-                            ins.bindString(2, c.url)
-                            if (c.logo != null) ins.bindString(3, c.logo) else ins.bindNull(3)
-                            if (c.group != null) ins.bindString(4, c.group) else ins.bindNull(4)
-                            if (c.tvgId != null) ins.bindString(5, c.tvgId) else ins.bindNull(5)
-                            ins.executeInsert()
-                        }
-                        "vod" -> {
-                            val g = c.group?.trim().takeUnless { it.isNullOrEmpty() } ?: "Outros"
-                            vodCounts[g] = (vodCounts[g] ?: 0) + 1
-                        }
-                        "series" -> {
-                            val g = c.group?.trim().takeUnless { it.isNullOrEmpty() } ?: "Outros"
-                            serCounts[g] = (serCounts[g] ?: 0) + 1
-                        }
+        val insSql = "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,'live')"
+        var ins = db.compileStatement(insSql)
+        db.beginTransactionNonExclusive()
+        var inChunk = 0
+        try {
+            for (c in channels) {
+                scanned++
+                when (classify(c)) {
+                    "live" -> {
+                        ins.clearBindings()
+                        ins.bindString(1, c.name)
+                        ins.bindString(2, c.url)
+                        if (c.logo != null) ins.bindString(3, c.logo) else ins.bindNull(3)
+                        if (c.group != null) ins.bindString(4, c.group) else ins.bindNull(4)
+                        if (c.tvgId != null) ins.bindString(5, c.tvgId) else ins.bindNull(5)
+                        ins.executeInsert()
                     }
-                    if (scanned % 5_000 == 0) onProgress?.invoke(scanned)
+                    "vod" -> {
+                        val g = c.group?.trim().takeUnless { it.isNullOrEmpty() } ?: "Outros"
+                        vodCounts[g] = (vodCounts[g] ?: 0) + 1
+                    }
+                    "series" -> {
+                        val g = c.group?.trim().takeUnless { it.isNullOrEmpty() } ?: "Outros"
+                        serCounts[g] = (serCounts[g] ?: 0) + 1
+                    }
                 }
-            } finally {
-                ins.close()
+                inChunk++
+                if (inChunk >= chunkSize) {
+                    db.setTransactionSuccessful()
+                    db.endTransaction()
+                    ins.close()
+                    onProgress?.invoke(scanned)
+                    db.beginTransactionNonExclusive()
+                    ins = db.compileStatement(insSql)
+                    inChunk = 0
+                }
+                if (scanned % 1_000 == 0) onProgress?.invoke(scanned)
             }
+            db.setTransactionSuccessful()
+        } finally {
+            try { ins.close() } catch (_: Exception) {}
+            db.endTransaction()
+        }
 
-            val insCat = db.compileStatement(
-                "INSERT INTO categories(type,name,cnt) VALUES(?,?,?)"
-            )
+        db.beginTransactionNonExclusive()
+        try {
+            val insCat = db.compileStatement("INSERT INTO categories(type,name,cnt) VALUES(?,?,?)")
             try {
                 for ((g, n) in vodCounts) {
                     insCat.clearBindings()
-                    insCat.bindString(1, "vod")
-                    insCat.bindString(2, g)
-                    insCat.bindLong(3, n.toLong())
+                    insCat.bindString(1, "vod"); insCat.bindString(2, g); insCat.bindLong(3, n.toLong())
                     insCat.executeInsert()
                 }
                 for ((g, n) in serCounts) {
                     insCat.clearBindings()
-                    insCat.bindString(1, "series")
-                    insCat.bindString(2, g)
-                    insCat.bindLong(3, n.toLong())
+                    insCat.bindString(1, "series"); insCat.bindString(2, g); insCat.bindLong(3, n.toLong())
                     insCat.executeInsert()
                 }
             } finally {
                 insCat.close()
             }
-
             if (scanned > 0) {
                 fun put(k: String, v: String) {
                     val cv = ContentValues().apply { put("k", k); put("v", v) }
@@ -176,12 +190,12 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
                 put("ts", System.currentTimeMillis().toString())
                 put("count", scanned.toString())
                 if (sourceFile != null) put("file", sourceFile)
-                onProgress?.invoke(scanned)
             }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
         }
+        onProgress?.invoke(scanned)
         return scanned
     }
 
