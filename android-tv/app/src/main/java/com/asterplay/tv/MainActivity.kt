@@ -16,9 +16,12 @@ import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.screens.BrowseScreen
 import com.asterplay.tv.ui.screens.HomeScreen
 import com.asterplay.tv.ui.screens.LoadingScreen
+import com.asterplay.tv.ui.screens.MovieDetailArgs
+import com.asterplay.tv.ui.screens.MovieDetailScreen
 import com.asterplay.tv.ui.screens.PairingScreen
 import com.asterplay.tv.ui.screens.SearchScreen
 import com.asterplay.tv.ui.screens.SplashScreen
+
 import com.asterplay.tv.ui.theme.AsterplayTheme
 import com.asterplay.tv.ui.theme.BgBase
 
