@@ -177,8 +177,8 @@ fun HomeScreen(
             }
 
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp),
+                Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
