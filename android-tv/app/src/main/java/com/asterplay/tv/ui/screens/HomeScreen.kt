@@ -92,7 +92,7 @@ fun HomeScreen(
             SideMenuItem(Icons.Default.Search, "Busca") { onOpenSearch() }
             Spacer(Modifier.weight(1f))
             SideMenuItem(Icons.Default.Logout, "Sair") {
-                PlaylistStore.clear(ctx); PlaylistCache.clear(ctx); onLogout()
+                PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); onLogout()
             }
             Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
             Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
