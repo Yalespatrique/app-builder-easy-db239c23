@@ -278,7 +278,7 @@ private fun TopRow(
                 val endPadding = 16.dp
                 val visibleCount = 4
                 // Cada item ocupa a largura do card + 28% do card visível à esquerda (estilo Netflix).
-                val numberExtraRatio = 0.42f
+                val numberExtraRatio = 0.35f
                 val fixedSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
                 val cardWidth = ((maxWidth - fixedSpacing) / (visibleCount * (1 + numberExtraRatio)))
                     .coerceAtMost(maxCardWidth)
@@ -367,44 +367,24 @@ private fun RankedPoster(
     cardWidth: Dp,
     onClick: () -> Unit,
 ) {
-    // Estilo Netflix: coluna reservada à esquerda para o número; o pôster cobre apenas a
-    // parte que "estoura" para a direita, deixando a área da coluna sempre visível.
-    val visibleRatio = 0.42f
-    val visiblePart = cardWidth * visibleRatio
-    val itemWidth = cardWidth + visiblePart
+    // Estilo Netflix: número em PRIMEIRO PLANO à esquerda, pôster ATRÁS/à direita.
+    val overlapRatio = 0.35f
+    val overlap = cardWidth * overlapRatio
+    val itemWidth = cardWidth + overlap
     val posterHeight = cardWidth * 1.5f
-    val numberFontSize = cardWidth.value * 1.7f
+    val numberFontSize = cardWidth.value * 1.9f
 
-    Row(
-        modifier = Modifier.width(itemWidth),
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
+        modifier = Modifier
+            .width(itemWidth)
+            .height(posterHeight),
     ) {
-        // Coluna reservada — largura fixa. O texto é renderizado com wrapContentWidth
-        // unbounded para poder transbordar à direita e ser coberto pelo pôster.
+        // Pôster ATRÁS, alinhado à direita
         Box(
             modifier = Modifier
-                .width(visiblePart)
-                .height(posterHeight),
-            contentAlignment = Alignment.CenterStart,
+                .align(Alignment.CenterEnd)
+                .width(cardWidth),
         ) {
-            BasicText(
-                text = rank.toString(),
-                modifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true),
-                style = TextStyle(
-                    fontSize = numberFontSize.sp,
-                    fontWeight = FontWeight.Black,
-                    brush = BrandGradient,
-                    shadow = Shadow(
-                        color = Color(0xFF000000).copy(alpha = 0.55f),
-                        offset = Offset(3f, 5f),
-                        blurRadius = 8f,
-                    ),
-                ),
-            )
-        }
-
-        // Pôster desenhado depois → cobre o transbordo do número, preservando a coluna à esquerda.
-        Box(Modifier.width(cardWidth)) {
             PosterCard(
                 title = hit.tmdb.title,
                 logo = hit.tmdb.poster,
@@ -413,6 +393,24 @@ private fun RankedPoster(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+
+        // Número À FRENTE, alinhado à esquerda-baixo, sobrepondo o pôster
+        BasicText(
+            text = rank.toString(),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .wrapContentWidth(align = Alignment.Start, unbounded = true),
+            style = TextStyle(
+                fontSize = numberFontSize.sp,
+                fontWeight = FontWeight.Black,
+                brush = BrandGradient,
+                shadow = Shadow(
+                    color = Color(0xFF000000).copy(alpha = 0.85f),
+                    offset = Offset(4f, 6f),
+                    blurRadius = 12f,
+                ),
+            ),
+        )
     }
 }
 
