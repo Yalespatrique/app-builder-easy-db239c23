@@ -77,8 +77,10 @@ fun PairingScreen(onActivated: () -> Unit) {
         scope.launch {
             val r = PanelApi.activateWithMac(mac, key)
             loading = false
-            if (r.ok && r.playlistUrl != null) {
-                PlaylistStore.save(ctx, r.playlistUrl); onActivated()
+            if (r.ok && r.playlistUrl != null && r.xtream != null) {
+                PlaylistStore.save(ctx, r.playlistUrl)
+                com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+                onActivated()
             } else message = r.message ?: "Ainda não ativado"
         }
     }
@@ -92,8 +94,10 @@ fun PairingScreen(onActivated: () -> Unit) {
         scope.launch {
             val r = PanelApi.activateWithCode(code.trim(), user.trim(), pass.trim())
             loading = false
-            if (r.ok && r.playlistUrl != null) {
-                PlaylistStore.save(ctx, r.playlistUrl); onActivated()
+            if (r.ok && r.playlistUrl != null && r.xtream != null) {
+                PlaylistStore.save(ctx, r.playlistUrl)
+                com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+                onActivated()
             } else message = r.message ?: "Falha no login"
         }
     }

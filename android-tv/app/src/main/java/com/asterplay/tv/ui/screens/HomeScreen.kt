@@ -46,8 +46,9 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Text
 import com.asterplay.tv.BuildConfig
 import com.asterplay.tv.core.DeviceId
-import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
+import com.asterplay.tv.store.XtreamStore
+import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgBase
 import com.asterplay.tv.ui.theme.BgElevated
@@ -91,7 +92,7 @@ fun HomeScreen(
             SideMenuItem(Icons.Default.Search, "Busca") { onOpenSearch() }
             Spacer(Modifier.weight(1f))
             SideMenuItem(Icons.Default.Logout, "Sair") {
-                PlaylistStore.clear(ctx); PlaylistCache.clear(ctx); onLogout()
+                PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); onLogout()
             }
             Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
             Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)

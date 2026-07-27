@@ -22,7 +22,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -35,32 +34,34 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.asterplay.tv.net.Channel
 import com.asterplay.tv.player.PlayerActivity
-import com.asterplay.tv.store.PlaylistCache
+import com.asterplay.tv.store.CacheDb
+import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.PosterCard
 import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgBase
-import com.asterplay.tv.ui.theme.BgElevated
 import com.asterplay.tv.ui.theme.BgSurface
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Busca só no que já foi cacheado (visitado pelo usuário).
+ */
 @Composable
 fun SearchScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val creds = remember { XtreamStore.get(ctx) }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var focused by remember { mutableStateOf(false) }
 
     LaunchedEffect(query) {
-        if (query.length < 2) { results = emptyList(); return@LaunchedEffect }
+        if (query.length < 2 || creds == null) { results = emptyList(); return@LaunchedEffect }
         delay(300)
-        val r = withContext(Dispatchers.IO) { PlaylistCache.search(ctx, query) }
-        results = r
+        val account = CacheDb.accountKey(creds.host, creds.username)
+        results = withContext(Dispatchers.IO) { CacheDb.get(ctx).search(account, query) }
     }
 
     Column(Modifier.fillMaxSize().background(BgBase).padding(40.dp)) {
@@ -82,8 +83,11 @@ fun SearchScreen(onBack: () -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            if (query.isEmpty()) "Digite pelo menos 2 caracteres"
-            else "${results.size} resultados",
+            when {
+                query.isEmpty() -> "Digite pelo menos 2 caracteres"
+                results.isEmpty() -> "Nenhum resultado. Navegue por categorias para carregar o conteúdo."
+                else -> "${results.size} resultados"
+            },
             color = TextMuted, style = MaterialTheme.typography.labelMedium,
         )
         Spacer(Modifier.height(16.dp))
@@ -95,13 +99,11 @@ fun SearchScreen(onBack: () -> Unit) {
         ) {
             items(results, key = { it.url }) { ch ->
                 PosterCard(
-                    title = ch.name,
-                    logo = ch.logo,
-                    aspect = 2f / 3f,
+                    title = ch.name, logo = ch.logo, aspect = 2f / 3f,
                     onClick = {
+                        if (ch.url.startsWith("asterplay://")) return@PosterCard
                         val i = Intent(ctx, PlayerActivity::class.java)
-                        i.putExtra("url", ch.url)
-                        i.putExtra("name", ch.name)
+                        i.putExtra("url", ch.url); i.putExtra("name", ch.name)
                         ctx.startActivity(i)
                     },
                 )
