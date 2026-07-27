@@ -1,9 +1,9 @@
 package com.asterplay.tv.ui.screens
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,10 +32,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -52,11 +52,10 @@ import androidx.tv.material3.Text
 import com.asterplay.tv.BuildConfig
 import com.asterplay.tv.R
 import com.asterplay.tv.core.DeviceId
-import com.asterplay.tv.net.Channel
+import com.asterplay.tv.net.TmdbApi
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
-import com.asterplay.tv.store.ResumeStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.PosterCard
 import com.asterplay.tv.ui.theme.Accent
@@ -66,6 +65,7 @@ import com.asterplay.tv.ui.theme.BgSurface
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -75,26 +75,17 @@ fun HomeScreen(
 ) {
     val ctx = LocalContext.current
     val mac = remember { DeviceId.getMac(ctx) }
+    val scope = rememberCoroutineScope()
 
-    var topMovies by remember { mutableStateOf<List<Channel>>(emptyList()) }
-    var topSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
+    var topMovies by remember { mutableStateOf<List<TmdbApi.Item>>(emptyList()) }
+    var topSeries by remember { mutableStateOf<List<TmdbApi.Item>>(emptyList()) }
 
     LaunchedEffect(Unit) {
-        val creds = XtreamStore.get(ctx)
-        if (creds != null) {
-            val account = CacheDb.accountKey(creds.host, creds.username)
-            val recent = ResumeStore.recent(ctx, 100)
-            val cache = CacheDb.get(ctx).findByUrls(account, recent)
-            val ordered = recent.mapNotNull { cache[it] }
-            topMovies = ordered.filter { it.url.contains("/movie/") }.take(10)
-            topSeries = ordered.filter {
-                it.url.contains("/series/") || it.url.startsWith("asterplay://series/")
-            }.take(10)
-        }
+        topMovies = TmdbApi.topMovies(10)
+        topSeries = TmdbApi.topSeries(10)
     }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Capa de fundo
         Image(
             painter = painterResource(R.drawable.bg_gradient),
             contentDescription = null,
@@ -136,12 +127,10 @@ fun HomeScreen(
                 Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
             }
 
-            // Área principal
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {
-                // Cabeçalho com logo
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.logo_asterplay),
@@ -150,73 +139,81 @@ fun HomeScreen(
                     )
                     Spacer(Modifier.width(20.dp))
                     Column {
-                        Text("BEM-VINDO", color = Accent, style = MaterialTheme.typography.labelLarge)
-                        Text("Asterplay", color = TextPrimary, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
+                        Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelLarge)
+                        Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
                     }
                 }
 
                 TopRow(
-                    title = "TOP 10 FILMES ASSISTIDOS",
+                    title = "🔥 TOP 10 FILMES DA SEMANA",
                     items = topMovies,
-                    emptyLabel = "Você ainda não assistiu filmes. Abra Filmes e escolha um título.",
-                    aspect = 2f / 3f,
-                    onOpenCategory = { onOpenBrowse("vod") },
+                    onPick = { item ->
+                        scope.launch { openIfAvailable(ctx, item.title, isSeries = false) }
+                    },
                 )
 
                 TopRow(
-                    title = "TOP 10 SÉRIES ASSISTIDAS",
+                    title = "🔥 TOP 10 SÉRIES DA SEMANA",
                     items = topSeries,
-                    emptyLabel = "Você ainda não assistiu séries. Abra Séries e escolha um título.",
-                    aspect = 2f / 3f,
-                    onOpenCategory = { onOpenBrowse("series") },
+                    onPick = { item ->
+                        scope.launch { openIfAvailable(ctx, item.title, isSeries = true) }
+                    },
                 )
             }
         }
     }
 }
 
+private suspend fun openIfAvailable(
+    ctx: android.content.Context,
+    title: String,
+    isSeries: Boolean,
+) {
+    val creds = XtreamStore.get(ctx) ?: return
+    val account = CacheDb.accountKey(creds.host, creds.username)
+    val hit = CacheDb.get(ctx).findFirstByName(account, title)
+    if (hit != null && !hit.url.startsWith("asterplay://series/")) {
+        val i = Intent(ctx, PlayerActivity::class.java)
+        i.putExtra("url", hit.url); i.putExtra("name", hit.name)
+        ctx.startActivity(i)
+    } else {
+        val msg = if (isSeries) "Série ainda não disponível na sua lista"
+                  else "Filme ainda não disponível na sua lista"
+        Toast.makeText(ctx, "$title — $msg", Toast.LENGTH_SHORT).show()
+    }
+}
+
 @Composable
 private fun TopRow(
     title: String,
-    items: List<Channel>,
-    emptyLabel: String,
-    aspect: Float,
-    onOpenCategory: () -> Unit,
+    items: List<TmdbApi.Item>,
+    onPick: (TmdbApi.Item) -> Unit,
 ) {
-    val ctx = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         if (items.isEmpty()) {
-            Surface(
-                onClick = onOpenCategory,
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = BgSurface,
-                    focusedContainerColor = BgElevated,
-                ),
-                shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
-                modifier = Modifier.fillMaxWidth().height(96.dp),
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .background(BgSurface, RoundedCornerShape(12.dp))
+                    .padding(20.dp),
+                contentAlignment = Alignment.CenterStart,
             ) {
-                Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.CenterStart) {
-                    Text(emptyLabel, color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
-                }
+                Text("Carregando…", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             }
         } else {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(vertical = 8.dp),
             ) {
-                items(items, key = { it.url }) { ch ->
+                items(items, key = { it.tmdbId }) { it ->
                     Box(Modifier.width(140.dp)) {
                         PosterCard(
-                            title = ch.name,
-                            logo = ch.logo,
-                            aspect = aspect,
-                            onClick = {
-                                if (ch.url.startsWith("asterplay://series/")) return@PosterCard
-                                val i = Intent(ctx, PlayerActivity::class.java)
-                                i.putExtra("url", ch.url); i.putExtra("name", ch.name)
-                                ctx.startActivity(i)
-                            },
+                            title = it.title,
+                            logo = it.poster,
+                            aspect = 2f / 3f,
+                            onClick = { onPick(it) },
                         )
                     }
                 }
