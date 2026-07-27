@@ -150,4 +150,4 @@ private fun downloadAndCache(
         }
     }
     last
-} catch (_: Exception) { 0 }
+} catch (_: Exception) { 0 } }
