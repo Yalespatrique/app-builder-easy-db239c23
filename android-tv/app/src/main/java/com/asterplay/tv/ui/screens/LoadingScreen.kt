@@ -48,9 +48,12 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
         sub = c.host
         val ok = XtreamApi.authenticate(c)
         if (ok) {
+            status = "Carregando destaques..."
+            sub = "Buscando Top 10 da semana"
+            TopHomePreload.run(ctx)
             status = "Pronto!"
             sub = "Bem-vindo"
-            delay(300); onReady()
+            delay(200); onReady()
         } else {
             status = "Não foi possível conectar"
             sub = "Verifique seus dados e tente novamente."
