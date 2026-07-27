@@ -11,8 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.asterplay.tv.store.PlaylistCache
 import com.asterplay.tv.store.PlaylistStore
+import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.screens.BrowseScreen
 import com.asterplay.tv.ui.screens.HomeScreen
 import com.asterplay.tv.ui.screens.LoadingScreen
