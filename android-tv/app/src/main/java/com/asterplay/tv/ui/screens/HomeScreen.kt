@@ -271,14 +271,17 @@ private fun TopRow(
         } else {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val numberVisible = 45.dp   // parte do número que fica à esquerda do pôster
+                val overlap = 18.dp       // quanto do número fica escondido atrás do pôster
                 val maxCardWidth = 180.dp
                 val spacing = 12.dp
                 val startPadding = 20.dp
                 val endPadding = 16.dp
                 val visibleCount = 4
-                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1) + numberVisible * visibleCount
+                val numberExtra = (numberVisible - overlap) * visibleCount
+                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1) + numberExtra
                 val available = maxWidth - totalSpacing
                 val cardWidth = (available / visibleCount).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
+
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(spacing),
