@@ -170,7 +170,7 @@ fun HomeScreen(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 40.dp, vertical = 24.dp),
+                    .padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
