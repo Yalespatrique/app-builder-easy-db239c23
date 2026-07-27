@@ -66,17 +66,13 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     }
 
 
-    val imageLoader = remember {
-        ImageLoader.Builder(ctx)
-            .components {
-                if (Build.VERSION.SDK_INT >= 28) {
-                    add(ImageDecoderDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
-                }
-            }
-            .build()
-    }
+    val infiniteTransition = rememberInfiniteTransition(label = "rotate")
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing)),
+        label = "rotation"
+    )
 
     Box(Modifier.fillMaxSize().background(BgBase), contentAlignment = Alignment.Center) {
         Column(
@@ -84,11 +80,10 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            AsyncImage(
-                model = R.drawable.girar,
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = R.drawable.girar),
                 contentDescription = "Carregando",
-                imageLoader = imageLoader,
-                modifier = Modifier.size(96.dp)
+                modifier = Modifier.size(96.dp).rotate(angle)
             )
             Spacer(Modifier.height(16.dp))
             Text(status, color = TextPrimary, style = MaterialTheme.typography.headlineMedium)
