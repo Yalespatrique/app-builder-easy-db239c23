@@ -371,7 +371,7 @@ private fun RankedPoster(
         contentAlignment = Alignment.CenterEnd,
     ) {
         // Número gigante atrás, com sombra sutil e gradiente neon
-        MaterialText(
+        Text(
             text = rank.toString(),
             modifier = Modifier
                 .align(Alignment.CenterStart)
