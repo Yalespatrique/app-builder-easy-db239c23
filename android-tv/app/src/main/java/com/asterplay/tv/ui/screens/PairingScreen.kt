@@ -148,8 +148,6 @@ fun PairingScreen(onActivated: () -> Unit) {
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text("Login por Código", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-                    Text("Use o código, usuário e senha do seu provedor.", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
                     TvTextField(value = code, onChange = { code = it }, label = "Código")
                     TvTextField(value = user, onChange = { user = it }, label = "Usuário")
                     TvTextField(value = pass, onChange = { pass = it }, label = "Senha", isPassword = true)
@@ -204,7 +202,7 @@ fun PairingScreen(onActivated: () -> Unit) {
                 Text(message!!, color = Accent, style = MaterialTheme.typography.bodyMedium)
             }
 
-            // Rodapé
+            // Rodapé: MAC à esquerda, site no meio, Chave à direita
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -212,7 +210,7 @@ fun PairingScreen(onActivated: () -> Unit) {
             ) {
                 Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
                 Text("appasterplay.top", color = TextMuted, style = MaterialTheme.typography.labelMedium)
-                Text("v${BuildConfig.VERSION_NAME} · build ${BuildConfig.VERSION_CODE}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                Text("Chave $key", color = TextMuted, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
