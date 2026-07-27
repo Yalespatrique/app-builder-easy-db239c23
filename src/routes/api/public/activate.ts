@@ -14,6 +14,18 @@ function json(status: number, body: unknown) {
   });
 }
 
+function parseXtream(url: string): { host: string; username: string; password: string } | null {
+  try {
+    const u = new URL(url);
+    const user = u.searchParams.get("username");
+    const pass = u.searchParams.get("password");
+    if (!user || !pass) return null;
+    return { host: `${u.protocol}//${u.host}`, username: user, password: pass };
+  } catch {
+    return null;
+  }
+}
+
 function sb() {
   const url = process.env.SUPABASE_URL!;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -54,7 +66,7 @@ export const Route = createFileRoute("/api/public/activate")({
         );
         if (!match) return json(404, { ok: false, message: "Ativação não encontrada" });
         if (!match.active) return json(403, { ok: false, message: "Ativação inativa" });
-        return json(200, { ok: true, playlist_url: match.playlist_url });
+        return json(200, { ok: true, playlist_url: match.playlist_url, xtream: parseXtream(match.playlist_url) });
       },
     },
   },

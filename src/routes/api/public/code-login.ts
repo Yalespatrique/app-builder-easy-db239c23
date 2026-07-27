@@ -14,6 +14,18 @@ function json(status: number, body: unknown) {
   });
 }
 
+function parseXtream(url: string): { host: string; username: string; password: string } | null {
+  try {
+    const u = new URL(url);
+    const user = u.searchParams.get("username");
+    const pass = u.searchParams.get("password");
+    if (!user || !pass) return null;
+    return { host: `${u.protocol}//${u.host}`, username: user, password: pass };
+  } catch {
+    return null;
+  }
+}
+
 function sb() {
   const url = process.env.SUPABASE_URL!;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
@@ -50,7 +62,11 @@ export const Route = createFileRoute("/api/public/code-login")({
           .eq("password", password)
           .maybeSingle();
         if (codeRow.data && codeRow.data.active) {
-          return json(200, { ok: true, playlist_url: codeRow.data.playlist_url });
+          return json(200, {
+            ok: true,
+            playlist_url: codeRow.data.playlist_url,
+            xtream: parseXtream(codeRow.data.playlist_url),
+          });
         }
         const dnsRow = await client
           .from("dns_map")
@@ -59,9 +75,19 @@ export const Route = createFileRoute("/api/public/code-login")({
           .maybeSingle();
         if (dnsRow.error) return json(500, { ok: false, message: dnsRow.error.message });
         if (!dnsRow.data) return json(404, { ok: false, message: "Código não encontrado" });
-        const base = dnsRow.data.dns.replace(/\/+$/, "");
+        let base = dnsRow.data.dns.trim().replace(/\/+$/, "");
+        if (!/^https?:\/\//i.test(base)) base = `http://${base}`;
         const playlist_url = `${base}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus&output=mpegts`;
-        return json(200, { ok: true, playlist_url });
+        let host = base;
+        try {
+          const bu = new URL(base);
+          host = `${bu.protocol}//${bu.host}`;
+        } catch {}
+        return json(200, {
+          ok: true,
+          playlist_url,
+          xtream: { host, username, password },
+        });
       },
     },
   },
