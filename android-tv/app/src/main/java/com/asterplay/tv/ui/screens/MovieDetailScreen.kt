@@ -149,7 +149,7 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     var videoReady by remember { mutableStateOf(false) }
     val showPreview = wantVideo && videoReady
     LaunchedEffect(channel.url) {
-        delay(2500)
+        delay(800)
         while (true) {
             wantVideo = true
             delay(50_000)
