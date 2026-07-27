@@ -99,26 +99,37 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         val creds = XtreamStore.get(ctx)
         if (creds == null) { loaded = true; return@LaunchedEffect }
+        val account = CacheDb.accountKey(creds.host, creds.username)
 
-        // Busca em paralelo TMDB (10+10) + catálogo do servidor (vod + series)
+        // 1) Cache local: mostra imediatamente se houver.
+        val cachedM = TopCacheStore.read(ctx, account, "movie")
+        val cachedS = TopCacheStore.read(ctx, account, "series")
+        if (cachedM != null) topMovies = cachedM.map { it.toHit() }
+        if (cachedS != null) topSeries = cachedS.map { it.toHit() }
+        if (cachedM != null && cachedS != null) {
+            loaded = true
+            return@LaunchedEffect
+        }
+
+        // 2) Rede: TMDB top 25 + catálogo do servidor em paralelo; match até 10.
         val res = withContext(Dispatchers.IO) {
-            val tmdbM = async { TmdbApi.topMovies(10) }
-            val tmdbS = async { TmdbApi.topSeries(10) }
+            val tmdbM = async { TmdbApi.topMovies(25) }
+            val tmdbS = async { TmdbApi.topSeries(25) }
             val srvM = async { XtreamApi.allStreams(creds, "vod") }
             val srvS = async { XtreamApi.allStreams(creds, "series") }
             listOf(tmdbM, tmdbS, srvM, srvS).awaitAll()
         }
-        @Suppress("UNCHECKED_CAST")
-        val tmdbMovies = res[0] as List<TmdbApi.Item>
-        @Suppress("UNCHECKED_CAST")
-        val tmdbSeries = res[1] as List<TmdbApi.Item>
-        @Suppress("UNCHECKED_CAST")
-        val srvMovies = res[2] as List<Channel>
-        @Suppress("UNCHECKED_CAST")
-        val srvSeries = res[3] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val tmdbMovies = res[0] as List<TmdbApi.Item>
+        @Suppress("UNCHECKED_CAST") val tmdbSeries = res[1] as List<TmdbApi.Item>
+        @Suppress("UNCHECKED_CAST") val srvMovies = res[2] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val srvSeries = res[3] as List<Channel>
 
-        topMovies = matchTop(tmdbMovies, srvMovies)
-        topSeries = matchTop(tmdbSeries, srvSeries)
+        val mHits = matchTop(tmdbMovies, srvMovies, 10)
+        val sHits = matchTop(tmdbSeries, srvSeries, 10)
+        topMovies = mHits
+        topSeries = sHits
+        TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
+        TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
         loaded = true
     }
 
