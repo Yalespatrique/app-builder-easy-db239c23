@@ -99,6 +99,18 @@ fun PairingScreen(onActivated: () -> Unit) {
     }
 
     Box(Modifier.fillMaxSize().background(com.asterplay.tv.ui.theme.BgBase)) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = com.asterplay.tv.R.drawable.bg_gradient),
+            contentDescription = null,
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            alpha = 0.55f,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color(0xCC0B0B14)),
+        )
         Column(
             Modifier.fillMaxSize().padding(48.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -135,37 +147,12 @@ fun PairingScreen(onActivated: () -> Unit) {
                 )
             }
 
-            // Duas colunas: Código e MAC+Chave
+            // Duas colunas: MAC+Chave (esquerda) e Login por código (direita)
             Row(
                 Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                // Login por código
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .background(BgSurface, RoundedCornerShape(14.dp))
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    TvTextField(value = code, onChange = { code = it }, label = "Código")
-                    TvTextField(value = user, onChange = { user = it }, label = "Usuário")
-                    TvTextField(value = pass, onChange = { pass = it }, label = "Senha", isPassword = true)
-                    Spacer(Modifier.height(4.dp))
-                    Button(
-                        onClick = { tryLoginCode() },
-                        enabled = !loading,
-                        colors = ButtonDefaults.colors(
-                            containerColor = NeonPurple,
-                            contentColor = Color.White,
-                            focusedContainerColor = Accent,
-                            focusedContentColor = Color.Black,
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) { Text(if (loading) "Entrando..." else "Entrar", fontWeight = FontWeight.SemiBold) }
-                }
-
-                // MAC + Chave
+                // MAC + Chave (esquerda)
                 Column(
                     Modifier
                         .weight(1f)
@@ -195,6 +182,31 @@ fun PairingScreen(onActivated: () -> Unit) {
                         Spacer(Modifier.width(8.dp))
                         Text(if (loading) "Verificando..." else "Verificar ativação", fontWeight = FontWeight.SemiBold)
                     }
+                }
+
+                // Login por código (direita)
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .background(BgSurface, RoundedCornerShape(14.dp))
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    TvTextField(value = code, onChange = { code = it }, label = "Código")
+                    TvTextField(value = user, onChange = { user = it }, label = "Usuário")
+                    TvTextField(value = pass, onChange = { pass = it }, label = "Senha", isPassword = true)
+                    Spacer(Modifier.height(4.dp))
+                    Button(
+                        onClick = { tryLoginCode() },
+                        enabled = !loading,
+                        colors = ButtonDefaults.colors(
+                            containerColor = NeonPurple,
+                            contentColor = Color.White,
+                            focusedContainerColor = Accent,
+                            focusedContentColor = Color.Black,
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) { Text(if (loading) "Entrando..." else "Entrar", fontWeight = FontWeight.SemiBold) }
                 }
             }
 
