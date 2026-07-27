@@ -1,6 +1,10 @@
 package com.asterplay.tv.ui.screens
 
-import android.os.Build
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,14 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import coil.ImageLoader
-import coil.compose.AsyncImage
-import coil.decode.GifDecoder
-import coil.decode.ImageDecoderDecoder
 import com.asterplay.tv.R
 import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.net.XtreamApi
@@ -35,6 +37,7 @@ import com.asterplay.tv.ui.theme.BgBase
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
+
 
 
 /**
