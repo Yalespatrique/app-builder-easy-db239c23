@@ -94,6 +94,8 @@ fun HomeScreen(
 
     var topMovies by remember { mutableStateOf<List<TopHit>>(emptyList()) }
     var topSeries by remember { mutableStateOf<List<TopHit>>(emptyList()) }
+    var recentMovies by remember { mutableStateOf<List<Channel>>(emptyList()) }
+    var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -106,29 +108,30 @@ fun HomeScreen(
         val cachedS = TopCacheStore.read(ctx, account, "series")
         if (!cachedM.isNullOrEmpty()) topMovies = cachedM.map { it.toHit() }
         if (!cachedS.isNullOrEmpty()) topSeries = cachedS.map { it.toHit() }
-        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty()) {
-            loaded = true
-            return@LaunchedEffect
-        }
 
-        // 2) Rede: TMDB top 25 + catálogo do servidor em paralelo; match até 10.
+        // 2) Rede: TMDB top 25 + catálogo do servidor + recentes em paralelo.
         val res = withContext(Dispatchers.IO) {
             val tmdbM = async { TmdbApi.topMovies(25) }
             val tmdbS = async { TmdbApi.topSeries(25) }
             val srvM = async { XtreamApi.allStreams(creds, "vod") }
             val srvS = async { XtreamApi.allStreams(creds, "series") }
-            listOf(tmdbM, tmdbS, srvM, srvS).awaitAll()
+            val recM = async { XtreamApi.recentStreams(creds, "vod", 20) }
+            val recS = async { XtreamApi.recentStreams(creds, "series", 20) }
+            listOf(tmdbM, tmdbS, srvM, srvS, recM, recS).awaitAll()
         }
         @Suppress("UNCHECKED_CAST") val tmdbMovies = res[0] as List<TmdbApi.Item>
         @Suppress("UNCHECKED_CAST") val tmdbSeries = res[1] as List<TmdbApi.Item>
         @Suppress("UNCHECKED_CAST") val srvMovies = res[2] as List<Channel>
         @Suppress("UNCHECKED_CAST") val srvSeries = res[3] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val rMovies = res[4] as List<Channel>
+        @Suppress("UNCHECKED_CAST") val rSeries = res[5] as List<Channel>
 
         val mHits = matchTop(tmdbMovies, srvMovies, 10)
         val sHits = matchTop(tmdbSeries, srvSeries, 10)
         topMovies = mHits
         topSeries = sHits
-        // Só cacheia se tiver dado — evita "prender" resultado vazio por 24h.
+        recentMovies = rMovies
+        recentSeries = rSeries
         if (mHits.isNotEmpty()) TopCacheStore.write(ctx, account, "movie", mHits.map { it.toEntry() })
         if (sHits.isNotEmpty()) TopCacheStore.write(ctx, account, "series", sHits.map { it.toEntry() })
         loaded = true
