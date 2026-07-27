@@ -182,6 +182,20 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         return out
     }
 
+    /** Procura no cache o primeiro item cujo nome contenha [query] (case-insensitive). */
+    fun findFirstByName(account: String, query: String): Channel? {
+        readableDatabase.rawQuery(
+            "SELECT name,url,logo,cat_id,tvg FROM streams_cache WHERE account=? AND name LIKE ? COLLATE NOCASE LIMIT 1",
+            arrayOf(account, "%$query%"),
+        ).use {
+            if (it.moveToNext()) return Channel(
+                name = it.getString(0), url = it.getString(1), logo = it.getString(2),
+                group = it.getString(3), tvgId = it.getString(4),
+            )
+        }
+        return null
+    }
+
     fun clearAll() {
         writableDatabase.execSQL("DELETE FROM cat_cache")
         writableDatabase.execSQL("DELETE FROM streams_cache")
