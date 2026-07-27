@@ -290,8 +290,8 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
-                contentPadding = PaddingValues(start = 40.dp, end = 40.dp, top = 12.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
                     RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
