@@ -102,6 +102,42 @@ object XtreamApi {
         return@withContext out
     }
 
+    /** Retorna todos os itens de VOD ou séries (sem filtro de categoria). Usado pra montar índice de títulos. */
+    suspend fun allStreams(c: XtreamCreds, kind: String): List<Channel> = withContext(Dispatchers.IO) {
+        val (action, path) = when (kind) {
+            "vod" -> "get_vod_streams" to "movie"
+            "series" -> "get_series" to "series"
+            "live" -> "get_live_streams" to "live"
+            else -> return@withContext emptyList()
+        }
+        val body = get(c.playerApi(action)) ?: return@withContext emptyList()
+        val out = ArrayList<Channel>()
+        try {
+            val arr = JSONArray(body)
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val name = o.optString("name").ifEmpty { o.optString("title") }
+                val streamId = o.optString("stream_id").ifEmpty { o.optString("series_id") }
+                if (name.isEmpty() || streamId.isEmpty()) continue
+                val logo = o.optString("stream_icon").ifEmpty { o.optString("cover") }
+                val ext = o.optString("container_extension").ifEmpty { "ts" }
+                val url = when (path) {
+                    "live" -> "${c.host}/live/${c.username}/${c.password}/$streamId.ts"
+                    "movie" -> "${c.host}/movie/${c.username}/${c.password}/$streamId.$ext"
+                    "series" -> "asterplay://series/$streamId"
+                    else -> ""
+                }
+                out += Channel(
+                    name = name, url = url,
+                    logo = logo.ifEmpty { null },
+                    group = o.optString("category_id").ifEmpty { null },
+                    tvgId = null,
+                )
+            }
+        } catch (_: Exception) {}
+        return@withContext out
+    }
+
     // ---------- Séries (episódios) ----------
 
     data class Episode(val id: String, val title: String, val season: Int, val ext: String, val url: String)
