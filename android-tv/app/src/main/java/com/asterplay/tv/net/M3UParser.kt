@@ -20,7 +20,34 @@ object M3UParser {
     }
 
     fun parseSequence(lines: Sequence<String>): Sequence<Channel> = sequence {
-        forEach(lines) { yield(it) }
+        var pendingName: String? = null
+        var pendingLogo: String? = null
+        var pendingGroup: String? = null
+        var pendingTvgId: String? = null
+        for (raw in lines) {
+            val line = raw.trim()
+            if (line.startsWith("#EXTINF")) {
+                pendingLogo = readAttr(line, "tvg-logo")
+                pendingGroup = readAttr(line, "group-title")
+                pendingTvgId = readAttr(line, "tvg-id")
+                pendingName = line.substringAfterLast(",", "Sem nome").trim().ifEmpty { "Sem nome" }
+            } else if (line.isNotEmpty() && !line.startsWith("#")) {
+                val name = pendingName ?: continue
+                yield(
+                    Channel(
+                        name = name,
+                        url = line,
+                        logo = pendingLogo,
+                        group = pendingGroup,
+                        tvgId = pendingTvgId
+                    )
+                )
+                pendingName = null
+                pendingLogo = null
+                pendingGroup = null
+                pendingTvgId = null
+            }
+        }
     }
 
     fun forEach(lines: Sequence<String>, onChannel: (Channel) -> Unit) {
