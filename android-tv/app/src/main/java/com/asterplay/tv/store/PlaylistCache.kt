@@ -1,6 +1,7 @@
 package com.asterplay.tv.store
 
 import android.content.Context
+import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.M3UParser
 
 /**
