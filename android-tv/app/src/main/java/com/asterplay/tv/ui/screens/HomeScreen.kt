@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -44,11 +43,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -290,7 +286,7 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
@@ -318,47 +314,29 @@ private fun EmptyBar(msg: String) {
 
 @Composable
 private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
-    // Layout estilo Netflix Top 10: número gigante sobreposto à esquerda do pôster.
-    val cardW = if (rank >= 10) 220.dp else 170.dp
-    val posterW = 105.dp
-    val numberSize = if (rank >= 10) 110.sp else 120.sp
-    BoxWithConstraints(Modifier.width(cardW).height(190.dp)) {
-        // Número grande atrás
-        Text(
-            text = rank.toString(),
-            style = TextStyle(
-                fontSize = numberSize,
-                fontWeight = FontWeight.Black,
-                color = Color(0xFF0B0B14),
-            ),
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = (-6).dp, y = 4.dp),
+    // Card uniforme para todos os ranks; badge pequeno no canto superior esquerdo.
+    Box(Modifier.width(150.dp)) {
+        PosterCard(
+            title = hit.tmdb.title,
+            logo = hit.tmdb.poster,
+            aspect = 2f / 3f,
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
         )
-        // Contorno neon do número
-        Text(
-            text = rank.toString(),
-            style = TextStyle(
-                fontSize = numberSize,
-                fontWeight = FontWeight.Black,
-                color = Accent.copy(alpha = 0.85f),
-            ),
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = (-3).dp, y = 6.dp),
-        )
-        // Pôster deslocado à direita para o número aparecer
+        // Badge de rank
         Box(
             Modifier
-                .align(Alignment.CenterEnd)
-                .width(posterW),
+                .align(Alignment.TopStart)
+                .offset(x = (-10).dp, y = (-10).dp)
+                .background(Accent, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            PosterCard(
-                title = hit.tmdb.title,
-                logo = hit.tmdb.poster,
-                aspect = 2f / 3f,
-                onClick = onClick,
+            Text(
+                text = rank.toString(),
+                color = Color.Black,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
             )
         }
     }
