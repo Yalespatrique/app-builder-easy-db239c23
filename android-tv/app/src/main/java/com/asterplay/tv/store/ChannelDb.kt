@@ -119,6 +119,49 @@ class ChannelDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME
         return count
     }
 
+    fun replaceAll(url: String, channels: Sequence<Channel>, onProgress: ((Int) -> Unit)? = null): Int {
+        val db = writableDatabase
+        var count = 0
+        db.beginTransactionNonExclusive()
+        try {
+            db.execSQL("DELETE FROM channels")
+            db.execSQL("DELETE FROM meta")
+            val stmt = db.compileStatement(
+                "INSERT INTO channels(name,url,logo,grp,tvg,type) VALUES(?,?,?,?,?,?)"
+            )
+            try {
+                for (c in channels) {
+                    stmt.clearBindings()
+                    stmt.bindString(1, c.name)
+                    stmt.bindString(2, c.url)
+                    if (c.logo != null) stmt.bindString(3, c.logo) else stmt.bindNull(3)
+                    if (c.group != null) stmt.bindString(4, c.group) else stmt.bindNull(4)
+                    if (c.tvgId != null) stmt.bindString(5, c.tvgId) else stmt.bindNull(5)
+                    stmt.bindString(6, classify(c))
+                    stmt.executeInsert()
+                    count++
+                    if (count % 5_000 == 0) onProgress?.invoke(count)
+                }
+            } finally {
+                stmt.close()
+            }
+            if (count > 0) {
+                fun put(k: String, v: String) {
+                    val cv = ContentValues().apply { put("k", k); put("v", v) }
+                    db.insertWithOnConflict("meta", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+                }
+                put("url", url)
+                put("ts", System.currentTimeMillis().toString())
+                put("count", count.toString())
+                onProgress?.invoke(count)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        return count
+    }
+
     fun groupsByType(type: String): List<Pair<String, Int>> {
         val out = mutableListOf<Pair<String, Int>>()
         readableDatabase.rawQuery(

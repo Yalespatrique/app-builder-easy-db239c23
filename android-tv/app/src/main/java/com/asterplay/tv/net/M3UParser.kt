@@ -19,6 +19,10 @@ object M3UParser {
         return out
     }
 
+    fun parseSequence(lines: Sequence<String>): Sequence<Channel> = sequence {
+        forEach(lines) { yield(it) }
+    }
+
     fun forEach(lines: Sequence<String>, onChannel: (Channel) -> Unit) {
         var pendingName: String? = null
         var pendingLogo: String? = null

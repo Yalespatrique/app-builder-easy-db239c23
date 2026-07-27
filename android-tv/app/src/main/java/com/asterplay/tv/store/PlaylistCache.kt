@@ -1,7 +1,6 @@
 package com.asterplay.tv.store
 
 import android.content.Context
-import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.M3UParser
 
 /**
@@ -10,8 +9,6 @@ import com.asterplay.tv.net.M3UParser
  */
 object PlaylistCache {
 
-    private const val INSERT_BATCH_SIZE = 10_000
-
     fun saveFromM3uLines(
         ctx: Context,
         url: String,
@@ -19,24 +16,7 @@ object PlaylistCache {
         onProgress: ((Int) -> Unit)? = null
     ): Int {
         val db = ChannelDb.get(ctx)
-        db.clearAll()
-        val buffer = ArrayList<Pair<Channel, String>>(INSERT_BATCH_SIZE)
-        var total = 0
-        M3UParser.forEach(lines) { c ->
-            buffer += c to ChannelDb.classify(c)
-            if (buffer.size >= INSERT_BATCH_SIZE) {
-                total += db.bulkInsert(buffer)
-                buffer.clear()
-                onProgress?.invoke(total)
-            }
-        }
-        if (buffer.isNotEmpty()) {
-            total += db.bulkInsert(buffer)
-            buffer.clear()
-            onProgress?.invoke(total)
-        }
-        if (total > 0) db.setMeta(url, total) else db.clearAll()
-        return total
+        return db.replaceAll(url, M3UParser.parseSequence(lines), onProgress)
     }
 
     fun has(ctx: Context, url: String): Boolean {
