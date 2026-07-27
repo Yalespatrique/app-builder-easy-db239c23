@@ -307,7 +307,8 @@ private fun EmptyBar(msg: String) {
             .fillMaxWidth()
             .height(60.dp)
             .background(BgSurface, RoundedCornerShape(12.dp))
-            .padding(20.dp),
+            .padding(20.dp)
+            .focusable(),
         contentAlignment = Alignment.CenterStart,
     ) {
         Text(msg, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
