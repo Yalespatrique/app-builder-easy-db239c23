@@ -271,7 +271,7 @@ private fun TopRow(
                 val endPadding = 16.dp
                 val totalSpacing = startPadding + endPadding + spacing * (visible.size - 1)
                 val available = maxWidth - totalSpacing
-                val cardWidth = min(available / visible.size, maxCardWidth).coerceAtLeast(100.dp)
+                val cardWidth = (available / visible.size).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
 
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(spacing),
