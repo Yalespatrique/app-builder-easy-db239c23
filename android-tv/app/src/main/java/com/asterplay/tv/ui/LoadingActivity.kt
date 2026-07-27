@@ -123,5 +123,5 @@ class LoadingActivity : AppCompatActivity() {
             }
         }
         lastCount
-    } catch (_: Exception) { 0 }
+    } catch (_: Exception) { 0 } }
 }
