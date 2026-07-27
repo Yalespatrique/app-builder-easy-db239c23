@@ -1,6 +1,16 @@
 package com.asterplay.tv.ui.screens
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -131,6 +141,20 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
+    // Preview de vídeo: começa no meio do filme, roda 15s e volta para o backdrop
+    var showPreview by remember { mutableStateOf(false) }
+    LaunchedEffect(channel.url) {
+        // aguarda um pouco antes de iniciar o preview
+        delay(2500)
+        while (true) {
+            showPreview = true
+            delay(15_000)
+            showPreview = false
+            // intervalo antes de rodar de novo, mostrando a capa
+            delay(20_000)
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(BgBase)) {
         // Backdrop
         val d = detail
@@ -141,6 +165,16 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        }
+
+        // Preview de vídeo por cima da capa de fundo
+        AnimatedVisibility(
+            visible = showPreview,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            MoviePreviewVideo(url = channel.url)
         }
         // Dark gradient overlay
         Box(
@@ -324,4 +358,41 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
         )
     }
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun MoviePreviewVideo(url: String) {
+    val ctx = LocalContext.current
+    val player = remember(url) {
+        ExoPlayer.Builder(ctx).build().apply {
+            volume = 0f
+            repeatMode = Player.REPEAT_MODE_OFF
+            setMediaItem(MediaItem.fromUri(url))
+            playWhenReady = true
+            addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == Player.STATE_READY) {
+                        val dur = duration
+                        val target = if (dur > 0) dur / 2 else 20 * 60 * 1000L
+                        if (currentPosition < 1000L) seekTo(target)
+                    }
+                }
+            })
+            prepare()
+        }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = { c ->
+            PlayerView(c).apply {
+                useController = false
+                this.player = player
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            }
+        },
+    )
 }
