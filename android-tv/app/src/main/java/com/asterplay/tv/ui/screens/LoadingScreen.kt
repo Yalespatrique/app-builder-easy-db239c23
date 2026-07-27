@@ -103,7 +103,7 @@ private fun downloadAndCache(
     url: String,
     onBytes: (Double) -> Unit,
     onItems: (Int) -> Unit,
-): Int = try {
+): Int { return try {
     val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
