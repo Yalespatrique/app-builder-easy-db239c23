@@ -162,6 +162,26 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         return out
     }
 
+    /** Busca canais no cache pelas URLs (usado no Home para "Continuar assistindo"). */
+    fun findByUrls(account: String, urls: List<String>): Map<String, Channel> {
+        if (urls.isEmpty()) return emptyMap()
+        val placeholders = urls.joinToString(",") { "?" }
+        val args = ArrayList<String>(urls.size + 1).apply { add(account); addAll(urls) }
+        val out = HashMap<String, Channel>()
+        readableDatabase.rawQuery(
+            "SELECT name,url,logo,cat_id,tvg FROM streams_cache WHERE account=? AND url IN ($placeholders)",
+            args.toTypedArray(),
+        ).use {
+            while (it.moveToNext()) {
+                out[it.getString(1)] = Channel(
+                    name = it.getString(0), url = it.getString(1), logo = it.getString(2),
+                    group = it.getString(3), tvgId = it.getString(4),
+                )
+            }
+        }
+        return out
+    }
+
     fun clearAll() {
         writableDatabase.execSQL("DELETE FROM cat_cache")
         writableDatabase.execSQL("DELETE FROM streams_cache")
