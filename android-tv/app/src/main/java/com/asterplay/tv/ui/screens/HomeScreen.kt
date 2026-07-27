@@ -184,12 +184,12 @@ fun HomeScreen(
                     Image(
                         painter = painterResource(R.drawable.logo_asterplay),
                         contentDescription = "Asterplay",
-                        modifier = Modifier.size(72.dp),
+                        modifier = Modifier.size(48.dp),
                     )
-                    Spacer(Modifier.width(20.dp))
+                    Spacer(Modifier.width(14.dp))
                     Column {
-                        Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelLarge)
-                        Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
+                        Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelMedium)
+                        Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
                     }
                 }
 
