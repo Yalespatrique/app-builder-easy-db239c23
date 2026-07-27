@@ -270,12 +270,13 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val numberVisible = 45.dp   // parte do número que fica à esquerda do pôster
                 val maxCardWidth = 180.dp
                 val spacing = 12.dp
                 val startPadding = 20.dp
                 val endPadding = 16.dp
                 val visibleCount = 4
-                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1)
+                val totalSpacing = startPadding + endPadding + spacing * (visibleCount - 1) + numberVisible * visibleCount
                 val available = maxWidth - totalSpacing
                 val cardWidth = (available / visibleCount).coerceAtMost(maxCardWidth).coerceAtLeast(100.dp)
 
@@ -284,7 +285,7 @@ private fun TopRow(
                     contentPadding = PaddingValues(start = startPadding, end = endPadding, top = 6.dp, bottom = 10.dp),
                 ) {
                     itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
-                        RankedPoster(rank = index + 1, hit = hit, width = cardWidth, onClick = { onPick(hit) })
+                        RankedPoster(rank = index + 1, hit = hit, cardWidth = cardWidth, numberVisible = numberVisible, onClick = { onPick(hit) })
                     }
                 }
             }
