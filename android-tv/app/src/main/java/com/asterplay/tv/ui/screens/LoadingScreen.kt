@@ -1,5 +1,6 @@
 package com.asterplay.tv.ui.screens
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,15 +23,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import com.asterplay.tv.R
 import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.store.XtreamStore
-import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgBase
-import com.asterplay.tv.ui.theme.BgElevated
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
+
 
 /**
  * Valida as credenciais Xtream contra o servidor.
