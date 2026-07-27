@@ -177,19 +177,19 @@ fun HomeScreen(
             }
 
             Column(
-                Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp),
+                Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.logo_asterplay),
                         contentDescription = "Asterplay",
-                        modifier = Modifier.size(72.dp),
+                        modifier = Modifier.size(48.dp),
                     )
-                    Spacer(Modifier.width(20.dp))
+                    Spacer(Modifier.width(14.dp))
                     Column {
-                        Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelLarge)
-                        Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
+                        Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelMedium)
+                        Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
                     }
                 }
 
@@ -290,8 +290,8 @@ private fun TopRow(
             EmptyBar(emptyMsg)
         } else {
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
-                contentPadding = PaddingValues(start = 40.dp, end = 40.dp, top = 12.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 6.dp, bottom = 10.dp),
             ) {
                 itemsIndexed(items, key = { _, it -> it.tmdb.tmdbId }) { index, hit ->
                     RankedPoster(rank = index + 1, hit = hit, onClick = { onPick(hit) })
@@ -319,38 +319,40 @@ private fun EmptyBar(msg: String) {
 @Composable
 private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
     // Layout estilo Netflix Top 10: número gigante sobreposto à esquerda do pôster.
-    val cardW = if (rank >= 10) 300.dp else 220.dp
-    BoxWithConstraints(Modifier.width(cardW).height(260.dp)) {
+    val cardW = if (rank >= 10) 220.dp else 170.dp
+    val posterW = 105.dp
+    val numberSize = if (rank >= 10) 110.sp else 120.sp
+    BoxWithConstraints(Modifier.width(cardW).height(190.dp)) {
         // Número grande atrás
         Text(
             text = rank.toString(),
             style = TextStyle(
-                fontSize = 150.sp,
+                fontSize = numberSize,
                 fontWeight = FontWeight.Black,
                 color = Color(0xFF0B0B14),
             ),
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-8).dp, y = 6.dp),
+                .offset(x = (-6).dp, y = 4.dp),
         )
         // Contorno neon do número
         Text(
             text = rank.toString(),
             style = TextStyle(
-                fontSize = 150.sp,
+                fontSize = numberSize,
                 fontWeight = FontWeight.Black,
                 color = Accent.copy(alpha = 0.85f),
             ),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-4).dp, y = 10.dp),
+                .offset(x = (-3).dp, y = 6.dp),
         )
         // Pôster deslocado à direita para o número aparecer
         Box(
             Modifier
                 .align(Alignment.CenterEnd)
-                .width(130.dp),
+                .width(posterW),
         ) {
             PosterCard(
                 title = hit.tmdb.title,
