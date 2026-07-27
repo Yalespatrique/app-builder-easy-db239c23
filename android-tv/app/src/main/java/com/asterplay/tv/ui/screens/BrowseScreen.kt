@@ -167,11 +167,3 @@ fun BrowseScreen(type: String, onBack: () -> Unit) {
     }
 }
 
-private fun loadCategory(
-    catId: String,
-    account: String,
-    creds: com.asterplay.tv.store.XtreamCreds,
-    onDone: (List<Channel>) -> Unit,
-) {
-    // Não usado — inline no LaunchedEffect. Mantido só pra evitar warning se referenciado.
-}
