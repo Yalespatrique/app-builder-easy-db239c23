@@ -314,31 +314,31 @@ private fun EmptyBar(msg: String) {
 @Composable
 private fun RankedPoster(rank: Int, hit: TopHit, onClick: () -> Unit) {
     // Layout estilo Netflix Top 10: número gigante sobreposto à esquerda do pôster.
-    BoxWithConstraints(Modifier.width(200.dp).height(230.dp)) {
+    BoxWithConstraints(Modifier.width(220.dp).height(260.dp)) {
         // Número grande atrás
         Text(
             text = rank.toString(),
             style = TextStyle(
-                fontSize = 180.sp,
+                fontSize = 150.sp,
                 fontWeight = FontWeight.Black,
                 color = Color(0xFF0B0B14),
             ),
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-14).dp, y = 20.dp),
+                .offset(x = (-8).dp, y = 6.dp),
         )
         // Contorno neon do número
         Text(
             text = rank.toString(),
             style = TextStyle(
-                fontSize = 180.sp,
+                fontSize = 150.sp,
                 fontWeight = FontWeight.Black,
                 color = Accent.copy(alpha = 0.85f),
             ),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .offset(x = (-10).dp, y = 24.dp),
+                .offset(x = (-4).dp, y = 10.dp),
         )
         // Pôster deslocado à direita para o número aparecer
         Box(
