@@ -21,19 +21,26 @@ import java.util.concurrent.TimeUnit
  * player, então a preferência vale para tudo.
  */
 object Net {
+    /** Automático: tenta o DNS do provedor e, se ele falhar/bloquear, usa DoH sozinho. */
+    const val DNS_AUTO = "auto"
     const val DNS_SYSTEM = "system"
     const val DNS_GOOGLE = "google"
     const val DNS_CLOUDFLARE = "cloudflare"
     const val DNS_ADGUARD = "adguard"
 
     @Volatile
-    private var mode: String = DNS_SYSTEM
+    private var mode: String = DNS_AUTO
 
     @Volatile
     private var cached: OkHttpClient? = null
 
     @Volatile
     private var cachedMode: String? = null
+
+    /** true quando o modo automático precisou cair para o DoH (provedor bloqueando). */
+    @Volatile
+    var autoFallbackActive: Boolean = false
+        private set
 
     /** Cliente base (sem DoH) — também serve de bootstrap para o resolvedor DoH. */
     private val base: OkHttpClient by lazy {
@@ -56,18 +63,55 @@ object Net {
         mode = value
         cached = null
         cachedMode = null
+        autoFallbackActive = false
     }
 
-    /** Cliente HTTP compartilhado, já com o DNS escolhido pelo usuário. */
+    /** Cliente HTTP compartilhado, já com o DNS em uso. */
     val client: OkHttpClient
         get() {
             val m = mode
             cached?.let { if (cachedMode == m) return it }
-            val built = if (m == DNS_SYSTEM) base else base.newBuilder().dns(doh(m)).build()
+            val dns = when (m) {
+                DNS_SYSTEM -> null
+                DNS_AUTO -> AutoDns
+                else -> doh(m)
+            }
+            val built = if (dns == null) base else base.newBuilder().dns(dns).build()
             cached = built
             cachedMode = m
             return built
         }
+
+    /**
+     * Resolvedor automático: primeiro tenta o DNS do sistema (rápido, sem custo).
+     * Se o provedor não resolver o domínio — ou devolver um IP de bloqueio, como
+     * loopback/0.0.0.0 — refaz a consulta por DNS-over-HTTPS. Assim o usuário
+     * leigo não precisa configurar nada.
+     */
+    private object AutoDns : Dns {
+        private val fallbacks: List<Dns> by lazy {
+            listOf(doh(DNS_CLOUDFLARE), doh(DNS_GOOGLE))
+        }
+
+        override fun lookup(hostname: String): List<InetAddress> {
+            val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrNull()
+            val ok = system?.filter { it.isUsable() }.orEmpty()
+            if (ok.isNotEmpty()) return ok
+            for (f in fallbacks) {
+                val r = runCatching { f.lookup(hostname) }.getOrNull()
+                    ?.filter { it.isUsable() }.orEmpty()
+                if (r.isNotEmpty()) {
+                    autoFallbackActive = true
+                    return r
+                }
+            }
+            return system ?: Dns.SYSTEM.lookup(hostname)
+        }
+
+        private fun InetAddress.isUsable(): Boolean =
+            !isLoopbackAddress && !isAnyLocalAddress && !isLinkLocalAddress && !isMulticastAddress
+    }
+
 
     private fun doh(m: String): Dns {
         val (url, ips) = when (m) {
