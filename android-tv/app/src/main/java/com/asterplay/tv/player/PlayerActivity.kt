@@ -416,10 +416,11 @@ private fun AsterplayPlayerScreen(
 
         // Aviso de próximo episódio automático
         if (autoNextIn >= 0 && hasPlaylist) {
-            Box(
+            Column(
                 Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 48.dp, bottom = 190.dp),
+                horizontalAlignment = Alignment.End,
             ) {
                 androidx.tv.material3.Surface(
                     onClick = { WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++ },
@@ -439,14 +440,32 @@ private fun AsterplayPlayerScreen(
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Próximo episódio em ${autoNextIn}s",
+                            "Próximo episódio em ${autoNextIn / 60}:${(autoNextIn % 60).toString().padStart(2, '0')}",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                androidx.tv.material3.Surface(
+                    onClick = { autoNextCancelled = true; autoNextIn = -1 },
+                    colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+                        containerColor = Color(0xCC1A1A2E),
+                        focusedContainerColor = Color(0xFFFF3B30),
+                    ),
+                    shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                ) {
+                    Text(
+                        "Cancelar pular automático",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    )
+                }
             }
+        }
         }
     }
 }
