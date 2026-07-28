@@ -59,16 +59,27 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
 
     LaunchedEffect(Unit) {
         var c = XtreamStore.get(ctx)
-        if (c == null) { onFail(); return@LaunchedEffect }
-        sub = "verificando sua conta..."
-        var result = XtreamApi.authenticateDetailed(c)
+        val method = LoginStore.method(ctx)
+        val saved = LoginStore.codeLogin(ctx)
 
-        // Se falhou, tenta renovar as credenciais no painel pelo MAC/Chave
-        // antes de mandar o usuário pro login.
-        if (result != XtreamApi.AuthResult.OK) {
+        // Sem nenhuma forma de entrar salva -> login.
+        if (c == null && method == null) { onFail(); return@LaunchedEffect }
+
+        sub = "verificando sua conta..."
+        var result = if (c != null) XtreamApi.authenticateDetailed(c)
+        else XtreamApi.AuthResult.INVALID
+
+        // Falhou? Revalida no painel usando o mesmo método do login:
+        // código/usuário/senha, ou MAC/Chave. Stream codes (Xtream) já foram
+        // testados acima.
+        if (result != XtreamApi.AuthResult.OK && method != LoginMethod.XTREAM) {
             sub = "atualizando dados da lista..."
-            val mac = DeviceId.getMac(ctx)
-            val r = PanelApi.activateWithMac(mac, DeviceId.getKey(mac))
+            val r = if (method == LoginMethod.CODE && saved != null) {
+                PanelApi.activateWithCode(saved.code, saved.user, saved.pass)
+            } else {
+                val mac = DeviceId.getMac(ctx)
+                PanelApi.activateWithMac(mac, DeviceId.getKey(mac))
+            }
             if (r.ok && r.xtream != null) {
                 XtreamStore.save(ctx, r.xtream)
                 r.playlistUrl?.let { PlaylistStore.save(ctx, it) }
@@ -77,13 +88,14 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             }
         }
 
-        if (result == XtreamApi.AuthResult.INVALID) {
+        if (c == null || result == XtreamApi.AuthResult.INVALID) {
             status = "Conta não encontrada"
             sub = "Verifique seus dados e tente novamente."
             delay(2000)
-            XtreamStore.clear(ctx); onFail()
+            XtreamStore.clear(ctx); LoginStore.clear(ctx); onFail()
             return@LaunchedEffect
         }
+
         if (result == XtreamApi.AuthResult.NETWORK) {
             // Problema de conexão: mantém as credenciais salvas e segue
             // com o que estiver em cache.
