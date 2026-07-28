@@ -235,9 +235,91 @@ object XtreamApi {
 
     // ---------- Séries (episódios) ----------
 
-    data class Episode(val id: String, val title: String, val season: Int, val ext: String, val url: String)
+    data class Episode(
+        val id: String,
+        val title: String,
+        val season: Int,
+        val episodeNum: Int,
+        val ext: String,
+        val url: String,
+        val plot: String? = null,
+        val still: String? = null,
+        val duration: String? = null,
+    )
     data class SeriesInfo(val seasons: List<Int>, val episodes: Map<Int, List<Episode>>)
 
+    data class SeriesMeta(
+        val plot: String? = null,
+        val cast: String? = null,
+        val director: String? = null,
+        val genre: String? = null,
+        val rating: String? = null,
+        val releaseDate: String? = null,
+        val backdrop: String? = null,
+        val cover: String? = null,
+        val tmdbId: Long? = null,
+    )
+
+    data class SeriesFull(val meta: SeriesMeta, val info: SeriesInfo)
+
+    suspend fun seriesFullInfo(c: XtreamCreds, seriesId: String): SeriesFull? = withContext(Dispatchers.IO) {
+        val body = get(c.playerApi("get_series_info", "&series_id=$seriesId")) ?: return@withContext null
+        try {
+            val root = JSONObject(body)
+            val info = root.optJSONObject("info") ?: JSONObject()
+            val backdrops = info.optJSONArray("backdrop_path")
+            val backdrop = when {
+                backdrops != null && backdrops.length() > 0 -> backdrops.optString(0).ifBlank { null }
+                else -> info.optString("backdrop_path").ifBlank { null }
+            }
+            val meta = SeriesMeta(
+                plot = info.optString("plot").ifBlank { info.optString("description") }.ifBlank { null },
+                cast = info.optString("cast").ifBlank { info.optString("actors") }.ifBlank { null },
+                director = info.optString("director").ifBlank { null },
+                genre = info.optString("genre").ifBlank { null },
+                rating = info.optString("rating").ifBlank { info.optString("rating_5based") }.ifBlank { null },
+                releaseDate = info.optString("releaseDate").ifBlank { info.optString("release_date") }.ifBlank { null },
+                backdrop = backdrop,
+                cover = info.optString("cover").ifBlank { info.optString("cover_big") }.ifBlank { null },
+                tmdbId = info.optString("tmdb_id").toLongOrNull()?.takeIf { it > 0 },
+            )
+            val eps = root.optJSONObject("episodes")
+            val bySeason = HashMap<Int, MutableList<Episode>>()
+            if (eps != null) {
+                val keys = eps.keys()
+                while (keys.hasNext()) {
+                    val seasonKey = keys.next()
+                    val season = seasonKey.toIntOrNull() ?: continue
+                    val arr = eps.optJSONArray(seasonKey) ?: continue
+                    val list = ArrayList<Episode>()
+                    for (i in 0 until arr.length()) {
+                        val o = arr.optJSONObject(i) ?: continue
+                        val id = o.optString("id")
+                        val epNum = o.optInt("episode_num")
+                        val title = o.optString("title").ifEmpty { "Ep $epNum" }
+                        val ext = o.optString("container_extension").ifEmpty { "mp4" }
+                        if (id.isEmpty()) continue
+                        val url = "${c.host}/series/${c.username}/${c.password}/$id.$ext"
+                        val epInfo = o.optJSONObject("info")
+                        list += Episode(
+                            id = id,
+                            title = title,
+                            season = season,
+                            episodeNum = epNum,
+                            ext = ext,
+                            url = url,
+                            plot = epInfo?.optString("plot")?.ifBlank { null },
+                            still = epInfo?.optString("movie_image")?.ifBlank { null },
+                            duration = epInfo?.optString("duration")?.ifBlank { null },
+                        )
+                    }
+                    list.sortBy { it.episodeNum }
+                    bySeason[season] = list
+                }
+            }
+            SeriesFull(meta, SeriesInfo(bySeason.keys.sorted(), bySeason))
+        } catch (_: Exception) { null }
+    }
 
     suspend fun seriesInfo(c: XtreamCreds, seriesId: String): SeriesInfo? = withContext(Dispatchers.IO) {
         val body = get(c.playerApi("get_series_info", "&series_id=$seriesId")) ?: return@withContext null
