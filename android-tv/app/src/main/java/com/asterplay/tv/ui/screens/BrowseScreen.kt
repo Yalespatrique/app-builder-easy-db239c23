@@ -313,10 +313,10 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
 private fun LiveChannelPane(
     channels: List<Channel>,
     current: Channel,
+    playerView: PlayerView,
+    showPlayer: Boolean,
     onPick: (Channel) -> Unit,
-    fullscreen: Boolean,
     onEnterFullscreen: () -> Unit,
-    onExitFullscreen: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val creds = remember { XtreamStore.get(ctx) }
@@ -335,26 +335,10 @@ private fun LiveChannelPane(
         loadingEpg = false
     }
 
-    // Player persistente entre trocas de canal.
-    val player = remember {
-        ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
-    }
-    LaunchedEffect(current.url) {
-        player.setMediaItem(MediaItem.fromUri(current.url))
-        player.prepare()
-        player.playWhenReady = !fullscreen
-    }
-    LaunchedEffect(fullscreen) {
-        // Pausa este player enquanto o overlay em tela cheia toca o mesmo canal.
-        player.playWhenReady = !fullscreen
-    }
-    DisposableEffect(Unit) {
-        onDispose { player.release() }
-    }
-
     // Auto-foco no canal atual da lista.
     val listFocus = remember { FocusRequester() }
     LaunchedEffect(current.url) { runCatching { listFocus.requestFocus() } }
+
 
     Row(Modifier.fillMaxSize()) {
         // Lista de canais da categoria
