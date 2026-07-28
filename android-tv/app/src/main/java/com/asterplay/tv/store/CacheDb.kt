@@ -51,11 +51,23 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         )
         db.execSQL("CREATE INDEX idx_streams_cat ON streams_cache(account, kind, cat_id)")
         db.execSQL("CREATE INDEX idx_streams_name ON streams_cache(account, name)")
+        db.execSQL(
+            """
+            CREATE TABLE cat_counts(
+              account TEXT NOT NULL,
+              kind    TEXT NOT NULL,
+              cat_id  TEXT NOT NULL,
+              total   INTEGER NOT NULL,
+              PRIMARY KEY(account, kind, cat_id)
+            )
+            """.trimIndent()
+        )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS cat_cache")
         db.execSQL("DROP TABLE IF EXISTS streams_cache")
+        db.execSQL("DROP TABLE IF EXISTS cat_counts")
         onCreate(db)
     }
 
