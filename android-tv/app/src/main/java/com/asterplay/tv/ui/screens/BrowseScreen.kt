@@ -79,7 +79,7 @@ import java.util.Locale
  * Só carrega o que o usuário abre.
  */
 @Composable
-fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) -> Unit = {}) {
+fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) -> Unit = {}, onOpenSeriesDetail: (Channel) -> Unit = {}) {
 
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
