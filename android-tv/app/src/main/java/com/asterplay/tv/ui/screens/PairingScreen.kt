@@ -260,6 +260,8 @@ private fun TvTextField(
     isPassword: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     Column {
         Text(label, color = TextMuted, style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(4.dp))
@@ -269,12 +271,19 @@ private fun TvTextField(
             singleLine = true,
             textStyle = TextStyle(color = TextPrimary, fontSize = 18.sp),
             cursorBrush = SolidColor(Accent),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = if (isPassword) androidx.compose.ui.text.input.KeyboardType.Password
+                else androidx.compose.ui.text.input.KeyboardType.Text,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+            ),
             visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(BgElevated, RoundedCornerShape(8.dp))
                 .then(if (focused) Modifier.border(2.dp, Accent, RoundedCornerShape(8.dp)) else Modifier)
-                .onFocusChanged { focused = it.isFocused }
+                .focusRequester(focusRequester)
+                .onFocusChanged { focused = it.isFocused; if (it.isFocused) keyboard?.show() }
+                .androidx.compose.foundation.clickable { focusRequester.requestFocus(); keyboard?.show() }
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         )
     }
