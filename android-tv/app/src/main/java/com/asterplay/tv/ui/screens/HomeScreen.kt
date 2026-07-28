@@ -419,7 +419,13 @@ private fun SettingsPanel(
 }
 
 @Composable
-private fun SettingRow(icon: ImageVector, label: String, value: String, onClick: () -> Unit) {
+private fun SettingRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -428,7 +434,7 @@ private fun SettingRow(icon: ImageVector, label: String, value: String, onClick:
             focusedContainerColor = BgElevated,
         ),
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
