@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -151,30 +152,36 @@ private fun AsterplayPlayerScreen(
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var autoNextIn by remember { mutableIntStateOf(-1) }
     var resumedFrom by remember { mutableLongStateOf(0L) }
+    // > 0 => diálogo "retomar ou reiniciar" aberto
+    var pendingResume by remember { mutableLongStateOf(0L) }
 
     fun touch() { lastInteraction = System.currentTimeMillis(); controlsVisible = true }
 
-    // Troca de mídia + retomada automática do último tempo assistido
+    // Troca de mídia + pergunta se deve retomar do último tempo assistido
     LaunchedEffect(url) {
         buffering = true
+        resumedFrom = 0L
         val resume = if (isLive) 0L else ResumeStore.get(ctx, url)
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
         if (resume > 10_000) {
-            player.seekTo(resume)
-            resumedFrom = resume
+            pendingResume = resume
+            player.playWhenReady = false
         } else {
-            resumedFrom = 0L
+            pendingResume = 0L
+            player.playWhenReady = true
         }
-        player.playWhenReady = true
         autoNextIn = -1
         touch()
     }
 
+
     // Salva a posição ao sair da mídia atual (troca de episódio ou saída do player)
     DisposableEffect(url) {
         onDispose {
-            if (!isLive) ResumeStore.save(ctx, url, player.currentPosition, player.duration)
+            if (!isLive && pendingResume == 0L) {
+                ResumeStore.save(ctx, url, player.currentPosition, player.duration)
+            }
         }
     }
 
@@ -204,7 +211,7 @@ private fun AsterplayPlayerScreen(
         while (true) {
             position = player.currentPosition.coerceAtLeast(0L)
             duration = player.duration.let { if (it > 0) it else 0L }
-            if (!isLive && duration > 0) {
+            if (!isLive && duration > 0 && pendingResume == 0L) {
                 // salva o progresso a cada ~5s pra retomar mesmo se o app for encerrado
                 tick++
                 if (tick % 10 == 0) ResumeStore.save(ctx, url, position, duration)
@@ -234,6 +241,7 @@ private fun AsterplayPlayerScreen(
 
     // Teclas do controle remoto
     registerKeyHandler { key ->
+        if (pendingResume > 0L) return@registerKeyHandler false // diálogo cuida da navegação
         when (key) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
@@ -277,7 +285,7 @@ private fun AsterplayPlayerScreen(
         )
 
         // Loader personalizado (substitui o buffering nativo)
-        if (buffering) {
+        if (buffering && pendingResume == 0L) {
             Box(
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center,
@@ -306,9 +314,34 @@ private fun AsterplayPlayerScreen(
             }
         }
 
+        // Diálogo: retomar do último tempo ou reiniciar
+        if (pendingResume > 0L) {
+            ResumeDialog(
+                title = title,
+                positionMs = pendingResume,
+                onResume = {
+                    val p = pendingResume
+                    pendingResume = 0L
+                    resumedFrom = p
+                    player.seekTo(p)
+                    player.playWhenReady = true
+                    touch()
+                },
+                onRestart = {
+                    pendingResume = 0L
+                    resumedFrom = 0L
+                    ResumeStore.clear(ctx, url)
+                    player.seekTo(0)
+                    player.playWhenReady = true
+                    touch()
+                },
+            )
+        }
+
         // Barra de controles customizada
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && pendingResume == 0L,
+
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -456,5 +489,77 @@ private fun ControlButton(
                 modifier = Modifier.size(if (big) 32.dp else 26.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun ResumeDialog(
+    title: String,
+    positionMs: Long,
+    onResume: () -> Unit,
+    onRestart: () -> Unit,
+) {
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xF2101024))
+                .padding(horizontal = 44.dp, vertical = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "Continuar assistindo?",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            if (title.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(title, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Você parou em ${fmt(positionMs)}",
+                color = NeonCyan,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(26.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                DialogButton("Retomar", primary = true, modifier = Modifier.focusRequester(focus), onClick = onResume)
+                DialogButton("Começar do início", onClick = onRestart)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogButton(
+    label: String,
+    primary: Boolean = false,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    androidx.tv.material3.Surface(
+        onClick = onClick,
+        modifier = modifier,
+        colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+            containerColor = if (primary) NeonPurple.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            focusedContainerColor = NeonCyan,
+        ),
+        shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+    ) {
+        Text(
+            label,
+            color = TextPrimary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 26.dp, vertical = 14.dp),
+        )
     }
 }
