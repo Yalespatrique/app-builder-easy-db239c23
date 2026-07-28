@@ -83,6 +83,27 @@ export const Route = createFileRoute("/api/public/code-login")({
           const bu = new URL(base);
           host = `${bu.protocol}//${bu.host}`;
         } catch {}
+        // Valida usuário/senha direto no servidor da lista (Xtream).
+        // Se o servidor não responder, seguimos em frente e deixamos o app decidir.
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 12000);
+          const r = await fetch(
+            `${host}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+            { signal: ctrl.signal },
+          );
+          clearTimeout(t);
+          const txt = await r.text();
+          const info = JSON.parse(txt)?.user_info;
+          if (info && Number(info.auth) !== 1) {
+            return json(401, { ok: false, message: "Usuário ou senha inválidos" });
+          }
+          if (info && info.status && String(info.status).toLowerCase() !== "active") {
+            return json(403, { ok: false, message: `Conta ${info.status}` });
+          }
+        } catch {
+          // rede/servidor fora do ar -> não bloqueia o login
+        }
         return json(200, {
           ok: true,
           playlist_url,

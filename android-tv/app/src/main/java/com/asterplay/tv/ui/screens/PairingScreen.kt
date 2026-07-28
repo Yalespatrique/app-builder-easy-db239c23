@@ -1,6 +1,7 @@
 package com.asterplay.tv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -91,16 +93,26 @@ fun PairingScreen(onActivated: () -> Unit) {
         if (code.isBlank() || user.isBlank() || pass.isBlank()) {
             message = "Preencha código, usuário e senha"; return
         }
-        loading = true; message = null
+        loading = true; message = "Verificando sua conta..."
         scope.launch {
             val r = PanelApi.activateWithCode(code.trim(), user.trim(), pass.trim())
+            if (!r.ok || r.playlistUrl == null || r.xtream == null) {
+                loading = false
+                message = r.message ?: "Código, usuário ou senha inválidos"
+                return@launch
+            }
+            // Confirma direto no servidor da lista antes de entrar.
+            val auth = com.asterplay.tv.net.XtreamApi.authenticateDetailed(r.xtream)
             loading = false
-            if (r.ok && r.playlistUrl != null && r.xtream != null) {
-                PlaylistStore.save(ctx, r.playlistUrl)
-                com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
-                com.asterplay.tv.store.LoginStore.saveCode(ctx, code.trim(), user.trim(), pass.trim())
-                onActivated()
-            } else message = r.message ?: "Falha no login"
+            if (auth == com.asterplay.tv.net.XtreamApi.AuthResult.INVALID) {
+                message = "Usuário ou senha inválidos para esse código"
+                return@launch
+            }
+            PlaylistStore.save(ctx, r.playlistUrl)
+            com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+            com.asterplay.tv.store.LoginStore.saveCode(ctx, code.trim(), user.trim(), pass.trim())
+            message = null
+            onActivated()
         }
     }
 
@@ -242,6 +254,7 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun TvTextField(
     value: String,
@@ -250,6 +263,8 @@ private fun TvTextField(
     isPassword: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     Column {
         Text(label, color = TextMuted, style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(4.dp))
@@ -259,12 +274,19 @@ private fun TvTextField(
             singleLine = true,
             textStyle = TextStyle(color = TextPrimary, fontSize = 18.sp),
             cursorBrush = SolidColor(Accent),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = if (isPassword) androidx.compose.ui.text.input.KeyboardType.Password
+                else androidx.compose.ui.text.input.KeyboardType.Text,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+            ),
             visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(BgElevated, RoundedCornerShape(8.dp))
                 .then(if (focused) Modifier.border(2.dp, Accent, RoundedCornerShape(8.dp)) else Modifier)
-                .onFocusChanged { focused = it.isFocused }
+                .focusRequester(focusRequester)
+                .onFocusChanged { focused = it.isFocused; if (it.isFocused) keyboard?.show() }
+                .clickable { focusRequester.requestFocus(); keyboard?.show() }
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         )
     }
