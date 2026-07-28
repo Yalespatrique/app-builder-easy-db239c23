@@ -89,7 +89,7 @@ fun CategoryItem(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "$count itens",
+                    text = if (count >= 0) "$count itens" else "—",
                     color = TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                 )
