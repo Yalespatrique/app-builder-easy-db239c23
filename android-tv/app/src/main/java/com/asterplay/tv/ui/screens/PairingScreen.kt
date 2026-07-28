@@ -50,6 +50,7 @@ import com.asterplay.tv.net.PanelApi
 import com.asterplay.tv.store.PlaylistStore
 import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgElevated
+import com.asterplay.tv.ui.theme.BgSelected
 import com.asterplay.tv.ui.theme.BgSurface
 import com.asterplay.tv.ui.theme.BrandGradient
 import com.asterplay.tv.ui.theme.NeonPurple
