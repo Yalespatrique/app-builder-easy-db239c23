@@ -150,6 +150,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         val hasContinue = continueCat != null && continueItems.isNotEmpty()
         categories = if (hasContinue) listOf(continueCat!!) + visibleCats else visibleCats
         loadingCats = false
+        catCounts = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
         if (hasContinue) {
             selectedIdx = 0
             items = continueItems
@@ -168,6 +169,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             }
             items = first
             shownCount = minOf(pageSize, first.size)
+            catCounts = catCounts + (visibleCats[0].id to first.size)
             loadingItems = false
         }
     }
@@ -188,16 +190,18 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
         val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
+            val catId = categories[idx].id
             val list = withContext(Dispatchers.IO) {
                 val db = CacheDb.get(ctx)
-                db.readStreams(account, type, categories[idx].id) ?: run {
-                    val fresh = XtreamApi.streams(creds, type, categories[idx].id)
-                    if (fresh.isNotEmpty()) db.writeStreams(account, type, categories[idx].id, fresh, CacheDb.TTL_STREAMS)
+                db.readStreams(account, type, catId) ?: run {
+                    val fresh = XtreamApi.streams(creds, type, catId)
+                    if (fresh.isNotEmpty()) db.writeStreams(account, type, catId, fresh, CacheDb.TTL_STREAMS)
                     fresh
                 }
             }
             items = list
             shownCount = minOf(pageSize, list.size)
+            catCounts = catCounts + (catId to list.size)
             loadingItems = false
         }
     }
