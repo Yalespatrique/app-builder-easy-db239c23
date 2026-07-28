@@ -50,6 +50,7 @@ import com.asterplay.tv.net.PanelApi
 import com.asterplay.tv.store.PlaylistStore
 import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgElevated
+import com.asterplay.tv.ui.theme.BgSelected
 import com.asterplay.tv.ui.theme.BgSurface
 import com.asterplay.tv.ui.theme.BrandGradient
 import com.asterplay.tv.ui.theme.NeonPurple
@@ -122,119 +123,114 @@ fun PairingScreen(onActivated: () -> Unit) {
             painter = androidx.compose.ui.res.painterResource(id = com.asterplay.tv.R.drawable.bg_gradient),
             contentDescription = null,
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-            alpha = 0.55f,
+            alpha = 0.35f,
             modifier = Modifier.fillMaxSize(),
         )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color(0xCC0B0B14)),
-        )
+        Box(Modifier.fillMaxSize().background(Color(0xE605050C)))
+
+        // Card central único
         Column(
-            Modifier.fillMaxSize().padding(48.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            Modifier
+                .align(Alignment.Center)
+                .width(520.dp)
+                .background(Color(0xF2101120), RoundedCornerShape(22.dp))
+                .border(1.dp, Color(0x1AFFFFFF), RoundedCornerShape(22.dp))
+                .padding(horizontal = 40.dp, vertical = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Cabeçalho
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = com.asterplay.tv.R.drawable.logo_asterplay),
-                    contentDescription = "Asterplay",
-                    modifier = Modifier.size(64.dp),
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = com.asterplay.tv.R.drawable.logo_asterplay),
+                contentDescription = "Asterplay",
+                modifier = Modifier.size(96.dp),
+            )
+            Text(
+                "ATIVE SUA LISTA",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                "appasterplay.top",
+                color = Accent,
+                style = MaterialTheme.typography.titleSmall,
+            )
+
+            Spacer(Modifier.height(2.dp))
+            TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO")
+            TvTextField(value = user, onChange = { user = it }, label = "USUÁRIO")
+            TvTextField(value = pass, onChange = { pass = it }, label = "SENHA", isPassword = true)
+
+            Spacer(Modifier.height(2.dp))
+            Button(
+                onClick = { tryLoginCode() },
+                enabled = !loading,
+                shape = ButtonDefaults.shape(RoundedCornerShape(10.dp)),
+                colors = ButtonDefaults.colors(
+                    containerColor = Accent,
+                    contentColor = Color.Black,
+                    focusedContainerColor = com.asterplay.tv.ui.theme.AccentGlow,
+                    focusedContentColor = Color.Black,
+                ),
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+            ) {
+                Text(
+                    if (loading) "ENTRANDO..." else "ENTRAR",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(Modifier.width(16.dp))
-                Column {
-                    Text(
-                        "ATIVE SUA LISTA",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.headlineLarge,
-                    )
-                    Text("appasterplay.top", color = Accent, style = MaterialTheme.typography.titleMedium)
-                }
             }
 
-            // Duas colunas: aviso do app (esquerda) e login por código (direita)
-            Row(
-                Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
+            Button(
+                onClick = { tryActivateMac() },
+                enabled = !loading,
+                shape = ButtonDefaults.shape(RoundedCornerShape(10.dp)),
+                colors = ButtonDefaults.colors(
+                    containerColor = Color(0x14FFFFFF),
+                    contentColor = TextSecondary,
+                    focusedContainerColor = BgSelected,
+                    focusedContentColor = TextPrimary,
+                ),
+                modifier = Modifier.fillMaxWidth().height(46.dp),
             ) {
-                // Aviso do app (esquerda)
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .background(BgSurface, RoundedCornerShape(14.dp))
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Text(
-                        "AVISO",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        "Este é apenas um reprodutor de mídia. Não somos responsáveis por nenhum conteúdo carregado. Não fornecemos conteúdos nem listas de reprodução — o usuário é responsável pelas informações que insere.",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-
-
-                    Spacer(Modifier.height(4.dp))
-                    Button(
-                        onClick = { tryActivateMac() },
-                        enabled = !loading,
-                        colors = ButtonDefaults.colors(
-                            containerColor = BgElevated,
-                            contentColor = TextPrimary,
-                            focusedContainerColor = Accent,
-                            focusedContentColor = Color.Black,
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) {
-                        Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(if (loading) "Verificando..." else "Verificar ativação", fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                // Login por código (direita)
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .background(BgSurface, RoundedCornerShape(14.dp))
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    TvTextField(value = code, onChange = { code = it }, label = "Código")
-                    TvTextField(value = user, onChange = { user = it }, label = "Usuário")
-                    TvTextField(value = pass, onChange = { pass = it }, label = "Senha", isPassword = true)
-                    Spacer(Modifier.height(4.dp))
-                    Button(
-                        onClick = { tryLoginCode() },
-                        enabled = !loading,
-                        colors = ButtonDefaults.colors(
-                            containerColor = NeonPurple,
-                            contentColor = Color.White,
-                            focusedContainerColor = Accent,
-                            focusedContentColor = Color.Black,
-                        ),
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) { Text(if (loading) "Entrando..." else "Entrar", fontWeight = FontWeight.SemiBold) }
-                }
+                Icon(Icons.Default.CheckCircle, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Verificar ativação por MAC", style = MaterialTheme.typography.labelLarge)
             }
 
             if (message != null) {
-                Text(message!!, color = Accent, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    message!!,
+                    color = Accent,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
+        }
 
-            // Rodapé: MAC à esquerda, site no meio, Chave à direita
+        // Rodapé discreto
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 40.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "Este app é apenas um reprodutor de mídia. Não somos responsáveis por nenhum conteúdo carregado — a lista é de responsabilidade do usuário.",
+                color = TextMuted,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
-                Text("appasterplay.top", color = TextMuted, style = MaterialTheme.typography.labelMedium)
-                Text("Chave $key", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelSmall)
+                Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelSmall)
+                Text("CHAVE $key", color = TextMuted, style = MaterialTheme.typography.labelSmall)
             }
         }
     }
