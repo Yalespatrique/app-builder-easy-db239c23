@@ -296,6 +296,7 @@ private fun TvTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged {
                     focused = it.isFocused
                     if (it.isFocused) keyboard?.show()
