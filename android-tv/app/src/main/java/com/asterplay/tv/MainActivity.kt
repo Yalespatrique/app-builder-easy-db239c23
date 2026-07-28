@@ -57,19 +57,14 @@ fun AsterplayApp() {
                 composable(Routes.Splash) {
                     SplashScreen(onDone = {
                         val ctx = it
-                        val hasCreds = XtreamStore.get(ctx) != null
-                        // Se já existe login salvo, não abre o menu direto.
-                        // Primeiro passa pela tela de carregamento para validar a conta e
-                        // pré-carregar Top 10 + recentes, evitando o Home abrir com "Carregando...".
-                        val target = if (hasCreds) Routes.Loading
-                        else {
-                            PlaylistStore.clear(ctx)
-                            Routes.Pairing
-                        }
-                        nav.navigate(target) {
+                        // Sempre passa pelo Loading: ele valida a conta no painel e
+                        // pré-carrega o menu. Se falhar, cai na tela de login.
+                        if (XtreamStore.get(ctx) == null) PlaylistStore.clear(ctx)
+                        nav.navigate(Routes.Loading) {
                             popUpTo(Routes.Splash) { inclusive = true }
                         }
                     })
+
                 }
                 composable(Routes.Pairing) {
                     PairingScreen(onActivated = {
