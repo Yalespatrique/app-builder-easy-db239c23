@@ -229,14 +229,23 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             } else {
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
                     val catName = categories.getOrNull(selectedIdx)?.name ?: ""
-                    Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
                     Text(
-                        if (loadingItems) "Carregando..."
-                        else "Mostrando $shownCount de ${items.size} itens",
+                        if (searching) "Resultados para \"$query\"" else catName,
+                        color = TextPrimary, style = MaterialTheme.typography.headlineLarge,
+                    )
+                    Text(
+                        when {
+                            searching && searchLoading -> "Buscando..."
+                            searching -> "${results.size} resultados no conteúdo já carregado"
+                            loadingItems -> "Carregando..."
+                            else -> "Mostrando $shownCount de ${items.size} itens"
+                        },
                         color = TextMuted, style = MaterialTheme.typography.labelMedium,
                     )
                     Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
-                        val visible = remember(items, shownCount) { items.take(shownCount) }
+                        val visible = remember(items, shownCount, results, searching) {
+                            if (searching) results else items.take(shownCount)
+                        }
                         val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
                         LaunchedEffect(gridState, items, shownCount) {
