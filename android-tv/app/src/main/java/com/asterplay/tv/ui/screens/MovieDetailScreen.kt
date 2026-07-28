@@ -398,6 +398,7 @@ private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier, onRend
             setParameters(buildUponParameters().setMaxVideoSize(854, 480).setMaxVideoBitrate(1_500_000))
         }
         ExoPlayer.Builder(ctx)
+            .setMediaSourceFactory(com.asterplay.tv.net.exoMediaSourceFactory(ctx))
             .setLoadControl(loadControl)
             .setTrackSelector(trackSelector)
             .build().apply {

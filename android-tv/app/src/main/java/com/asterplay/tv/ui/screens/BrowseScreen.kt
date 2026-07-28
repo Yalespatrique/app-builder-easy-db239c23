@@ -208,7 +208,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
 
 
     val livePlayer = remember {
-        ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
+        ExoPlayer.Builder(ctx)
+            .setMediaSourceFactory(com.asterplay.tv.net.exoMediaSourceFactory(ctx))
+            .build().apply { playWhenReady = true }
     }
     DisposableEffect(Unit) {
         onDispose { livePlayer.release() }

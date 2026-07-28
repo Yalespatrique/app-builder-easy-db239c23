@@ -141,7 +141,9 @@ private fun AsterplayPlayerScreen(
     val title = if (hasPlaylist) epNames?.getOrNull(index) ?: initialName else initialName
 
     val player = remember {
-        ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
+        ExoPlayer.Builder(ctx)
+            .setMediaSourceFactory(com.asterplay.tv.net.exoMediaSourceFactory(ctx))
+            .build().apply { playWhenReady = true }
     }
 
     var buffering by remember { mutableStateOf(true) }

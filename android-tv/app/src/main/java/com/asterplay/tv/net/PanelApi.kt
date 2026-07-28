@@ -17,10 +17,7 @@ data class PanelResult(
 )
 
 object PanelApi {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val client get() = Net.client
 
     private const val BASE = "https://apkasterplay.lovable.app"
 

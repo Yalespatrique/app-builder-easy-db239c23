@@ -16,10 +16,7 @@ import java.util.concurrent.TimeUnit
 data class XtreamCategory(val id: String, val name: String)
 
 object XtreamApi {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+    private val client get() = Net.client
 
     // ---------- Autenticação ----------
 
