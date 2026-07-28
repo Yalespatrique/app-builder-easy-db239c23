@@ -178,7 +178,9 @@ private fun AsterplayPlayerScreen(
     // Salva a posição ao sair da mídia atual (troca de episódio ou saída do player)
     DisposableEffect(url) {
         onDispose {
-            if (!isLive) ResumeStore.save(ctx, url, player.currentPosition, player.duration)
+            if (!isLive && pendingResume == 0L) {
+                ResumeStore.save(ctx, url, player.currentPosition, player.duration)
+            }
         }
     }
 
