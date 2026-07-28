@@ -99,16 +99,18 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
-    val searching = query.trim().length >= 2
+    val hasSearchQuery = query.trim().isNotEmpty()
+    val canSearch = query.trim().length >= 2
 
     LaunchedEffect(query, type) {
-        if (creds == null || !searching) { results = emptyList(); searchLoading = false; return@LaunchedEffect }
+        if (creds == null || !canSearch) { results = emptyList(); searchLoading = false; return@LaunchedEffect }
         searchLoading = true
-        kotlinx.coroutines.delay(300)
+        kotlinx.coroutines.delay(500)
         val account = CacheDb.accountKey(creds.host, creds.username)
         results = withContext(Dispatchers.IO) { CacheDb.get(ctx).searchKind(account, type, query.trim()) }
         searchLoading = false
     }
+
 
     val pageSize = 100
 
