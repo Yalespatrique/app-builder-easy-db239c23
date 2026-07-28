@@ -58,6 +58,30 @@ object XtreamApi {
         if (lastNetwork) AuthResult.NETWORK else AuthResult.INVALID
     }
 
+    /** Dados da conta no painel Xtream (validade da lista). */
+    data class AccountInfo(
+        val status: String,
+        /** epoch millis; 0 = sem data (ilimitado). */
+        val expiryMillis: Long,
+        val isTrial: Boolean,
+    )
+
+    suspend fun accountInfo(c: XtreamCreds): AccountInfo? = withContext(Dispatchers.IO) {
+        try {
+            val body = get(c.playerApi()) ?: return@withContext null
+            val info = JSONObject(body).optJSONObject("user_info") ?: return@withContext null
+            val exp = info.optString("exp_date").trim()
+            val millis = exp.toLongOrNull()?.let { it * 1000L } ?: 0L
+            AccountInfo(
+                status = info.optString("status"),
+                expiryMillis = millis,
+                isTrial = info.optString("is_trial") == "1",
+            )
+        } catch (_: Exception) { null }
+    }
+
+
+
 
     // ---------- Categorias ----------
 

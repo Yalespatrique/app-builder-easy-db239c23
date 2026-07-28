@@ -71,6 +71,7 @@ import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.TmdbApi
 import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.player.PlayerActivity
+import com.asterplay.tv.store.AccountStore
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
 import com.asterplay.tv.store.SettingsStore
@@ -108,6 +109,9 @@ fun HomeScreen(
     var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    val validity = remember { AccountStore.badgeText(ctx) }
+    val isTrial = remember { !AccountStore.dnsRegistered(ctx) && AccountStore.trialStart(ctx) > 0L }
+
 
     LaunchedEffect(Unit) {
         val creds = XtreamStore.get(ctx)
@@ -177,7 +181,14 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.Logout, "Sair") {
                     PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx); onLogout()
                 }
+                Text(
+                    validity,
+                    color = if (isTrial) Color(0xFFFFB020) else TextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(Modifier.height(6.dp))
                 Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+
                 Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
             }
 
@@ -188,7 +199,7 @@ fun HomeScreen(
                     .padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.logo_asterplay),
                         contentDescription = "Asterplay",
@@ -199,7 +210,10 @@ fun HomeScreen(
                         Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelMedium)
                         Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
                     }
+                    Spacer(Modifier.weight(1f))
+                    ValidityBadge(trial = isTrial, text = validity)
                 }
+
 
                 TopRow(
                     title = "🔥 TOP 10 FILMES DA SEMANA",
@@ -258,6 +272,33 @@ fun HomeScreen(
         }
     }
 }
+
+/** Selo com a validade da lista (ou os dias restantes do teste grátis). */
+@Composable
+private fun ValidityBadge(trial: Boolean, text: String) {
+    val accent = if (trial) Color(0xFFFFB020) else Accent
+    Box(
+        Modifier
+            .background(Color(0xE60E1220), RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                if (trial) "TESTE GRÁTIS" else "SUA LISTA",
+                color = accent,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text,
+                color = TextPrimary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
 
 @Composable
 private fun SettingsPanel(
