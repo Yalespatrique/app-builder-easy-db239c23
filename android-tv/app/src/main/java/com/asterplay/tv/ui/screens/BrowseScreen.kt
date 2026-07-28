@@ -152,99 +152,116 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
     }
 
-    BackHandler(enabled = selectedLive != null) { selectedLive = null }
+    var fullscreen by remember { mutableStateOf(false) }
 
-    Row(Modifier.fillMaxSize().background(BgBase)) {
-        Column(
-            Modifier.width(300.dp).fillMaxHeight().background(BgSurface).padding(vertical = 20.dp),
-        ) {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Text(header, color = Accent, style = MaterialTheme.typography.labelLarge)
-                Text(
-                    if (loadingCats) "Carregando..." else "${categories.size} categorias",
-                    color = TextMuted, style = MaterialTheme.typography.labelMedium,
-                )
-            }
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+    BackHandler(enabled = fullscreen) { fullscreen = false }
+    BackHandler(enabled = !fullscreen && selectedLive != null) { selectedLive = null }
+
+    Box(Modifier.fillMaxSize().background(BgBase)) {
+        Row(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.width(300.dp).fillMaxHeight().background(BgSurface).padding(vertical = 20.dp),
             ) {
-                itemsIndexed(categories) { i, cat ->
-                    CategoryItem(
-                        name = cat.name,
-                        count = 0,
-                        selected = i == selectedIdx,
-                        onClick = { onSelectCategory(i) },
-                        onFocus = { if (i != selectedIdx) onSelectCategory(i) },
+                Column(Modifier.padding(horizontal = 20.dp)) {
+                    Text(header, color = Accent, style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (loadingCats) "Carregando..." else "${categories.size} categorias",
+                        color = TextMuted, style = MaterialTheme.typography.labelMedium,
                     )
                 }
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    itemsIndexed(categories) { i, cat ->
+                        CategoryItem(
+                            name = cat.name,
+                            count = 0,
+                            selected = i == selectedIdx,
+                            onClick = { onSelectCategory(i) },
+                            onFocus = { /* não trocar por foco: evita voltar pra primeira */ },
+                        )
+                    }
+                }
             }
-        }
 
-        // Painel principal
-        if (isChannels && selectedLive != null) {
-            LiveChannelPane(
-                channels = items,
-                current = selectedLive!!,
-                onPick = { selectedLive = it },
-            )
-        } else {
-            Column(Modifier.fillMaxSize().padding(32.dp)) {
-                val catName = categories.getOrNull(selectedIdx)?.name ?: ""
-                Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
-                Text(
-                    if (loadingItems) "Carregando..."
-                    else "Mostrando $shownCount de ${items.size} itens",
-                    color = TextMuted, style = MaterialTheme.typography.labelMedium,
+            // Painel principal
+            if (isChannels && selectedLive != null) {
+                LiveChannelPane(
+                    channels = items,
+                    current = selectedLive!!,
+                    onPick = { selectedLive = it },
+                    fullscreen = fullscreen,
+                    onEnterFullscreen = { fullscreen = true },
+                    onExitFullscreen = { fullscreen = false },
                 )
-                Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
-                    val visible = remember(items, shownCount) { items.take(shownCount) }
-                    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+            } else {
+                Column(Modifier.fillMaxSize().padding(32.dp)) {
+                    val catName = categories.getOrNull(selectedIdx)?.name ?: ""
+                    Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
+                    Text(
+                        if (loadingItems) "Carregando..."
+                        else "Mostrando $shownCount de ${items.size} itens",
+                        color = TextMuted, style = MaterialTheme.typography.labelMedium,
+                    )
+                    Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
+                        val visible = remember(items, shownCount) { items.take(shownCount) }
+                        val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
-                    LaunchedEffect(gridState, items, shownCount) {
-                        androidx.compose.runtime.snapshotFlow {
-                            gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-                        }.collect { lastVisible ->
-                            if (lastVisible >= 0 &&
-                                shownCount < items.size &&
-                                lastVisible >= visible.size - 10
-                            ) {
-                                shownCount = minOf(shownCount + pageSize, items.size)
+                        LaunchedEffect(gridState, items, shownCount) {
+                            androidx.compose.runtime.snapshotFlow {
+                                gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                            }.collect { lastVisible ->
+                                if (lastVisible >= 0 &&
+                                    shownCount < items.size &&
+                                    lastVisible >= visible.size - 10
+                                ) {
+                                    shownCount = minOf(shownCount + pageSize, items.size)
+                                }
+                            }
+                        }
+
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Fixed(if (isChannels) 5 else 6),
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                        ) {
+                            items(visible, key = { it.url }) { ch ->
+                                PosterCard(
+                                    title = ch.name,
+                                    logo = ch.logo,
+                                    aspect = if (isChannels) 16f / 9f else 2f / 3f,
+                                    onClick = {
+                                        when (type) {
+                                            "vod" -> onOpenMovieDetail(ch)
+                                            "series" -> onOpenSeriesDetail(ch)
+                                            "live" -> selectedLive = ch
+                                            else -> {
+                                                val i = Intent(ctx, PlayerActivity::class.java)
+                                                i.putExtra("url", ch.url); i.putExtra("name", ch.name)
+                                                ctx.startActivity(i)
+                                            }
+                                        }
+                                    },
+                                )
                             }
                         }
                     }
-
-                    LazyVerticalGrid(
-                        state = gridState,
-                        columns = GridCells.Fixed(if (isChannels) 5 else 6),
-                        contentPadding = PaddingValues(bottom = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                    ) {
-                        items(visible, key = { it.url }) { ch ->
-                            PosterCard(
-                                title = ch.name,
-                                logo = ch.logo,
-                                aspect = if (isChannels) 16f / 9f else 2f / 3f,
-                                onClick = {
-                                    when (type) {
-                                        "vod" -> onOpenMovieDetail(ch)
-                                        "series" -> onOpenSeriesDetail(ch)
-                                        "live" -> selectedLive = ch
-                                        else -> {
-                                            val i = Intent(ctx, PlayerActivity::class.java)
-                                            i.putExtra("url", ch.url); i.putExtra("name", ch.name)
-                                            ctx.startActivity(i)
-                                        }
-                                    }
-                                },
-                            )
-                        }
-                    }
                 }
             }
         }
+
+        // Overlay fullscreen cobre TODA a tela (inclusive a barra de categorias)
+        if (isChannels && selectedLive != null && fullscreen) {
+            FullscreenChannelOverlay(
+                channel = selectedLive!!,
+                onExit = { fullscreen = false },
+            )
+        }
     }
+}
 }
 
 /**
