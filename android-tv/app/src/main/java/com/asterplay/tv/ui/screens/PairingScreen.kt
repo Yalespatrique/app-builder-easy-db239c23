@@ -1,14 +1,17 @@
 package com.asterplay.tv.ui.screens
 
-import android.graphics.Color as AndroidColor
-import android.text.InputType
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -255,11 +258,7 @@ fun PairingScreen(onActivated: () -> Unit) {
     }
 }
 
-/**
- * Campo de texto para TV: ao apertar OK/ENTER abre um diálogo nativo com EditText
- * e força a abertura do teclado (IME). É a forma que funciona de modo confiável
- * em Android TV / TV Box, onde o teclado não abre em campos inline.
- */
+/** Campo de texto normal: o teclado abre sozinho ao focar/clicar. */
 @Composable
 private fun TvTextField(
     value: String,
@@ -267,27 +266,29 @@ private fun TvTextField(
     label: String,
     isPassword: Boolean = false,
 ) {
-    val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
 
     Column {
         Text(label, color = if (focused) Accent else TextMuted, style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(4.dp))
-        Box(
-            Modifier
+        BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            singleLine = true,
+            cursorBrush = SolidColor(Accent),
+            textStyle = MaterialTheme.typography.titleMedium.copy(color = TextPrimary),
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Next,
+                keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+            ),
+            modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .onFocusChanged { focused = it.isFocused }
-                .focusable()
-                .clickable { showTvInputDialog(ctx, label, value, isPassword, onChange) }
-                .onKeyEvent { ev ->
-                    val isOk = ev.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
-                        ev.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
-                        ev.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
-                    if (isOk && ev.nativeKeyEvent.action == android.view.KeyEvent.ACTION_UP) {
-                        showTvInputDialog(ctx, label, value, isPassword, onChange)
-                        true
-                    } else false
+                .onFocusChanged {
+                    focused = it.isFocused
+                    if (it.isFocused) keyboard?.show()
                 }
                 .background(Color(0xFF1A1B2A), RoundedCornerShape(8.dp))
                 .then(
@@ -295,74 +296,9 @@ private fun TvTextField(
                     else Modifier.border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(8.dp)),
                 )
                 .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            val shown = when {
-                value.isEmpty() -> "Aperte OK para digitar"
-                isPassword -> "•".repeat(value.length)
-                else -> value
-            }
-            Text(
-                shown,
-                color = if (value.isEmpty()) TextMuted else TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-            )
-        }
+            decorationBox = { inner ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) { inner() }
+            },
+        )
     }
-}
-
-private fun showTvInputDialog(
-    ctx: android.content.Context,
-    label: String,
-    initial: String,
-    isPassword: Boolean,
-    onDone: (String) -> Unit,
-) {
-    val et = EditText(ctx).apply {
-        setText(initial)
-        setSelection(initial.length)
-        isSingleLine = true
-        textSize = 20f
-        setPadding(48, 40, 48, 40)
-        imeOptions = EditorInfo.IME_ACTION_DONE
-        inputType = if (isPassword) {
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-        } else {
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-        }
-        isFocusable = true
-        isFocusableInTouchMode = true
-        showSoftInputOnFocus = true
-    }
-
-    val dialog = android.app.AlertDialog.Builder(ctx)
-        .setTitle(label)
-        .setView(et)
-        .setPositiveButton("OK") { _, _ -> onDone(et.text.toString()) }
-        .setNegativeButton("Cancelar", null)
-        .create()
-
-    dialog.window?.setSoftInputMode(
-        android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or
-            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE,
-    )
-
-    et.setOnEditorActionListener { _, actionId, _ ->
-        if (actionId == EditorInfo.IME_ACTION_DONE) {
-            onDone(et.text.toString())
-            dialog.dismiss()
-            true
-        } else false
-    }
-
-    dialog.setOnShowListener {
-        et.requestFocus()
-        val imm = ctx.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        et.postDelayed({ imm.showSoftInput(et, InputMethodManager.SHOW_IMPLICIT) }, 120)
-        et.postDelayed({
-            if (!imm.isActive(et)) imm.showSoftInput(et, InputMethodManager.SHOW_FORCED)
-        }, 450)
-    }
-
-    dialog.show()
 }
