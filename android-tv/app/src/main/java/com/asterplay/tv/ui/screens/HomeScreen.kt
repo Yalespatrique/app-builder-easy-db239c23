@@ -3,6 +3,7 @@ package com.asterplay.tv.ui.screens
 import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -153,7 +157,14 @@ fun HomeScreen(
         )
         Box(Modifier.fillMaxSize().background(Color(0xCC07070F)))
 
-        Row(Modifier.fillMaxSize()) {
+        Row(
+            Modifier
+                .fillMaxSize()
+                // Com o painel de configurações aberto, o menu/conteúdo de trás
+                // fica inteiramente fora do foco do controle.
+                .focusProperties { canFocus = !showSettings }
+                .focusGroup(),
+        ) {
             Column(
                 Modifier
                     .width(240.dp)
@@ -317,6 +328,9 @@ private fun SettingsPanel(
     // "toggle" = pede PIN pra ligar/desligar | "change" = pede PIN atual e depois novo
     var pinMode by remember { mutableStateOf<String?>(null) }
 
+    val firstItem = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { firstItem.requestFocus() } }
+
     Box(
         Modifier.fillMaxSize().background(Color(0xE605060B)),
         contentAlignment = Alignment.Center,
@@ -326,7 +340,9 @@ private fun SettingsPanel(
                 .width(620.dp)
                 .background(BgSurface, RoundedCornerShape(16.dp))
                 .padding(28.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .focusProperties { canFocus = pinMode == null }
+                .focusGroup(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("CONFIGURAÇÕES", color = Accent, style = MaterialTheme.typography.labelLarge)
@@ -343,6 +359,7 @@ private fun SettingsPanel(
                 label = "Controle parental",
                 value = if (parental) "Ativado — categorias adultas ocultas" else "Desativado",
                 onClick = { pinMode = "toggle" },
+                modifier = Modifier.focusRequester(firstItem),
             )
             SettingRow(
                 icon = Icons.Default.Lock,
@@ -378,9 +395,9 @@ private fun SettingsPanel(
             )
 
             Spacer(Modifier.height(10.dp))
-            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClearCache)
-            SideMenuItem(Icons.Default.Logout, "Sair da conta", onLogout)
-            SideMenuItem(Icons.Default.Tv, "Fechar", onClose)
+            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClick = onClearCache)
+            SideMenuItem(Icons.Default.Logout, "Sair da conta", onClick = onLogout)
+            SideMenuItem(Icons.Default.Tv, "Fechar", onClick = onClose)
         }
 
         if (pinMode != null) {
@@ -402,7 +419,13 @@ private fun SettingsPanel(
 }
 
 @Composable
-private fun SettingRow(icon: ImageVector, label: String, value: String, onClick: () -> Unit) {
+private fun SettingRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -411,7 +434,7 @@ private fun SettingRow(icon: ImageVector, label: String, value: String, onClick:
             focusedContainerColor = BgElevated,
         ),
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -444,10 +467,12 @@ private fun PinDialog(
     var step by remember { mutableStateOf(0) } // 0 = PIN atual, 1 = novo PIN
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val confirmFocus = remember { FocusRequester() }
+    LaunchedEffect(step) { runCatching { confirmFocus.requestFocus() } }
 
     Box(Modifier.fillMaxSize().background(Color(0xF2000000)), contentAlignment = Alignment.Center) {
         Column(
-            Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp),
+            Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp).focusGroup(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -464,7 +489,7 @@ private fun PinDialog(
             PinField(value = pin, onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) })
             error?.let { Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.labelMedium) }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SideMenuItem(Icons.Default.Lock, "Confirmar") {
+                SideMenuItem(Icons.Default.Lock, "Confirmar", modifier = Modifier.focusRequester(confirmFocus)) {
                     if (step == 0) {
                         if (SettingsStore.checkPin(ctx, pin)) {
                             error = null
@@ -476,7 +501,7 @@ private fun PinDialog(
                         if (pin.length == 4) onChangePin(pin) else error = "Use 4 dígitos."
                     }
                 }
-                SideMenuItem(Icons.Default.Tv, "Cancelar", onDismiss)
+                SideMenuItem(Icons.Default.Tv, "Cancelar", onClick = onDismiss)
             }
         }
     }
@@ -753,7 +778,12 @@ private fun RankedPoster(
 }
 
 @Composable
-private fun SideMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun SideMenuItem(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -762,7 +792,7 @@ private fun SideMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) 
             focusedContainerColor = BgElevated,
         ),
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
