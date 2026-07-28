@@ -150,52 +150,72 @@ private fun AsterplayPlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var autoNextIn by remember { mutableIntStateOf(-1) }
+    var resumedFrom by remember { mutableLongStateOf(0L) }
 
     fun touch() { lastInteraction = System.currentTimeMillis(); controlsVisible = true }
 
-    // Troca de mídia
+    // Troca de mídia + retomada automática do último tempo assistido
     LaunchedEffect(url) {
         buffering = true
+        val resume = if (isLive) 0L else ResumeStore.get(ctx, url)
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
-        val resume = ResumeStore.get(ctx, url)
-        if (!isLive && resume > 3000) player.seekTo(resume)
+        if (resume > 10_000) {
+            player.seekTo(resume)
+            resumedFrom = resume
+        } else {
+            resumedFrom = 0L
+        }
         player.playWhenReady = true
         autoNextIn = -1
         touch()
     }
 
-    DisposableEffect(Unit) {
+    // Salva a posição ao sair da mídia atual (troca de episódio ou saída do player)
+    DisposableEffect(url) {
+        onDispose {
+            if (!isLive) ResumeStore.save(ctx, url, player.currentPosition, player.duration)
+        }
+    }
+
+    DisposableEffect(url) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 buffering = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_ENDED) {
                     WatchedStore.mark(ctx, url)
+                    ResumeStore.clear(ctx, url)
                     if (hasPlaylist && index < (epUrls?.size ?: 0) - 1) index++ else onExit()
                 }
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
         }
         player.addListener(listener)
-        onDispose {
-            ResumeStore.save(ctx, url, player.currentPosition)
-            player.removeListener(listener)
-            player.release()
-        }
+        onDispose { player.removeListener(listener) }
     }
 
-    // Ticker de progresso / auto-próximo / auto-hide
-    LaunchedEffect(Unit) {
+    DisposableEffect(Unit) {
+        onDispose { player.release() }
+    }
+
+    // Ticker de progresso / auto-próximo / auto-hide / salvamento periódico
+    LaunchedEffect(url) {
+        var tick = 0
         while (true) {
             position = player.currentPosition.coerceAtLeast(0L)
             duration = player.duration.let { if (it > 0) it else 0L }
             if (!isLive && duration > 0) {
+                // salva o progresso a cada ~5s pra retomar mesmo se o app for encerrado
+                tick++
+                if (tick % 10 == 0) ResumeStore.save(ctx, url, position, duration)
+
                 val remaining = ((duration - position) / 1000).toInt()
                 if (hasPlaylist && index < (epUrls?.size ?: 0) - 1 && remaining in 0..10) {
                     autoNextIn = remaining
                     controlsVisible = true
                     if (remaining <= 0) {
                         WatchedStore.mark(ctx, url)
+                        ResumeStore.clear(ctx, url)
                         index++
                     }
                 } else if (autoNextIn >= 0 && remaining > 10) {
@@ -233,7 +253,7 @@ private fun AsterplayPlayerScreen(
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> { touch(); true }
             KeyEvent.KEYCODE_MEDIA_NEXT -> {
                 if (hasPlaylist && index < (epUrls?.size ?: 0) - 1) {
-                    WatchedStore.mark(ctx, url); index++
+                    WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++
                 }
                 true
             }
@@ -273,6 +293,14 @@ private fun AsterplayPlayerScreen(
                     if (title.isNotBlank()) {
                         Spacer(Modifier.height(6.dp))
                         Text(title, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (!isLive && resumedFrom > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "retomando de ${fmt(resumedFrom)}",
+                            color = NeonCyan,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 }
             }
@@ -341,7 +369,7 @@ private fun AsterplayPlayerScreen(
                         if (hasPlaylist && index < (epUrls?.size ?: 0) - 1) {
                             Spacer(Modifier.width(18.dp))
                             ControlButton(Icons.Default.SkipNext, "Próximo episódio") {
-                                WatchedStore.mark(ctx, url); index++
+                                WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++
                             }
                         }
                     }
@@ -357,7 +385,7 @@ private fun AsterplayPlayerScreen(
                     .padding(end = 48.dp, bottom = 190.dp),
             ) {
                 androidx.tv.material3.Surface(
-                    onClick = { WatchedStore.mark(ctx, url); index++ },
+                    onClick = { WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++ },
                     colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
                         containerColor = Color(0xE6111222),
                         focusedContainerColor = NeonCyan,
