@@ -776,7 +776,12 @@ private fun RankedPoster(
 }
 
 @Composable
-private fun SideMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun SideMenuItem(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
@@ -785,7 +790,7 @@ private fun SideMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) 
             focusedContainerColor = BgElevated,
         ),
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
