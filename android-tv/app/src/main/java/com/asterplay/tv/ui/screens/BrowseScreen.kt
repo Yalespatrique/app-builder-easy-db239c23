@@ -264,12 +264,10 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
     }
 }
-}
 
 /**
  * Painel de canais ao vivo: lista à esquerda, player 16:9 no topo direito, EPG abaixo.
  */
-@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun LiveChannelPane(
