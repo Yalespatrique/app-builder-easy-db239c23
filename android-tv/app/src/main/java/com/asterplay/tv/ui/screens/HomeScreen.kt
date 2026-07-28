@@ -108,6 +108,9 @@ fun HomeScreen(
     var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    val validity = remember { AccountStore.badgeText(ctx) }
+    val isTrial = remember { !AccountStore.dnsRegistered(ctx) && AccountStore.trialStart(ctx) > 0L }
+
 
     LaunchedEffect(Unit) {
         val creds = XtreamStore.get(ctx)
