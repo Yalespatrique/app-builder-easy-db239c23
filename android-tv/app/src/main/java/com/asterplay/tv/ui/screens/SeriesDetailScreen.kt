@@ -250,7 +250,7 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
                 } else {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                     ) {
                         items(eps) { ep ->
                             EpisodeRow(ep = ep, onPlay = {
