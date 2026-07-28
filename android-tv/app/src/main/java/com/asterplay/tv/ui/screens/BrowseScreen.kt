@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -355,6 +356,37 @@ private fun LiveChannelPane(
                     .background(Color.Black),
             ) {
                 SharedPlayerView(player = player)
+
+                // Loader personalizado enquanto o canal sintoniza
+                var buffering by remember(current.url) { mutableStateOf(true) }
+                DisposableEffect(player) {
+                    val l = object : androidx.media3.common.Player.Listener {
+                        override fun onPlaybackStateChanged(state: Int) {
+                            buffering = state == androidx.media3.common.Player.STATE_BUFFERING ||
+                                state == androidx.media3.common.Player.STATE_IDLE
+                        }
+                    }
+                    buffering = player.playbackState == androidx.media3.common.Player.STATE_BUFFERING ||
+                        player.playbackState == androidx.media3.common.Player.STATE_IDLE
+                    player.addListener(l)
+                    onDispose { player.removeListener(l) }
+                }
+                if (buffering) {
+                    Box(
+                        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f)),
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            com.asterplay.tv.ui.components.NeonLoader(Modifier.size(70.dp))
+                            Spacer(Modifier.height(14.dp))
+                            Text(
+                                "sintonizando canal...",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(16.dp))
