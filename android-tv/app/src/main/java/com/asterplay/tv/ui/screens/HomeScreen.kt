@@ -115,14 +115,20 @@ fun HomeScreen(
     var loaded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     val settingsMenuFocus = remember { FocusRequester() }
-    // Ao fechar o painel, devolve o foco ao menu lateral (senão o controle "trava").
+    val liveMenuFocus = remember { FocusRequester() }
+    var settingsWasOpen by remember { mutableStateOf(false) }
+    // Foco inicial (e ao voltar de uma categoria) fica em "Canais".
+    // Só volta para "Configurações" quando o painel de config é fechado.
     LaunchedEffect(showSettings) {
-        if (showSettings) return@LaunchedEffect
+        if (showSettings) { settingsWasOpen = true; return@LaunchedEffect }
+        val target = if (settingsWasOpen) settingsMenuFocus else liveMenuFocus
+        settingsWasOpen = false
         repeat(20) {
-            if (runCatching { settingsMenuFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            if (runCatching { target.requestFocus() }.isSuccess) return@LaunchedEffect
             delay(60)
         }
     }
+
     val validity = remember { AccountStore.badgeText(ctx) }
     val isTrial = remember { !AccountStore.dnsRegistered(ctx) && AccountStore.trialStart(ctx) > 0L }
 
@@ -193,7 +199,11 @@ fun HomeScreen(
                     Text("Asterplay", color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(24.dp))
-                SideMenuItem(Icons.Default.LiveTv, "Canais") { onOpenBrowse("live") }
+                SideMenuItem(
+                    Icons.Default.LiveTv,
+                    "Canais",
+                    modifier = Modifier.focusRequester(liveMenuFocus),
+                ) { onOpenBrowse("live") }
                 SideMenuItem(Icons.Default.Movie, "Filmes") { onOpenBrowse("vod") }
                 SideMenuItem(Icons.Default.Tv, "Séries") { onOpenBrowse("series") }
                 SideMenuItem(
