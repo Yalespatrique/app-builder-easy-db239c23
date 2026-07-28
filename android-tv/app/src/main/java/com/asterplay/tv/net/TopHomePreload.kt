@@ -6,7 +6,7 @@ import com.asterplay.tv.store.TopCacheStore
 import com.asterplay.tv.store.XtreamStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import java.text.Normalizer
@@ -28,26 +28,19 @@ object TopHomePreload {
             !cachedRecentM.isNullOrEmpty() && !cachedRecentS.isNullOrEmpty()
         ) return
 
-        val (tmdbM, tmdbS, srvM, srvS, recentM, recentS) = withContext(Dispatchers.IO) {
+        val (tmdbM, tmdbS, vodPair, seriesPair) = withContext(Dispatchers.IO) {
             coroutineScope {
                 val a = async { TmdbApi.topMovies(25) }
                 val b = async { TmdbApi.topSeries(25) }
-                val c = async { XtreamApi.allStreams(creds, "vod") }
-                val d = async { XtreamApi.allStreams(creds, "series") }
-                val e = async { XtreamApi.recentStreams(creds, "vod", 20) }
-                val f = async { XtreamApi.recentStreams(creds, "series", 20) }
-                val r = listOf(a, b, c, d, e, f).awaitAll()
-                @Suppress("UNCHECKED_CAST")
-                HomePayload(
-                    r[0] as List<TmdbApi.Item>,
-                    r[1] as List<TmdbApi.Item>,
-                    r[2] as List<Channel>,
-                    r[3] as List<Channel>,
-                    r[4] as List<Channel>,
-                    r[5] as List<Channel>,
-                )
+                val c = async { XtreamApi.streamsAndRecent(creds, "vod", 20) }
+                val d = async { XtreamApi.streamsAndRecent(creds, "series", 20) }
+                HomePayload(a.await(), b.await(), c.await(), d.await())
             }
         }
+        val srvM = vodPair.first
+        val srvS = seriesPair.first
+        val recentM = vodPair.second
+        val recentS = seriesPair.second
 
         val movies = match(tmdbM, srvM, 10)
         val series = match(tmdbS, srvS, 10)
@@ -59,8 +52,8 @@ object TopHomePreload {
 
     private data class HomePayload(
         val a: List<TmdbApi.Item>, val b: List<TmdbApi.Item>,
-        val c: List<Channel>, val d: List<Channel>,
-        val e: List<Channel>, val f: List<Channel>,
+        val c: Pair<List<Channel>, List<Channel>>,
+        val d: Pair<List<Channel>, List<Channel>>,
     )
 
     private fun Channel.toCacheEntry() = TopCacheStore.Entry(

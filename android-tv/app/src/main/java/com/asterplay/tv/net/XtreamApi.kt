@@ -139,15 +139,27 @@ object XtreamApi {
     }
 
     /** Retorna os itens mais recentes (VOD ou séries) ordenados por data adicionada desc. */
-    suspend fun recentStreams(c: XtreamCreds, kind: String, limit: Int = 20): List<Channel> = withContext(Dispatchers.IO) {
+    suspend fun recentStreams(c: XtreamCreds, kind: String, limit: Int = 20): List<Channel> =
+        streamsAndRecent(c, kind, limit).second
+
+    /**
+     * Faz UMA request e devolve (todos, recentes-ordenados-por-data).
+     * Evita baixar o mesmo JSON gigante 2x quando o Home precisa de ambos.
+     */
+    suspend fun streamsAndRecent(
+        c: XtreamCreds,
+        kind: String,
+        recentLimit: Int = 20,
+    ): Pair<List<Channel>, List<Channel>> = withContext(Dispatchers.IO) {
         val (action, path) = when (kind) {
             "vod" -> "get_vod_streams" to "movie"
             "series" -> "get_series" to "series"
-            else -> return@withContext emptyList()
+            else -> return@withContext emptyList<Channel>() to emptyList()
         }
-        val body = get(c.playerApi(action)) ?: return@withContext emptyList()
-        data class Row(val ts: Long, val ch: Channel)
-        val rows = ArrayList<Row>()
+        val body = get(c.playerApi(action)) ?: return@withContext emptyList<Channel>() to emptyList()
+        val all = ArrayList<Channel>()
+        data class Row(val ts: Long, val idx: Int)
+        val timestamps = ArrayList<Row>()
         try {
             val arr = JSONArray(body)
             for (i in 0 until arr.length()) {
@@ -165,16 +177,18 @@ object XtreamApi {
                 val ts = o.optString("added").toLongOrNull()
                     ?: o.optString("last_modified").toLongOrNull()
                     ?: 0L
-                rows += Row(ts, Channel(
+                timestamps += Row(ts, all.size)
+                all += Channel(
                     name = name, url = url,
                     logo = logo.ifEmpty { null },
                     group = o.optString("category_id").ifEmpty { null },
                     tvgId = null,
-                ))
+                )
             }
         } catch (_: Exception) {}
-        rows.sortByDescending { it.ts }
-        return@withContext rows.take(limit).map { it.ch }
+        timestamps.sortByDescending { it.ts }
+        val recent = timestamps.take(recentLimit).map { all[it.idx] }
+        all to recent
     }
 
     // ---------- Detalhes VOD (preview antes de reproduzir) ----------

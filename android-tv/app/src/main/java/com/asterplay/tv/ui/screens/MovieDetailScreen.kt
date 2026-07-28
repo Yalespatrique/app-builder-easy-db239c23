@@ -1,17 +1,8 @@
 package com.asterplay.tv.ui.screens
 
 import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
-import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
+
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,9 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -143,26 +132,10 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
-    // Preview de vídeo: começa na metade do filme, roda 50s com áudio.
-    // A capa de fundo só some quando o vídeo já está renderizando frames.
-    var wantVideo by remember { mutableStateOf(false) }
-    var videoReady by remember { mutableStateOf(false) }
-    val showPreview = wantVideo && videoReady
-    LaunchedEffect(channel.url) {
-        delay(800)
-        while (true) {
-            wantVideo = true
-            delay(50_000)
-            wantVideo = false
-            videoReady = false
-            delay(20_000)
-        }
-    }
-
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Backdrop (permanece visível até o vídeo renderizar)
+        // Backdrop estático (sem preview de vídeo em background — muito mais leve).
         val d = detail
-        if (d?.backdropUrl != null && !showPreview) {
+        if (d?.backdropUrl != null) {
             AsyncImage(
                 model = d.backdropUrl,
                 contentDescription = null,
@@ -171,16 +144,6 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             )
         }
 
-        // Preview de vídeo (mantém montado enquanto wantVideo, revela após 1º frame)
-        if (wantVideo) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .then(if (showPreview) Modifier else Modifier.alpha(0f))
-            ) {
-                MoviePreviewVideo(url = channel.url, onFirstFrame = { videoReady = true })
-            }
-        }
         // Dark gradient overlay
         Box(
             Modifier.fillMaxSize().background(
@@ -365,67 +328,4 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
     }
 }
 
-@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-@Composable
-private fun MoviePreviewVideo(url: String, onFirstFrame: () -> Unit = {}) {
-    val ctx = LocalContext.current
-    val firstFrameCb = rememberUpdatedState(onFirstFrame)
-    val player = remember(url) {
-        // LoadControl leve: buffers pequenos para começar rápido e usar pouca memória.
-        val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                /* minBufferMs = */ 2_000,
-                /* maxBufferMs = */ 8_000,
-                /* bufferForPlaybackMs = */ 500,
-                /* bufferForPlaybackAfterRebufferMs = */ 1_000,
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
 
-        // Track selector: força resolução baixa para preview (economiza banda/CPU).
-        val trackSelector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(ctx).apply {
-            setParameters(
-                buildUponParameters()
-                    .setMaxVideoSize(854, 480)
-                    .setMaxVideoBitrate(1_500_000)
-                    .setForceLowestBitrate(false)
-            )
-        }
-
-        ExoPlayer.Builder(ctx)
-            .setLoadControl(loadControl)
-            .setTrackSelector(trackSelector)
-            .build().apply {
-                volume = 1f
-                repeatMode = Player.REPEAT_MODE_OFF
-                setMediaItem(MediaItem.fromUri(url))
-                playWhenReady = true
-                addListener(object : Player.Listener {
-                    override fun onPlaybackStateChanged(state: Int) {
-                        if (state == Player.STATE_READY) {
-                            val dur = duration
-                            val target = if (dur > 0) dur / 2 else 20 * 60 * 1000L
-                            if (currentPosition < 1000L) seekTo(target)
-                        }
-                    }
-                    override fun onRenderedFirstFrame() {
-                        firstFrameCb.value()
-                    }
-                })
-                prepare()
-            }
-    }
-    DisposableEffect(player) {
-        onDispose { player.release() }
-    }
-    AndroidView(
-        modifier = Modifier.fillMaxSize(),
-        factory = { c ->
-            PlayerView(c).apply {
-                useController = false
-                this.player = player
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            }
-        },
-    )
-}

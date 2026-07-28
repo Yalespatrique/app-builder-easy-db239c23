@@ -34,7 +34,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.theme.BgBase
@@ -53,10 +52,11 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     LaunchedEffect(Unit) {
         val c = XtreamStore.get(ctx)
         if (c == null) { onFail(); return@LaunchedEffect }
+        // Só autentica. O Top 10 é carregado em background pelo Home,
+        // sem travar a entrada no menu.
         val ok = XtreamApi.authenticate(c)
         if (ok) {
-            TopHomePreload.run(ctx)
-            delay(200); onReady()
+            delay(150); onReady()
         } else {
             status = "Não foi possível conectar"
             sub = "Verifique seus dados e tente novamente."
