@@ -143,6 +143,22 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
+    // Prévia deve parar quando o player em tela cheia for aberto (ou o app sair de foco).
+    var previewSuspended by remember { mutableStateOf(false) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> previewSuspended = true
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> previewSuspended = false
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+
     Box(Modifier.fillMaxSize().background(BgBase)) {
         // Ciclo de preview de vídeo: 5s de backdrop -> 90s de vídeo -> repete.
         val d = detail
