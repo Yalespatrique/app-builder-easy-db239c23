@@ -234,6 +234,59 @@ fun HomeScreen(
                 )
             }
         }
+
+        if (showSettings) {
+            SettingsPanel(
+                mac = mac,
+                onClose = { showSettings = false },
+                onClearCache = {
+                    CacheDb.get(ctx).clearAll()
+                    TopCacheStore.clear(ctx)
+                    topMovies = emptyList(); topSeries = emptyList()
+                    recentMovies = emptyList(); recentSeries = emptyList()
+                    showSettings = false
+                },
+                onLogout = {
+                    PlaylistStore.clear(ctx); XtreamStore.clear(ctx)
+                    CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx)
+                    showSettings = false
+                    onLogout()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsPanel(
+    mac: String,
+    onClose: () -> Unit,
+    onClearCache: () -> Unit,
+    onLogout: () -> Unit,
+) {
+    androidx.activity.compose.BackHandler(enabled = true) { onClose() }
+    Box(
+        Modifier.fillMaxSize().background(Color(0xE605060B)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .width(560.dp)
+                .background(BgSurface, RoundedCornerShape(16.dp))
+                .padding(32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("CONFIGURAÇÕES", color = Accent, style = MaterialTheme.typography.labelLarge)
+            Text("Dispositivo e conta", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text("MAC: ${DeviceId.formatted(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+            Text("Chave: ${DeviceId.getKey(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+            Text("Versão: v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(16.dp))
+            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClearCache)
+            SideMenuItem(Icons.Default.Logout, "Sair da conta", onLogout)
+            SideMenuItem(Icons.Default.Tv, "Fechar", onClose)
+        }
     }
 }
 
