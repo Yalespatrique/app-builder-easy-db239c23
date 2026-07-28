@@ -199,7 +199,11 @@ fun HomeScreen(
                     Text("Asterplay", color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.height(24.dp))
-                SideMenuItem(Icons.Default.LiveTv, "Canais") { onOpenBrowse("live") }
+                SideMenuItem(
+                    Icons.Default.LiveTv,
+                    "Canais",
+                    modifier = Modifier.focusRequester(liveMenuFocus),
+                ) { onOpenBrowse("live") }
                 SideMenuItem(Icons.Default.Movie, "Filmes") { onOpenBrowse("vod") }
                 SideMenuItem(Icons.Default.Tv, "Séries") { onOpenBrowse("series") }
                 SideMenuItem(
