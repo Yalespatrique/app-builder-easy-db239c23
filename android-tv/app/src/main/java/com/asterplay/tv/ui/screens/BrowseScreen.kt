@@ -297,7 +297,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     itemsIndexed(categories) { i, cat ->
                         CategoryItem(
                             name = cat.name,
-                            count = 0,
+                            count = if (cat.id == ContinueStore.CATEGORY_ID) continueItems.size
+                                    else if (i == selectedIdx && items.isNotEmpty()) items.size
+                                    else catCounts[cat.id] ?: -1,
                             selected = i == selectedIdx && !hasSearchQuery,
                             onClick = { query = ""; onSelectCategory(i) },
                             onFocus = { /* não trocar por foco: evita voltar pra primeira */ },
