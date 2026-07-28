@@ -169,7 +169,7 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.LiveTv, "Canais") { onOpenBrowse("live") }
                 SideMenuItem(Icons.Default.Movie, "Filmes") { onOpenBrowse("vod") }
                 SideMenuItem(Icons.Default.Tv, "Séries") { onOpenBrowse("series") }
-                SideMenuItem(Icons.Default.Search, "Busca") { onOpenSearch() }
+                SideMenuItem(Icons.Default.Settings, "Configurações") { showSettings = true }
                 SideMenuItem(Icons.Default.Favorite, "Favoritos") { /* futuro */ }
                 Spacer(Modifier.weight(1f))
                 SideMenuItem(Icons.Default.Logout, "Sair") {
