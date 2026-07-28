@@ -34,11 +34,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.asterplay.tv.core.DeviceId
 import com.asterplay.tv.net.MenuPreload
+import com.asterplay.tv.net.PanelApi
 import com.asterplay.tv.net.TopHomePreload
 
 import com.asterplay.tv.ui.components.NeonLoader
 import com.asterplay.tv.net.XtreamApi
+import com.asterplay.tv.store.PlaylistStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.theme.BgBase
 import com.asterplay.tv.ui.theme.NeonCyan
@@ -55,16 +58,38 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     var sub by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        val c = XtreamStore.get(ctx)
+        var c = XtreamStore.get(ctx)
         if (c == null) { onFail(); return@LaunchedEffect }
         sub = "verificando sua conta..."
-        val ok = XtreamApi.authenticate(c)
-        if (!ok) {
-            status = "Não foi possível conectar"
+        var result = XtreamApi.authenticateDetailed(c)
+
+        // Se falhou, tenta renovar as credenciais no painel pelo MAC/Chave
+        // antes de mandar o usuário pro login.
+        if (result != XtreamApi.AuthResult.OK) {
+            sub = "atualizando dados da lista..."
+            val mac = DeviceId.getMac(ctx)
+            val r = PanelApi.activateWithMac(mac, DeviceId.getKey(mac))
+            if (r.ok && r.xtream != null) {
+                XtreamStore.save(ctx, r.xtream)
+                r.playlistUrl?.let { PlaylistStore.save(ctx, it) }
+                c = r.xtream
+                result = XtreamApi.authenticateDetailed(c)
+            }
+        }
+
+        if (result == XtreamApi.AuthResult.INVALID) {
+            status = "Conta não encontrada"
             sub = "Verifique seus dados e tente novamente."
             delay(2000)
             XtreamStore.clear(ctx); onFail()
             return@LaunchedEffect
+        }
+        if (result == XtreamApi.AuthResult.NETWORK) {
+            // Problema de conexão: mantém as credenciais salvas e segue
+            // com o que estiver em cache.
+            status = "Conexão instável"
+            sub = "usando dados salvos..."
+            delay(1200)
         }
         // Conta validada: carrega o menu antes de abrir a Home.
         // - categorias de canais, filmes e séries
@@ -74,6 +99,7 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
         TopHomePreload.run(ctx)
         delay(120); onReady()
     }
+
 
 
     Box(Modifier.fillMaxSize().background(BgBase), contentAlignment = Alignment.Center) {

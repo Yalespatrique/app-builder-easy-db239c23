@@ -23,19 +23,41 @@ object XtreamApi {
 
     // ---------- Autenticação ----------
 
+    /** Resultado da checagem de conta: distingue falha de rede de conta inválida. */
+    enum class AuthResult { OK, INVALID, NETWORK }
+
     /** Retorna true se o painel Xtream aceitar as credenciais. */
-    suspend fun authenticate(c: XtreamCreds): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val body = get(c.playerApi()) ?: return@withContext false
-            val json = JSONObject(body)
-            val userInfo = json.optJSONObject("user_info") ?: return@withContext false
-            val auth = userInfo.optInt("auth", 0)
-            val status = userInfo.optString("status")
-            auth == 1 && (status.isEmpty() || status.equals("Active", ignoreCase = true))
-        } catch (_: Exception) {
-            false
+    suspend fun authenticate(c: XtreamCreds): Boolean =
+        authenticateDetailed(c) == AuthResult.OK
+
+    /**
+     * Faz até 3 tentativas. Só devolve INVALID quando o servidor respondeu
+     * dizendo que a conta não vale; timeouts/erros viram NETWORK.
+     */
+    suspend fun authenticateDetailed(c: XtreamCreds): AuthResult = withContext(Dispatchers.IO) {
+        var lastNetwork = true
+        repeat(3) { attempt ->
+            try {
+                val body = get(c.playerApi())
+                if (body != null) {
+                    val json = JSONObject(body)
+                    val userInfo = json.optJSONObject("user_info")
+                    if (userInfo != null) {
+                        val auth = userInfo.optInt("auth", 0)
+                        val status = userInfo.optString("status")
+                        val ok = auth == 1 &&
+                            (status.isEmpty() || status.equals("Active", ignoreCase = true))
+                        return@withContext if (ok) AuthResult.OK else AuthResult.INVALID
+                    }
+                }
+            } catch (_: Exception) {
+                lastNetwork = true
+            }
+            if (attempt < 2) kotlinx.coroutines.delay(1500)
         }
+        if (lastNetwork) AuthResult.NETWORK else AuthResult.INVALID
     }
+
 
     // ---------- Categorias ----------
 
