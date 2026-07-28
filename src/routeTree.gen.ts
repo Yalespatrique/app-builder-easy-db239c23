@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DnsRouteImport } from './routes/dns'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicDnsCheckRouteImport } from './routes/api/public/dns-check'
 import { Route as ApiPublicCodeLoginRouteImport } from './routes/api/public/code-login'
 import { Route as ApiPublicActivateRouteImport } from './routes/api/public/activate'
 
@@ -22,6 +23,11 @@ const DnsRoute = DnsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicDnsCheckRoute = ApiPublicDnsCheckRouteImport.update({
+  id: '/api/public/dns-check',
+  path: '/api/public/dns-check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicCodeLoginRoute = ApiPublicCodeLoginRouteImport.update({
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/dns': typeof DnsRoute
   '/api/public/activate': typeof ApiPublicActivateRoute
   '/api/public/code-login': typeof ApiPublicCodeLoginRoute
+  '/api/public/dns-check': typeof ApiPublicDnsCheckRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dns': typeof DnsRoute
   '/api/public/activate': typeof ApiPublicActivateRoute
   '/api/public/code-login': typeof ApiPublicCodeLoginRoute
+  '/api/public/dns-check': typeof ApiPublicDnsCheckRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,18 +61,30 @@ export interface FileRoutesById {
   '/dns': typeof DnsRoute
   '/api/public/activate': typeof ApiPublicActivateRoute
   '/api/public/code-login': typeof ApiPublicCodeLoginRoute
+  '/api/public/dns-check': typeof ApiPublicDnsCheckRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dns' | '/api/public/activate' | '/api/public/code-login'
+  fullPaths:
+    | '/'
+    | '/dns'
+    | '/api/public/activate'
+    | '/api/public/code-login'
+    | '/api/public/dns-check'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dns' | '/api/public/activate' | '/api/public/code-login'
+  to:
+    | '/'
+    | '/dns'
+    | '/api/public/activate'
+    | '/api/public/code-login'
+    | '/api/public/dns-check'
   id:
     | '__root__'
     | '/'
     | '/dns'
     | '/api/public/activate'
     | '/api/public/code-login'
+    | '/api/public/dns-check'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -72,6 +92,7 @@ export interface RootRouteChildren {
   DnsRoute: typeof DnsRoute
   ApiPublicActivateRoute: typeof ApiPublicActivateRoute
   ApiPublicCodeLoginRoute: typeof ApiPublicCodeLoginRoute
+  ApiPublicDnsCheckRoute: typeof ApiPublicDnsCheckRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/dns-check': {
+      id: '/api/public/dns-check'
+      path: '/api/public/dns-check'
+      fullPath: '/api/public/dns-check'
+      preLoaderRoute: typeof ApiPublicDnsCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/code-login': {
@@ -112,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   DnsRoute: DnsRoute,
   ApiPublicActivateRoute: ApiPublicActivateRoute,
   ApiPublicCodeLoginRoute: ApiPublicCodeLoginRoute,
+  ApiPublicDnsCheckRoute: ApiPublicDnsCheckRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
