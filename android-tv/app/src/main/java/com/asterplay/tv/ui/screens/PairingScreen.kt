@@ -73,6 +73,15 @@ fun PairingScreen(onActivated: () -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
+    // Na TV/Fire TV o cursor já começa fixado no campo CÓDIGO.
+    val codeFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        repeat(20) {
+            if (runCatching { codeFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            kotlinx.coroutines.delay(100)
+        }
+    }
+
     fun tryActivateMac() {
         if (loading) return
         loading = true; message = null
@@ -265,6 +274,7 @@ private fun TvTextField(
     onChange: (String) -> Unit,
     label: String,
     isPassword: Boolean = false,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
