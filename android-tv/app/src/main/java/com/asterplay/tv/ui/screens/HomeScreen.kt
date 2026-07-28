@@ -161,7 +161,8 @@ fun HomeScreen(
                 .fillMaxSize()
                 // Com o painel de configurações aberto, o menu/conteúdo de trás
                 // fica inteiramente fora do foco do controle.
-                .focusProperties { canFocus = !showSettings },
+                .focusProperties { canFocus = !showSettings }
+                .focusGroup(),
         ) {
             Column(
                 Modifier
