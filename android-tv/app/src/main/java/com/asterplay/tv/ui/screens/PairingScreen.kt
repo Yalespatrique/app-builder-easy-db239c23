@@ -80,6 +80,7 @@ fun PairingScreen(onActivated: () -> Unit) {
             if (r.ok && r.playlistUrl != null && r.xtream != null) {
                 PlaylistStore.save(ctx, r.playlistUrl)
                 com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+                com.asterplay.tv.store.LoginStore.saveMac(ctx)
                 onActivated()
             } else message = r.message ?: "Ainda não ativado"
         }
@@ -97,10 +98,12 @@ fun PairingScreen(onActivated: () -> Unit) {
             if (r.ok && r.playlistUrl != null && r.xtream != null) {
                 PlaylistStore.save(ctx, r.playlistUrl)
                 com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+                com.asterplay.tv.store.LoginStore.saveCode(ctx, code.trim(), user.trim(), pass.trim())
                 onActivated()
             } else message = r.message ?: "Falha no login"
         }
     }
+
 
     Box(Modifier.fillMaxSize().background(com.asterplay.tv.ui.theme.BgBase)) {
         androidx.compose.foundation.Image(
