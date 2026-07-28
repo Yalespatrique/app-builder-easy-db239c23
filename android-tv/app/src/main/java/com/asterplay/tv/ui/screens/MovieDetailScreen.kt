@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.ui.PlayerView
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
@@ -60,6 +68,7 @@ import com.asterplay.tv.ui.theme.TextSecondary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private data class MergedDetail(
@@ -133,13 +142,30 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Backdrop estático (sem preview de vídeo em background — muito mais leve).
+        // Backdrop estático (sempre presente por baixo do vídeo).
         val d = detail
         if (d?.backdropUrl != null) {
             AsyncImage(
                 model = d.backdropUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        // Ciclo de preview de vídeo: 10s de backdrop -> 90s de vídeo -> repete.
+        var showVideo by remember { mutableStateOf(false) }
+        LaunchedEffect(channel.url) {
+            while (true) {
+                showVideo = false
+                delay(10_000)
+                showVideo = true
+                delay(90_000)
+            }
+        }
+        if (showVideo) {
+            MoviePreviewVideo(
+                url = channel.url,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -327,5 +353,53 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
         )
     }
 }
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier) {
+    val ctx = LocalContext.current
+    val player = remember(url) {
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(2_000, 8_000, 500, 1_000)
+            .build()
+        val trackSelector = DefaultTrackSelector(ctx).apply {
+            setParameters(buildUponParameters().setMaxVideoSize(854, 480).setMaxVideoBitrate(1_500_000))
+        }
+        ExoPlayer.Builder(ctx)
+            .setLoadControl(loadControl)
+            .setTrackSelector(trackSelector)
+            .build().apply {
+                setMediaItem(MediaItem.fromUri(url))
+                volume = 1f
+                repeatMode = Player.REPEAT_MODE_OFF
+                prepare()
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_READY && duration > 0L) {
+                            val mid = duration / 2L
+                            if (currentPosition < mid - 1000 || currentPosition > mid + 1000) {
+                                seekTo(mid)
+                            }
+                            playWhenReady = true
+                        }
+                    }
+                })
+            }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    AndroidView(
+        modifier = modifier,
+        factory = {
+            PlayerView(it).apply {
+                useController = false
+                this.player = player
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            }
+        },
+    )
+}
+
 
 

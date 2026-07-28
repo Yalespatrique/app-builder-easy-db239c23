@@ -43,7 +43,7 @@ import com.asterplay.tv.ui.theme.NeonPurple
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
+
 
 @Composable
 fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
@@ -66,7 +66,9 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
         // As categorias e o conteúdo de cada uma só são baixados quando
         // o usuário abrir a tela correspondente (lazy).
         sub = "montando destaques..."
-        withTimeoutOrNull(25_000) { TopHomePreload.run(ctx) }
+        // Espera todo o preload terminar antes de abrir o menu — sem timeout,
+        // para o Home já entrar com Top 10 e recentes populados.
+        TopHomePreload.run(ctx)
         delay(120); onReady()
     }
 
