@@ -71,6 +71,7 @@ import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.TmdbApi
 import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.player.PlayerActivity
+import com.asterplay.tv.store.AccountStore
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
 import com.asterplay.tv.store.SettingsStore
