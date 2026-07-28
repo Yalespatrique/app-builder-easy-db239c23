@@ -335,6 +335,8 @@ private fun ValidityBadge(trial: Boolean, text: String) {
 }
 
 
+private enum class SettingsSection { ACCOUNT, PARENTAL, TMDB, STREAM, CACHE, LOGOUT }
+
 @Composable
 private fun SettingsPanel(
     mac: String,
@@ -348,14 +350,12 @@ private fun SettingsPanel(
     var parental by remember { mutableStateOf(SettingsStore.parentalEnabled(ctx)) }
     var tmdb by remember { mutableStateOf(SettingsStore.tmdbEnabled(ctx)) }
     var format by remember { mutableStateOf(SettingsStore.streamFormat(ctx)) }
+    var section by remember { mutableStateOf(SettingsSection.ACCOUNT) }
 
     // "toggle" = pede PIN pra ligar/desligar | "change" = pede PIN atual e depois novo
     var pinMode by remember { mutableStateOf<String?>(null) }
 
     val firstItem = remember { FocusRequester() }
-    // O painel abre por cima do menu (que fica desativado). Se o pedido de foco
-    // acontecer antes do nó estar posicionado, o controle fica "morto" — por isso
-    // tentamos algumas vezes até o foco realmente entrar no painel.
     LaunchedEffect(pinMode) {
         if (pinMode != null) return@LaunchedEffect
         repeat(20) {
@@ -365,72 +365,168 @@ private fun SettingsPanel(
     }
 
     Box(
-        Modifier.fillMaxSize().background(Color(0xE605060B)).focusGroup(),
+        Modifier.fillMaxSize().background(Color(0xF205060B)).focusGroup(),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
+        Row(
             Modifier
-                .width(620.dp)
-                .background(BgSurface, RoundedCornerShape(16.dp))
-                .padding(28.dp)
-                .verticalScroll(rememberScrollState())
+                .fillMaxSize()
+                .padding(horizontal = 48.dp, vertical = 36.dp)
                 .focusProperties { canFocus = pinMode == null }
                 .focusGroup(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("CONFIGURAÇÕES", color = Accent, style = MaterialTheme.typography.labelLarge)
-            Text("Dispositivo e conta", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("MAC: ${DeviceId.formatted(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            Text("Chave: ${DeviceId.getKey(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            Text("Versão: v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+            // ---------- Coluna esquerda: opções ----------
+            Column(
+                Modifier
+                    .width(330.dp)
+                    .fillMaxHeight()
+                    .background(BgSurface, RoundedCornerShape(16.dp))
+                    .padding(vertical = 20.dp, horizontal = 14.dp)
+                    .verticalScroll(rememberScrollState())
+                    .focusGroup(),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    "CONFIGURAÇÕES",
+                    color = Accent,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 10.dp),
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.Tv,
+                    label = "Dispositivo e conta",
+                    selected = section == SettingsSection.ACCOUNT,
+                    onSelect = { section = SettingsSection.ACCOUNT },
+                    modifier = Modifier.focusRequester(firstItem),
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.Lock,
+                    label = "Controle parental",
+                    selected = section == SettingsSection.PARENTAL,
+                    onSelect = { section = SettingsSection.PARENTAL },
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.Movie,
+                    label = "Informações via TMDB",
+                    selected = section == SettingsSection.TMDB,
+                    onSelect = { section = SettingsSection.TMDB },
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.LiveTv,
+                    label = "Fluxo de vídeo",
+                    selected = section == SettingsSection.STREAM,
+                    onSelect = { section = SettingsSection.STREAM },
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.Settings,
+                    label = "Cache da lista",
+                    selected = section == SettingsSection.CACHE,
+                    onSelect = { section = SettingsSection.CACHE },
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.Logout,
+                    label = "Sair da conta",
+                    selected = section == SettingsSection.LOGOUT,
+                    onSelect = { section = SettingsSection.LOGOUT },
+                )
+                Spacer(Modifier.height(10.dp))
+                SideMenuItem(Icons.Default.Tv, "Fechar", onClick = onClose)
+            }
 
-            Spacer(Modifier.height(10.dp))
-            Text("Preferências", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(24.dp))
 
-            SettingRow(
-                icon = Icons.Default.Lock,
-                label = "Controle parental",
-                value = if (parental) "Ativado — categorias adultas ocultas" else "Desativado",
-                onClick = { pinMode = "toggle" },
-                modifier = Modifier.focusRequester(firstItem),
-            )
-            SettingRow(
-                icon = Icons.Default.Lock,
-                label = "Alterar senha do controle parental",
-                value = "PIN de 4 dígitos (padrão 0000)",
-                onClick = { pinMode = "change" },
-            )
-            SettingRow(
-                icon = Icons.Default.Movie,
-                label = "Informações via TMDB",
-                value = if (tmdb) "Ativado — capas e sinopses do TMDB" else "Desativado — dados do provedor",
-                onClick = {
-                    tmdb = !tmdb
-                    SettingsStore.setTmdbEnabled(ctx, tmdb)
-                },
-            )
-            SettingRow(
-                icon = Icons.Default.LiveTv,
-                label = "Fluxo de vídeo",
-                value = when (format) {
-                    SettingsStore.FORMAT_HLS -> "HLS (m3u8)"
-                    SettingsStore.FORMAT_TS -> "TS (.ts)"
-                    else -> "Padrão do provedor"
-                },
-                onClick = {
-                    format = when (format) {
-                        SettingsStore.FORMAT_DEFAULT -> SettingsStore.FORMAT_HLS
-                        SettingsStore.FORMAT_HLS -> SettingsStore.FORMAT_TS
-                        else -> SettingsStore.FORMAT_DEFAULT
+            // ---------- Coluna direita: conteúdo da opção ----------
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(BgElevated, RoundedCornerShape(16.dp))
+                    .padding(28.dp)
+                    .verticalScroll(rememberScrollState())
+                    .focusGroup(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                when (section) {
+                    SettingsSection.ACCOUNT -> {
+                        SettingsPaneTitle("Dispositivo e conta", "Dados usados para ativar a sua lista.")
+                        Text("MAC: ${DeviceId.formatted(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+                        Text("Chave: ${DeviceId.getKey(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+                        Text("Versão: v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
                     }
-                    SettingsStore.setStreamFormat(ctx, format)
-                },
-            )
-
-            Spacer(Modifier.height(10.dp))
-            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClick = onClearCache)
-            SideMenuItem(Icons.Default.Logout, "Sair da conta", onClick = onLogout)
-            SideMenuItem(Icons.Default.Tv, "Fechar", onClick = onClose)
+                    SettingsSection.PARENTAL -> {
+                        SettingsPaneTitle(
+                            "Controle parental",
+                            "Quando ativo, categorias adultas ficam ocultas em canais, filmes e séries.",
+                        )
+                        SettingRow(
+                            icon = Icons.Default.Lock,
+                            label = if (parental) "Desativar controle parental" else "Ativar controle parental",
+                            value = if (parental) "Ativado — categorias adultas ocultas" else "Desativado",
+                            onClick = { pinMode = "toggle" },
+                        )
+                        SettingRow(
+                            icon = Icons.Default.Lock,
+                            label = "Alterar senha",
+                            value = "PIN de 4 dígitos (padrão 0000)",
+                            onClick = { pinMode = "change" },
+                        )
+                    }
+                    SettingsSection.TMDB -> {
+                        SettingsPaneTitle(
+                            "Informações via TMDB",
+                            "Use capas, sinopses e notas do TMDB no lugar dos dados do provedor.",
+                        )
+                        SettingRow(
+                            icon = Icons.Default.Movie,
+                            label = if (tmdb) "Desativar TMDB" else "Ativar TMDB",
+                            value = if (tmdb) "Ativado — capas e sinopses do TMDB" else "Desativado — dados do provedor",
+                            onClick = {
+                                tmdb = !tmdb
+                                SettingsStore.setTmdbEnabled(ctx, tmdb)
+                            },
+                        )
+                    }
+                    SettingsSection.STREAM -> {
+                        SettingsPaneTitle("Fluxo de vídeo", "Escolha o formato usado nos canais ao vivo.")
+                        listOf(
+                            SettingsStore.FORMAT_DEFAULT to "Padrão do provedor",
+                            SettingsStore.FORMAT_HLS to "HLS (m3u8)",
+                            SettingsStore.FORMAT_TS to "TS (.ts)",
+                        ).forEach { (value, label) ->
+                            SettingRow(
+                                icon = Icons.Default.LiveTv,
+                                label = label,
+                                value = if (format == value) "Selecionado" else "Tocar para usar",
+                                onClick = {
+                                    format = value
+                                    SettingsStore.setStreamFormat(ctx, value)
+                                },
+                            )
+                        }
+                    }
+                    SettingsSection.CACHE -> {
+                        SettingsPaneTitle(
+                            "Cache da lista",
+                            "Apaga categorias e conteúdos salvos no aparelho. A lista será baixada novamente.",
+                        )
+                        SettingRow(
+                            icon = Icons.Default.Settings,
+                            label = "Limpar cache da lista",
+                            value = "Recarrega tudo do provedor",
+                            onClick = onClearCache,
+                        )
+                    }
+                    SettingsSection.LOGOUT -> {
+                        SettingsPaneTitle("Sair da conta", "Você voltará para a tela de login.")
+                        SettingRow(
+                            icon = Icons.Default.Logout,
+                            label = "Sair da conta",
+                            value = "Remove os dados de acesso deste aparelho",
+                            onClick = onLogout,
+                        )
+                    }
+                }
+            }
         }
 
         if (pinMode != null) {
@@ -452,6 +548,52 @@ private fun SettingsPanel(
 }
 
 @Composable
+private fun SettingsPaneTitle(title: String, subtitle: String) {
+    Text(title, color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+    Text(subtitle, color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+    Spacer(Modifier.height(6.dp))
+}
+
+@Composable
+private fun SettingsNavItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onSelect,
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (selected) BgElevated else Color.Transparent,
+            focusedContainerColor = BgElevated,
+        ),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onSelect()
+            },
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, null, tint = if (focused || selected) Accent else TextSecondary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text(
+                label,
+                color = if (focused || selected) TextPrimary else TextSecondary,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (focused || selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
+    }
+}
+
+@Composable
 private fun SettingRow(
     icon: ImageVector,
     label: String,
@@ -464,7 +606,7 @@ private fun SettingRow(
         onClick = onClick,
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
-            focusedContainerColor = BgElevated,
+            focusedContainerColor = BgSurface,
         ),
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
         modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
