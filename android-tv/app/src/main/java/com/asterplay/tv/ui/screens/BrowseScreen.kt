@@ -146,6 +146,16 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
     }
 
+    // Totais por categoria: aparecem já no primeiro carregamento e se atualizam
+    // sozinhos quando o catálogo termina de baixar em segundo plano.
+    val countsVersion by com.asterplay.tv.net.PreloadState.countsVersion.collectAsState()
+    LaunchedEffect(type, countsVersion) {
+        val c = creds ?: return@LaunchedEffect
+        val account = CacheDb.accountKey(c.host, c.username)
+        val fresh = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
+        if (fresh.isNotEmpty()) catCounts = catCounts + fresh
+    }
+
     LaunchedEffect(type) {
         if (creds == null) { onBack(); return@LaunchedEffect }
         refreshContinue()
@@ -163,7 +173,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         val hasContinue = continueCat != null && continueItems.isNotEmpty()
         categories = if (hasContinue) listOf(continueCat!!) + visibleCats else visibleCats
         loadingCats = false
-        catCounts = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
+        catCounts = catCounts + withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
         if (hasContinue) {
             selectedIdx = 0
             items = continueItems
