@@ -43,7 +43,7 @@ import com.asterplay.tv.ui.theme.NeonPurple
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withTimeoutOrNull
+
 
 @Composable
 fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
