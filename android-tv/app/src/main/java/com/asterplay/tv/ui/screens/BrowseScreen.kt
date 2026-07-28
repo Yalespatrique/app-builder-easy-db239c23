@@ -212,12 +212,24 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             .setMediaSourceFactory(com.asterplay.tv.net.exoMediaSourceFactory(ctx))
             .build().apply { playWhenReady = true }
     }
+    // Canal demorando demais para abrir => liga o DNS seguro e recarrega sozinho
+    val liveGuard = remember(livePlayer) {
+        com.asterplay.tv.net.PlaybackStallGuard(livePlayer, timeoutMs = 8000L) {
+            val u = selectedLive?.url ?: return@PlaybackStallGuard
+            livePlayer.stop()
+            livePlayer.clearMediaItems()
+            livePlayer.setMediaItem(MediaItem.fromUri(SettingsStore.applyFormat(ctx, u)))
+            livePlayer.prepare()
+            livePlayer.playWhenReady = true
+        }
+    }
     DisposableEffect(Unit) {
-        onDispose { livePlayer.release() }
+        onDispose { liveGuard.release(); livePlayer.release() }
     }
     LaunchedEffect(selectedLive?.url) {
         val url = selectedLive?.url
         // sempre encerra o stream anterior antes de iniciar o novo
+        liveGuard.disarm()
         livePlayer.playWhenReady = false
         livePlayer.stop()
         livePlayer.clearMediaItems()
@@ -225,8 +237,10 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             livePlayer.setMediaItem(MediaItem.fromUri(SettingsStore.applyFormat(ctx, url)))
             livePlayer.prepare()
             livePlayer.playWhenReady = true
+            liveGuard.arm()
         }
     }
+
 
     // Estado de tela cheia do canal ao vivo (mesmo player, sem recarregar)
     var liveFullscreen by remember { mutableStateOf(false) }

@@ -88,13 +88,30 @@ object Net {
      * loopback/0.0.0.0 — refaz a consulta por DNS-over-HTTPS. Assim o usuário
      * leigo não precisa configurar nada.
      */
+    @Volatile
+    private var forcedDoh = false
+
+    /**
+     * Liga o DNS seguro imediatamente (usado quando um conteúdo demora demais
+     * para abrir — sintoma clássico de bloqueio do provedor).
+     * Retorna true se algo mudou e vale a pena tentar de novo.
+     */
+    fun forceSecureDnsNow(): Boolean {
+        if (mode != DNS_AUTO || forcedDoh) return false
+        forcedDoh = true
+        autoFallbackActive = true
+        cached = null
+        cachedMode = null
+        return true
+    }
+
     private object AutoDns : Dns {
         private val fallbacks: List<Dns> by lazy {
             listOf(doh(DNS_CLOUDFLARE), doh(DNS_GOOGLE))
         }
 
         override fun lookup(hostname: String): List<InetAddress> {
-            val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrNull()
+            val system = if (forcedDoh) null else runCatching { Dns.SYSTEM.lookup(hostname) }.getOrNull()
             val ok = system?.filter { it.isUsable() }.orEmpty()
             if (ok.isNotEmpty()) return ok
             for (f in fallbacks) {
@@ -111,6 +128,7 @@ object Net {
         private fun InetAddress.isUsable(): Boolean =
             !isLoopbackAddress && !isAnyLocalAddress && !isLinkLocalAddress && !isMulticastAddress
     }
+
 
 
     private fun doh(m: String): Dns {
@@ -130,6 +148,67 @@ object Net {
             .build()
     }
 }
+
+/**
+ * Vigia de abertura de conteúdo.
+ *
+ * Se o vídeo não começar dentro de [timeoutMs] (ou der erro de rede antes disso),
+ * assume bloqueio do provedor, liga o DNS seguro na hora e chama [retry] para
+ * recarregar o mesmo conteúdo. Faz isso uma única vez por player.
+ */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+class PlaybackStallGuard(
+    private val player: androidx.media3.common.Player,
+    private val timeoutMs: Long = 9000L,
+    private val retry: () -> Unit,
+) : androidx.media3.common.Player.Listener {
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var armed = false
+    private var used = false
+
+    private val fire = Runnable {
+        if (used) return@Runnable
+        used = true
+        if (Net.forceSecureDnsNow()) retry()
+    }
+
+    init {
+        player.addListener(this)
+    }
+
+    /** Chame logo depois de setMediaItem()/prepare(). */
+    fun arm() {
+        disarm()
+        if (used) return
+        armed = true
+        handler.postDelayed(fire, timeoutMs)
+    }
+
+    fun disarm() {
+        armed = false
+        handler.removeCallbacks(fire)
+    }
+
+    fun release() {
+        disarm()
+        runCatching { player.removeListener(this) }
+    }
+
+    override fun onRenderedFirstFrame() = disarm()
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) disarm()
+    }
+
+    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        if (armed) {
+            handler.removeCallbacks(fire)
+            handler.post(fire)
+        }
+    }
+}
+
+
 
 /** Fábrica de origem de mídia do ExoPlayer usando o mesmo DNS/HTTP do app. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
