@@ -143,12 +143,31 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
+    // Prévia deve parar quando o player em tela cheia for aberto (ou o app sair de foco).
+    var previewSuspended by remember { mutableStateOf(false) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> previewSuspended = true
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> previewSuspended = false
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+
     Box(Modifier.fillMaxSize().background(BgBase)) {
         // Ciclo de preview de vídeo: 5s de backdrop -> 90s de vídeo -> repete.
         val d = detail
         var showVideo by remember { mutableStateOf(false) }
         var videoRendering by remember { mutableStateOf(false) }
-        LaunchedEffect(channel.url) {
+        LaunchedEffect(channel.url, previewSuspended) {
+            showVideo = false
+            videoRendering = false
+            if (previewSuspended) return@LaunchedEffect
             while (true) {
                 showVideo = false
                 videoRendering = false
@@ -168,13 +187,14 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             )
         }
 
-        if (showVideo) {
+        if (showVideo && !previewSuspended) {
             MoviePreviewVideo(
                 url = channel.url,
                 modifier = Modifier.fillMaxSize(),
                 onRendering = { videoRendering = it },
             )
         }
+
 
 
         // Dark gradient overlay
@@ -290,10 +310,12 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                         icon = Icons.Default.PlayArrow,
                         modifier = Modifier.focusRequester(playFocus),
                         onClick = {
+                            previewSuspended = true
                             val i = Intent(ctx, PlayerActivity::class.java)
                             i.putExtra("url", channel.url); i.putExtra("name", channel.name); i.putExtra("type", "vod")
                             ctx.startActivity(i)
                         },
+
                     )
                     SecondaryButton(label = "Voltar", onClick = onBack)
                 }
