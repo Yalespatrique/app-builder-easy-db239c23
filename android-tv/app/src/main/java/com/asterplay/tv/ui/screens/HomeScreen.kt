@@ -328,6 +328,9 @@ private fun SettingsPanel(
     // "toggle" = pede PIN pra ligar/desligar | "change" = pede PIN atual e depois novo
     var pinMode by remember { mutableStateOf<String?>(null) }
 
+    val firstItem = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { firstItem.requestFocus() } }
+
     Box(
         Modifier.fillMaxSize().background(Color(0xE605060B)),
         contentAlignment = Alignment.Center,
@@ -337,7 +340,9 @@ private fun SettingsPanel(
                 .width(620.dp)
                 .background(BgSurface, RoundedCornerShape(16.dp))
                 .padding(28.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .focusProperties { canFocus = pinMode == null }
+                .focusGroup(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("CONFIGURAÇÕES", color = Accent, style = MaterialTheme.typography.labelLarge)
@@ -354,6 +359,7 @@ private fun SettingsPanel(
                 label = "Controle parental",
                 value = if (parental) "Ativado — categorias adultas ocultas" else "Desativado",
                 onClick = { pinMode = "toggle" },
+                modifier = Modifier.focusRequester(firstItem),
             )
             SettingRow(
                 icon = Icons.Default.Lock,
