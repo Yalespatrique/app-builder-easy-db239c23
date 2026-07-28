@@ -121,21 +121,20 @@ fun HomeScreen(
         if (!cachedRecentM.isNullOrEmpty()) recentMovies = cachedRecentM.map { it.toChannel() }
         if (!cachedRecentS.isNullOrEmpty()) recentSeries = cachedRecentS.map { it.toChannel() }
 
-        if (!cachedM.isNullOrEmpty() && !cachedS.isNullOrEmpty() &&
-            !cachedRecentM.isNullOrEmpty() && !cachedRecentS.isNullOrEmpty()
-        ) {
-            loaded = true
-            return@LaunchedEffect
-        }
-
-        // 2) Fallback: se alguém entrou no Home sem passar pela tela de loading,
-        // pré-carrega aqui uma única vez e lê tudo do cache.
-        TopHomePreload.run(ctx)
-        topMovies = TopCacheStore.read(ctx, account, "movie")?.map { it.toHit() }.orEmpty()
-        topSeries = TopCacheStore.read(ctx, account, "series")?.map { it.toHit() }.orEmpty()
-        recentMovies = TopCacheStore.read(ctx, account, "recent_movie")?.map { it.toChannel() }.orEmpty()
-        recentSeries = TopCacheStore.read(ctx, account, "recent_series")?.map { it.toChannel() }.orEmpty()
+        // 2) Libera a UI já. Se falta cache, dispara preload em background
+        // sem bloquear a navegação — quando terminar, o Home é atualizado.
         loaded = true
+        val missing = cachedM.isNullOrEmpty() || cachedS.isNullOrEmpty() ||
+            cachedRecentM.isNullOrEmpty() || cachedRecentS.isNullOrEmpty()
+        if (missing) {
+            scope.launch {
+                TopHomePreload.run(ctx)
+                topMovies = TopCacheStore.read(ctx, account, "movie")?.map { it.toHit() }.orEmpty()
+                topSeries = TopCacheStore.read(ctx, account, "series")?.map { it.toHit() }.orEmpty()
+                recentMovies = TopCacheStore.read(ctx, account, "recent_movie")?.map { it.toChannel() }.orEmpty()
+                recentSeries = TopCacheStore.read(ctx, account, "recent_series")?.map { it.toChannel() }.orEmpty()
+            }
+        }
     }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
