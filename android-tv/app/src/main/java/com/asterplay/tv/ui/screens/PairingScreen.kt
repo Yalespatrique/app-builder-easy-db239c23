@@ -137,27 +137,12 @@ fun PairingScreen(onActivated: () -> Unit) {
                 }
             }
 
-            // Aviso legal
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(BgSurface, RoundedCornerShape(10.dp))
-                    .border(1.dp, BgElevated, RoundedCornerShape(10.dp))
-                    .padding(16.dp)
-            ) {
-                Text(
-                    "Este é apenas um reprodutor de mídia. Não somos responsáveis por nenhum conteúdo carregado. Não fornecemos conteúdos nem listas de reprodução — o usuário é responsável pelas informações que insere.",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-
-            // Duas colunas: MAC+Chave (esquerda) e Login por código (direita)
+            // Duas colunas: aviso do app (esquerda) e login por código (direita)
             Row(
                 Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                // MAC + Chave (esquerda)
+                // Aviso do app (esquerda)
                 Column(
                     Modifier
                         .weight(1f)
@@ -165,8 +150,18 @@ fun PairingScreen(onActivated: () -> Unit) {
                         .padding(24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    InfoRow("MAC", DeviceId.formatted(mac))
-                    InfoRow("Chave", key)
+                    Text(
+                        "AVISO",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        "Este é apenas um reprodutor de mídia. Não somos responsáveis por nenhum conteúdo carregado. Não fornecemos conteúdos nem listas de reprodução — o usuário é responsável pelas informações que insere.",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+
 
                     Spacer(Modifier.height(4.dp))
                     Button(
