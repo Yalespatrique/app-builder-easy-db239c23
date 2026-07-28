@@ -240,6 +240,7 @@ private fun AsterplayPlayerScreen(
 
     // Teclas do controle remoto
     registerKeyHandler { key ->
+        if (pendingResume > 0L) return@registerKeyHandler false // diálogo cuida da navegação
         when (key) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
