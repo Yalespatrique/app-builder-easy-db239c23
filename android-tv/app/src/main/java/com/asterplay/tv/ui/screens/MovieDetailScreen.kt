@@ -354,4 +354,52 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
     }
 }
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier) {
+    val ctx = LocalContext.current
+    val player = remember(url) {
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(2_000, 8_000, 500, 1_000)
+            .build()
+        val trackSelector = DefaultTrackSelector(ctx).apply {
+            setParameters(buildUponParameters().setMaxVideoSize(854, 480).setMaxVideoBitrate(1_500_000))
+        }
+        ExoPlayer.Builder(ctx)
+            .setLoadControl(loadControl)
+            .setTrackSelector(trackSelector)
+            .build().apply {
+                setMediaItem(MediaItem.fromUri(url))
+                volume = 1f
+                repeatMode = Player.REPEAT_MODE_OFF
+                prepare()
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_READY && duration > 0L) {
+                            val mid = duration / 2L
+                            if (currentPosition < mid - 1000 || currentPosition > mid + 1000) {
+                                seekTo(mid)
+                            }
+                            playWhenReady = true
+                        }
+                    }
+                })
+            }
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    AndroidView(
+        modifier = modifier,
+        factory = {
+            PlayerView(it).apply {
+                useController = false
+                this.player = player
+                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            }
+        },
+    )
+}
+
+
 
