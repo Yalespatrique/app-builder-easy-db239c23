@@ -284,7 +284,7 @@ private fun AsterplayPlayerScreen(
         )
 
         // Loader personalizado (substitui o buffering nativo)
-        if (buffering) {
+        if (buffering && pendingResume == 0L) {
             Box(
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center,
@@ -313,9 +313,34 @@ private fun AsterplayPlayerScreen(
             }
         }
 
+        // Diálogo: retomar do último tempo ou reiniciar
+        if (pendingResume > 0L) {
+            ResumeDialog(
+                title = title,
+                positionMs = pendingResume,
+                onResume = {
+                    val p = pendingResume
+                    pendingResume = 0L
+                    resumedFrom = p
+                    player.seekTo(p)
+                    player.playWhenReady = true
+                    touch()
+                },
+                onRestart = {
+                    pendingResume = 0L
+                    resumedFrom = 0L
+                    ResumeStore.clear(ctx, url)
+                    player.seekTo(0)
+                    player.playWhenReady = true
+                    touch()
+                },
+            )
+        }
+
         // Barra de controles customizada
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && pendingResume == 0L,
+
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
