@@ -151,6 +151,7 @@ private fun AsterplayPlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var autoNextIn by remember { mutableIntStateOf(-1) }
+    var autoNextCancelled by remember { mutableStateOf(false) }
     var resumedFrom by remember { mutableLongStateOf(0L) }
     // > 0 => diálogo "retomar ou reiniciar" aberto
     var pendingResume by remember { mutableLongStateOf(0L) }
@@ -172,6 +173,7 @@ private fun AsterplayPlayerScreen(
             player.playWhenReady = true
         }
         autoNextIn = -1
+        autoNextCancelled = false
         touch()
     }
 
@@ -217,7 +219,9 @@ private fun AsterplayPlayerScreen(
                 if (tick % 10 == 0) ResumeStore.save(ctx, url, position, duration)
 
                 val remaining = ((duration - position) / 1000).toInt()
-                if (hasPlaylist && index < (epUrls?.size ?: 0) - 1 && remaining in 0..10) {
+                if (hasPlaylist && index < (epUrls?.size ?: 0) - 1 &&
+                    remaining in 0..120 && !autoNextCancelled
+                ) {
                     autoNextIn = remaining
                     controlsVisible = true
                     if (remaining <= 0) {
@@ -225,7 +229,7 @@ private fun AsterplayPlayerScreen(
                         ResumeStore.clear(ctx, url)
                         index++
                     }
-                } else if (autoNextIn >= 0 && remaining > 10) {
+                } else if (autoNextIn >= 0 && (remaining > 120 || autoNextCancelled)) {
                     autoNextIn = -1
                 }
                 if (position > 0 && duration > 0 && position >= duration * 0.95) {
@@ -412,10 +416,11 @@ private fun AsterplayPlayerScreen(
 
         // Aviso de próximo episódio automático
         if (autoNextIn >= 0 && hasPlaylist) {
-            Box(
+            Column(
                 Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 48.dp, bottom = 190.dp),
+                horizontalAlignment = Alignment.End,
             ) {
                 androidx.tv.material3.Surface(
                     onClick = { WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++ },
@@ -435,14 +440,32 @@ private fun AsterplayPlayerScreen(
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            "Próximo episódio em ${autoNextIn}s",
+                            "Próximo episódio em ${autoNextIn / 60}:${(autoNextIn % 60).toString().padStart(2, '0')}",
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
                 }
+                Spacer(Modifier.height(10.dp))
+                androidx.tv.material3.Surface(
+                    onClick = { autoNextCancelled = true; autoNextIn = -1 },
+                    colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+                        containerColor = Color(0xCC1A1A2E),
+                        focusedContainerColor = Color(0xFFFF3B30),
+                    ),
+                    shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                ) {
+                    Text(
+                        "Cancelar pular automático",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    )
+                }
             }
+        }
         }
     }
 }
