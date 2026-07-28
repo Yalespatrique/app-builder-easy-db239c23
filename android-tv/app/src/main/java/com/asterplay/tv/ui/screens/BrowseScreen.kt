@@ -227,9 +227,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                                 logo = ch.logo,
                                 aspect = if (isChannels) 16f / 9f else 2f / 3f,
                                 onClick = {
-                                    if (ch.url.startsWith("asterplay://series/")) return@PosterCard
                                     when (type) {
                                         "vod" -> onOpenMovieDetail(ch)
+                                        "series" -> onOpenSeriesDetail(ch)
                                         "live" -> selectedLive = ch
                                         else -> {
                                             val i = Intent(ctx, PlayerActivity::class.java)
