@@ -86,3 +86,13 @@ object Net {
             .build()
     }
 }
+
+/** Fábrica de origem de mídia do ExoPlayer usando o mesmo DNS/HTTP do app. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+fun exoMediaSourceFactory(ctx: Context): androidx.media3.exoplayer.source.MediaSource.Factory {
+    val http = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory { req ->
+        Net.client.newCall(req)
+    }.setUserAgent("Asterplay/${android.os.Build.MODEL}")
+    val ds = androidx.media3.datasource.DefaultDataSource.Factory(ctx, http)
+    return androidx.media3.exoplayer.source.DefaultMediaSourceFactory(ds)
+}
