@@ -90,6 +90,7 @@ import com.asterplay.tv.ui.theme.BrandGradient
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Item TMDB já resolvido com um Channel real do servidor do usuário. */
