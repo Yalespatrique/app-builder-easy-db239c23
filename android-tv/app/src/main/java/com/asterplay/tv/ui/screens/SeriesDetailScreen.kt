@@ -48,6 +48,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.asterplay.tv.net.TmdbApi
+import com.asterplay.tv.store.ContinueStore
 import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
@@ -270,6 +271,7 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
                                 ep = ep,
                                 watched = watched.contains(ep.url),
                                 onPlay = {
+                                    ContinueStore.save(ctx, "series", channel, ep.url)
                                     val i = Intent(ctx, PlayerActivity::class.java)
                                     i.putExtra(PlayerActivity.EXTRA_URL, ep.url)
                                     i.putExtra(
