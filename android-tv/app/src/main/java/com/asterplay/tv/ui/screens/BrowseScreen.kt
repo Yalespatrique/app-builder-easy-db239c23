@@ -323,13 +323,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     current = selectedLive!!,
                     player = livePlayer,
                     onPick = { selectedLive = it },
-                    onEnterFullscreen = {
-                        val i = Intent(ctx, PlayerActivity::class.java)
-                        i.putExtra("url", SettingsStore.applyFormat(ctx, selectedLive!!.url))
-                        i.putExtra("name", selectedLive!!.name)
-                        i.putExtra("type", "live")
-                        ctx.startActivity(i)
-                    },
+                    onEnterFullscreen = { liveFullscreen = true },
+                    fullscreen = liveFullscreen,
+
                 )
             } else {
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
