@@ -362,7 +362,7 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier) {
+private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier, onRendering: (Boolean) -> Unit = {}) {
     val ctx = LocalContext.current
     val player = remember(url) {
         val loadControl = DefaultLoadControl.Builder()
