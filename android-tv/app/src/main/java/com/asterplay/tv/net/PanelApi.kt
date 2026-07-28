@@ -34,6 +34,25 @@ object PanelApi {
         request("$BASE/api/public/code-login?code=${enc(code)}&user=${enc(user)}&pass=${enc(pass)}")
     }
 
+    /**
+     * Verifica se a DNS (host) do usuário está cadastrada no painel admin.
+     * Retorna null quando não deu pra consultar (erro de rede) — nesse caso
+     * o app não deve punir o usuário.
+     */
+    suspend fun isDnsRegistered(host: String): Boolean? = withContext(Dispatchers.IO) {
+        try {
+            val req = Request.Builder().url("$BASE/api/public/dns-check?host=${enc(host)}").build()
+            client.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                val json = try { JSONObject(body) } catch (_: Exception) { return@use null }
+                if (!resp.isSuccessful || !json.optBoolean("ok", false)) null
+                else json.optBoolean("registered", false)
+            }
+        } catch (_: Exception) { null }
+    }
+
+
+
     private fun request(url: String): PanelResult {
         return try {
             val req = Request.Builder().url(url).build()
