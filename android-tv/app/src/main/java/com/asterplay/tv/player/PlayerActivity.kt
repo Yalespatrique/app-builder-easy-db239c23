@@ -298,7 +298,7 @@ private fun AsterplayPlayerScreen(
                         color = TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    if (title.isNotBlank()) {
+                    if (title.isNotBlank() && type != "series") {
                         Spacer(Modifier.height(6.dp))
                         Text(title, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     }
