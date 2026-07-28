@@ -545,3 +545,70 @@ private fun EpgRow(item: XtreamApi.EpgItem, isNow: Boolean) {
         )
     }
 }
+
+/**
+ * Campo de busca (EditText nativo) — o teclado da TV abre ao apertar OK.
+ */
+@Composable
+private fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(BgElevated, RoundedCornerShape(8.dp))
+            .then(
+                if (focused) Modifier.border(2.dp, Accent, RoundedCornerShape(8.dp))
+                else Modifier.border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(8.dp)),
+            )
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { c ->
+                android.widget.EditText(c).apply {
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setTextColor(android.graphics.Color.WHITE)
+                    setHintTextColor(android.graphics.Color.GRAY)
+                    hint = placeholder
+                    textSize = 16f
+                    isSingleLine = true
+                    setPadding(0, 0, 0, 0)
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    showSoftInputOnFocus = false
+
+                    fun openKeyboard() {
+                        requestFocus()
+                        val imm = c.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                            as android.view.inputmethod.InputMethodManager
+                        imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                    }
+
+                    setOnClickListener { openKeyboard() }
+                    setOnKeyListener { _, keyCode, event ->
+                        if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+                            (keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_ENTER)
+                        ) {
+                            openKeyboard(); true
+                        } else false
+                    }
+                    setOnFocusChangeListener { _, hasFocus -> focused = hasFocus }
+                    addTextChangedListener(object : android.text.TextWatcher {
+                        override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
+                        override fun onTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
+                        override fun afterTextChanged(s: android.text.Editable?) {
+                            val t = s?.toString().orEmpty()
+                            if (t != value) onValueChange(t)
+                        }
+                    })
+                }
+            },
+            update = { et -> if (et.text.toString() != value) et.setText(value) },
+        )
+    }
+}
