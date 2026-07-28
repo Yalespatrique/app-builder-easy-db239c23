@@ -29,7 +29,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
@@ -156,27 +154,11 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
     }
 
-    var fullscreen by remember { mutableStateOf(false) }
-    var lastToggle by remember { mutableLongStateOf(0L) }
-
-    // ÚNICO player + ÚNICA PlayerView reutilizada entre painel e tela cheia:
-    // evita reinício do vídeo ao alternar fullscreen.
     val livePlayer = remember {
         ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
     }
-    val livePlayerView = remember {
-        (android.view.LayoutInflater.from(ctx)
-            .inflate(com.asterplay.tv.R.layout.view_preview_player, null) as PlayerView).apply {
-            useController = false
-            keepScreenOn = true
-            player = livePlayer
-        }
-    }
     DisposableEffect(Unit) {
-        onDispose {
-            livePlayerView.player = null
-            livePlayer.release()
-        }
+        onDispose { livePlayer.release() }
     }
     LaunchedEffect(selectedLive?.url) {
         val url = selectedLive?.url
@@ -189,15 +171,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
     }
 
-    fun toggleFullscreen(enter: Boolean) {
-        val now = System.currentTimeMillis()
-        if (now - lastToggle < 600) return
-        lastToggle = now
-        fullscreen = enter
-    }
-
-    BackHandler(enabled = fullscreen) { toggleFullscreen(false) }
-    BackHandler(enabled = !fullscreen && selectedLive != null) { selectedLive = null }
+    BackHandler(enabled = selectedLive != null) { selectedLive = null }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
         Row(Modifier.fillMaxSize()) {
@@ -232,13 +206,16 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 LiveChannelPane(
                     channels = items,
                     current = selectedLive!!,
-                    playerView = livePlayerView,
-                    showPlayer = !fullscreen,
+                    player = livePlayer,
                     onPick = { selectedLive = it },
-                    onEnterFullscreen = { toggleFullscreen(true) },
+                    onEnterFullscreen = {
+                        val i = Intent(ctx, PlayerActivity::class.java)
+                        i.putExtra("url", selectedLive!!.url)
+                        i.putExtra("name", selectedLive!!.name)
+                        ctx.startActivity(i)
+                    },
                 )
             } else {
-
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
                     val catName = categories.getOrNull(selectedIdx)?.name ?: ""
                     Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
@@ -295,28 +272,19 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 }
             }
         }
-
-        // Overlay fullscreen cobre TODA a tela (inclusive a barra de categorias)
-        if (isChannels && selectedLive != null && fullscreen) {
-            FullscreenChannelOverlay(
-                playerView = livePlayerView,
-                onExit = { toggleFullscreen(false) },
-            )
-        }
-
     }
 }
 
 /**
  * Painel de canais ao vivo: lista à esquerda, player 16:9 no topo direito, EPG abaixo.
+ * O PlayerView é criado aqui e usa o ExoPlayer compartilhado — nunca sai da árvore.
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun LiveChannelPane(
     channels: List<Channel>,
     current: Channel,
-    playerView: PlayerView,
-    showPlayer: Boolean,
+    player: ExoPlayer,
     onPick: (Channel) -> Unit,
     onEnterFullscreen: () -> Unit,
 ) {
@@ -340,7 +308,6 @@ private fun LiveChannelPane(
     // Auto-foco no canal atual da lista.
     val listFocus = remember { FocusRequester() }
     LaunchedEffect(current.url) { runCatching { listFocus.requestFocus() } }
-
 
     Row(Modifier.fillMaxSize()) {
         // Lista de canais da categoria
@@ -385,15 +352,7 @@ private fun LiveChannelPane(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.Black),
             ) {
-                if (showPlayer) {
-                    AndroidView(
-                        modifier = Modifier.fillMaxSize(),
-                        factory = {
-                            (playerView.parent as? android.view.ViewGroup)?.removeView(playerView)
-                            playerView
-                        },
-                    )
-                }
+                SharedPlayerView(player = player)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -420,28 +379,23 @@ private fun LiveChannelPane(
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun FullscreenChannelOverlay(playerView: PlayerView, onExit: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-
-    Surface(
-        onClick = onExit,
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Black,
-            focusedContainerColor = Color.Black,
-        ),
-        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(0.dp)),
-        modifier = Modifier.fillMaxSize().focusRequester(focus),
-    ) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = {
-                (playerView.parent as? android.view.ViewGroup)?.removeView(playerView)
-                playerView
-            },
-        )
-    }
+private fun SharedPlayerView(player: ExoPlayer) {
+    AndroidView(
+        modifier = Modifier.fillMaxSize(),
+        factory = { context ->
+            (android.view.LayoutInflater.from(context)
+                .inflate(com.asterplay.tv.R.layout.view_preview_player, null) as PlayerView).apply {
+                useController = false
+                keepScreenOn = true
+                this.player = player
+            }
+        },
+        update = { view ->
+            if (view.player != player) view.player = player
+        },
+    )
 }
+
 
 
 
