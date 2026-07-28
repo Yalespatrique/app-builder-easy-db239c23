@@ -109,11 +109,24 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         if (creds == null || !canSearch) { results = emptyList(); searchLoading = false; return@LaunchedEffect }
         searchLoading = true
         kotlinx.coroutines.delay(500)
+        val q = query.trim()
         val account = CacheDb.accountKey(creds.host, creds.username)
-        results = withContext(Dispatchers.IO) { CacheDb.get(ctx).searchKind(account, type, query.trim()) }
+        // 1) resposta instantânea com o que já está em cache local
+        val local = withContext(Dispatchers.IO) { CacheDb.get(ctx).searchKind(account, type, q) }
             .filter { !SettingsStore.isBlocked(ctx, it.name) }
+        if (query.trim() == q) results = local
+        // 2) busca completa no catálogo do provedor
+        val remote = withContext(Dispatchers.IO) { XtreamApi.searchAll(creds, type, q) }
+            .filter { !SettingsStore.isBlocked(ctx, it.name) }
+        if (query.trim() == q) {
+            val merged = LinkedHashMap<String, Channel>()
+            remote.forEach { merged[it.url] = it }
+            local.forEach { merged.putIfAbsent(it.url, it) }
+            results = merged.values.toList()
+        }
         searchLoading = false
     }
+
 
 
     val pageSize = 100

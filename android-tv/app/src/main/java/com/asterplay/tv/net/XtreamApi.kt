@@ -182,6 +182,42 @@ object XtreamApi {
         return@withContext out
     }
 
+    // ---------- Busca global (índice em memória) ----------
+
+    private val indexCache = HashMap<String, Pair<Long, List<Channel>>>()
+    private const val INDEX_TTL = 30L * 60 * 1000
+
+    /** Índice completo de títulos por tipo, com cache em memória de 30 min. */
+    private suspend fun index(c: XtreamCreds, kind: String): List<Channel> {
+        val key = "${c.host}|${c.username}|$kind"
+        val now = System.currentTimeMillis()
+        synchronized(indexCache) {
+            indexCache[key]?.let { (exp, list) -> if (exp > now && list.isNotEmpty()) return list }
+        }
+        val list = allStreams(c, kind)
+        if (list.isNotEmpty()) synchronized(indexCache) { indexCache[key] = (now + INDEX_TTL) to list }
+        return list
+    }
+
+    /** Busca por nome em TODO o catálogo do provedor (não só no que já foi visitado). */
+    suspend fun searchAll(
+        c: XtreamCreds,
+        kind: String,
+        query: String,
+        limit: Int = 300,
+    ): List<Channel> = withContext(Dispatchers.IO) {
+        val q = query.trim().lowercase()
+        if (q.length < 2) return@withContext emptyList()
+        val terms = q.split(" ").filter { it.isNotBlank() }
+        index(c, kind)
+            .asSequence()
+            .filter { ch -> terms.all { ch.name.lowercase().contains(it) } }
+            .sortedBy { it.name.lowercase().indexOf(terms[0]) }
+            .take(limit)
+            .toList()
+    }
+
+
     /** Retorna os itens mais recentes (VOD ou séries) ordenados por data adicionada desc. */
     suspend fun recentStreams(c: XtreamCreds, kind: String, limit: Int = 20): List<Channel> =
         streamsAndRecent(c, kind, limit).second
