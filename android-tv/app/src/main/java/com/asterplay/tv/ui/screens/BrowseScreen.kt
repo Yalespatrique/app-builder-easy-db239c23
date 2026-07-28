@@ -263,6 +263,7 @@ private fun LiveChannelPane(
 
     var epg by remember(current.url) { mutableStateOf<List<XtreamApi.EpgItem>>(emptyList()) }
     var loadingEpg by remember(current.url) { mutableStateOf(true) }
+    var fullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(current.url) {
         loadingEpg = true
@@ -288,43 +289,96 @@ private fun LiveChannelPane(
         onDispose { player.release() }
     }
 
-    Row(Modifier.fillMaxSize()) {
-        // Lista de canais da categoria
-        Column(
-            Modifier.width(320.dp).fillMaxHeight().background(BgSurface).padding(vertical = 16.dp),
-        ) {
-            Text(
-                "CANAIS",
-                color = Accent,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+    // Sai do fullscreen com back.
+    BackHandler(enabled = fullscreen) { fullscreen = false }
+
+    Box(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize()) {
+            // Lista de canais da categoria
+            Column(
+                Modifier.width(320.dp).fillMaxHeight().background(BgSurface).padding(vertical = 16.dp),
             ) {
-                items(channels, key = { it.url }) { ch ->
-                    ChannelRowItem(
-                        channel = ch,
-                        selected = ch.url == current.url,
-                        onClick = { onPick(ch) },
-                        onFocus = { if (ch.url != current.url) onPick(ch) },
-                    )
+                Text(
+                    "CANAIS",
+                    color = Accent,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    items(channels, key = { it.url }) { ch ->
+                        ChannelRowItem(
+                            channel = ch,
+                            selected = ch.url == current.url,
+                            onClick = {
+                                if (ch.url == current.url) fullscreen = true
+                                else onPick(ch)
+                            },
+                            onFocus = { if (ch.url != current.url) onPick(ch) },
+                        )
+                    }
+                }
+            }
+
+            // Player + EPG
+            Column(Modifier.fillMaxSize().padding(24.dp)) {
+                Text(current.name, color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(12.dp))
+                Surface(
+                    onClick = { fullscreen = true },
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Black,
+                        focusedContainerColor = Color.Black,
+                    ),
+                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                ) {
+                    if (!fullscreen) {
+                        AndroidView(
+                            modifier = Modifier.fillMaxSize(),
+                            factory = {
+                                PlayerView(it).apply {
+                                    useController = false
+                                    this.player = player
+                                }
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("PROGRAMAÇÃO", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                if (loadingEpg) {
+                    Text("Carregando EPG...", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+                } else if (epg.isEmpty()) {
+                    Text("EPG não disponível para este canal.", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    val now = System.currentTimeMillis()
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                    ) {
+                        items(epg) { item ->
+                            EpgRow(item, isNow = now in item.start..item.end)
+                        }
+                    }
                 }
             }
         }
 
-        // Player + EPG
-        Column(Modifier.fillMaxSize().padding(24.dp)) {
-            Text(current.name, color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(12.dp))
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black),
+        // Overlay fullscreen: OK sai
+        if (fullscreen) {
+            Surface(
+                onClick = { fullscreen = false },
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.Black,
+                    focusedContainerColor = Color.Black,
+                ),
+                shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(0.dp)),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
@@ -335,24 +389,6 @@ private fun LiveChannelPane(
                         }
                     },
                 )
-            }
-            Spacer(Modifier.height(16.dp))
-            Text("PROGRAMAÇÃO", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            if (loadingEpg) {
-                Text("Carregando EPG...", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-            } else if (epg.isEmpty()) {
-                Text("EPG não disponível para este canal.", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-            } else {
-                val now = System.currentTimeMillis()
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                ) {
-                    items(epg) { item ->
-                        EpgRow(item, isNow = now in item.start..item.end)
-                    }
-                }
             }
         }
     }

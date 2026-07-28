@@ -178,7 +178,7 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
                 }
 
                 Column(
-                    Modifier.fillMaxHeight().weight(1f),
+                    Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text("SÉRIE", color = Accent, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
@@ -250,7 +250,7 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
                 } else {
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                     ) {
                         items(eps) { ep ->
                             EpisodeRow(ep = ep, onPlay = {
