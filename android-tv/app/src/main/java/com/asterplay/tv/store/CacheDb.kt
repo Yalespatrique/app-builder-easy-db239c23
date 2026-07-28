@@ -274,11 +274,12 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
     fun clearAll() {
         writableDatabase.execSQL("DELETE FROM cat_cache")
         writableDatabase.execSQL("DELETE FROM streams_cache")
+        writableDatabase.execSQL("DELETE FROM cat_counts")
     }
 
     companion object {
         private const val DB_NAME = "asterplay_cache.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
 
         // TTLs
         const val TTL_CATEGORIES = 24L * 3600 * 1000
