@@ -142,13 +142,30 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Backdrop estático (sem preview de vídeo em background — muito mais leve).
+        // Backdrop estático (sempre presente por baixo do vídeo).
         val d = detail
         if (d?.backdropUrl != null) {
             AsyncImage(
                 model = d.backdropUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        // Ciclo de preview de vídeo: 10s de backdrop -> 90s de vídeo -> repete.
+        var showVideo by remember { mutableStateOf(false) }
+        LaunchedEffect(channel.url) {
+            while (true) {
+                showVideo = false
+                delay(10_000)
+                showVideo = true
+                delay(90_000)
+            }
+        }
+        if (showVideo) {
+            MoviePreviewVideo(
+                url = channel.url,
                 modifier = Modifier.fillMaxSize(),
             )
         }
