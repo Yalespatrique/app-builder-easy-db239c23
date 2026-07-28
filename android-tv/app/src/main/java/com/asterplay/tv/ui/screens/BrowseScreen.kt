@@ -60,6 +60,7 @@ import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.net.XtreamCategory
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
+import com.asterplay.tv.store.ContinueStore
 import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.CategoryItem
@@ -230,6 +231,22 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     livePlayer.stop()
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                    if (continueCat != null) {
+                        refreshContinue()
+                        val hasCont = continueItems.isNotEmpty()
+                        val hadCont = categories.firstOrNull()?.id == ContinueStore.CATEGORY_ID
+                        if (hasCont && !hadCont) {
+                            categories = listOf(continueCat) + categories
+                            selectedIdx += 1
+                        } else if (!hasCont && hadCont) {
+                            categories = categories.drop(1)
+                            selectedIdx = maxOf(0, selectedIdx - 1)
+                        }
+                        if (categories.getOrNull(selectedIdx)?.id == ContinueStore.CATEGORY_ID) {
+                            items = continueItems
+                            shownCount = minOf(pageSize, continueItems.size)
+                        }
+                    }
                     if (selectedLive != null && livePlayer.mediaItemCount == 0) {
                         livePlayer.setMediaItem(
                             MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
