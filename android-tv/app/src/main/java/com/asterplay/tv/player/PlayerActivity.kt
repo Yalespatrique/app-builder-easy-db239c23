@@ -160,6 +160,18 @@ private fun AsterplayPlayerScreen(
 
     fun touch() { lastInteraction = System.currentTimeMillis(); controlsVisible = true }
 
+    // Se o conteúdo demorar demais para abrir, liga o DNS seguro e tenta de novo
+    val stallGuard = remember(player) {
+        com.asterplay.tv.net.PlaybackStallGuard(player) {
+            val pos = player.currentPosition
+            player.setMediaItem(MediaItem.fromUri(player.currentMediaItem?.localConfiguration?.uri?.toString() ?: url))
+            player.prepare()
+            if (pos > 0) player.seekTo(pos)
+            player.playWhenReady = true
+        }
+    }
+    DisposableEffect(stallGuard) { onDispose { stallGuard.release() } }
+
     // Troca de mídia + pergunta se deve retomar do último tempo assistido
     LaunchedEffect(url) {
         buffering = true
@@ -167,6 +179,7 @@ private fun AsterplayPlayerScreen(
         val resume = if (isLive) 0L else ResumeStore.get(ctx, url)
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
+        stallGuard.arm()
         if (resume > 10_000) {
             pendingResume = resume
             player.playWhenReady = false
@@ -178,6 +191,7 @@ private fun AsterplayPlayerScreen(
         autoNextCancelled = false
         touch()
     }
+
 
 
     // Salva a posição ao sair da mídia atual (troca de episódio ou saída do player)
