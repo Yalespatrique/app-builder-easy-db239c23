@@ -268,7 +268,36 @@ object XtreamApi {
         }
     }
 
+    // ---------- EPG (canais ao vivo) ----------
+
+    data class EpgItem(val start: Long, val end: Long, val title: String, val description: String?)
+
+    /** Retorna a programação curta (agora + próximos) de um canal live. */
+    suspend fun shortEpg(c: XtreamCreds, streamId: String, limit: Int = 8): List<EpgItem> = withContext(Dispatchers.IO) {
+        val body = get(c.playerApi("get_short_epg", "&stream_id=$streamId&limit=$limit")) ?: return@withContext emptyList()
+        val out = ArrayList<EpgItem>()
+        try {
+            val root = JSONObject(body)
+            val arr = root.optJSONArray("epg_listings") ?: return@withContext emptyList()
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val title = decodeB64(o.optString("title"))
+                val desc = decodeB64(o.optString("description")).ifBlank { null }
+                val start = o.optString("start_timestamp").toLongOrNull()?.times(1000) ?: 0L
+                val end = o.optString("stop_timestamp").toLongOrNull()?.times(1000) ?: 0L
+                if (title.isBlank() || start == 0L) continue
+                out += EpgItem(start, end, title, desc)
+            }
+        } catch (_: Exception) {}
+        out
+    }
+
+    private fun decodeB64(s: String): String = try {
+        if (s.isBlank()) "" else String(android.util.Base64.decode(s, android.util.Base64.DEFAULT), Charsets.UTF_8)
+    } catch (_: Exception) { s }
+
     // ---------- HTTP ----------
+
 
     private fun get(url: String): String? {
         return try {
