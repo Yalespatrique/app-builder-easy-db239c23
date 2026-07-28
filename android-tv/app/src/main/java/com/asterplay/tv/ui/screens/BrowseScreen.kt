@@ -398,6 +398,14 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 }
             }
         }
+
+        if (showLiveFullscreen) {
+            LiveFullscreenPane(
+                player = livePlayer,
+                name = selectedLive!!.name,
+                onExit = { liveFullscreen = false },
+            )
+        }
     }
 }
 
