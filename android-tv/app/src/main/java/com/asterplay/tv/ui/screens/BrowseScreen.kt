@@ -324,7 +324,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     player = livePlayer,
                     onPick = { selectedLive = it },
                     onEnterFullscreen = { liveFullscreen = true },
-                    fullscreen = liveFullscreen,
+
 
                 )
             } else {
