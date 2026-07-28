@@ -99,16 +99,18 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
-    val searching = query.trim().length >= 2
+    val hasSearchQuery = query.trim().isNotEmpty()
+    val canSearch = query.trim().length >= 2
 
     LaunchedEffect(query, type) {
-        if (creds == null || !searching) { results = emptyList(); searchLoading = false; return@LaunchedEffect }
+        if (creds == null || !canSearch) { results = emptyList(); searchLoading = false; return@LaunchedEffect }
         searchLoading = true
-        kotlinx.coroutines.delay(300)
+        kotlinx.coroutines.delay(500)
         val account = CacheDb.accountKey(creds.host, creds.username)
         results = withContext(Dispatchers.IO) { CacheDb.get(ctx).searchKind(account, type, query.trim()) }
         searchLoading = false
     }
+
 
     val pageSize = 100
 
@@ -216,7 +218,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         CategoryItem(
                             name = cat.name,
                             count = 0,
-                            selected = i == selectedIdx && !searching,
+                            selected = i == selectedIdx && !hasSearchQuery,
                             onClick = { query = ""; onSelectCategory(i) },
                             onFocus = { /* não trocar por foco: evita voltar pra primeira */ },
                         )
@@ -243,26 +245,29 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
                     val catName = categories.getOrNull(selectedIdx)?.name ?: ""
                     Text(
-                        if (searching) "Resultados para \"$query\"" else catName,
+                        if (hasSearchQuery) {
+                            if (canSearch) "Resultados para \"$query\"" else "Buscar"
+                        } else catName,
                         color = TextPrimary, style = MaterialTheme.typography.headlineLarge,
                     )
                     Text(
                         when {
-                            searching && searchLoading -> "Buscando..."
-                            searching -> "${results.size} resultados no conteúdo já carregado"
+                            hasSearchQuery && !canSearch -> "Digite pelo menos 2 caracteres"
+                            hasSearchQuery && searchLoading -> "Buscando..."
+                            hasSearchQuery -> "${results.size} resultados"
                             loadingItems -> "Carregando..."
                             else -> "Mostrando $shownCount de ${items.size} itens"
                         },
                         color = TextMuted, style = MaterialTheme.typography.labelMedium,
                     )
                     Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
-                        val visible = remember(items, shownCount, results, searching) {
-                            if (searching) results else items.take(shownCount)
+                        val visible = remember(items, shownCount, results, hasSearchQuery) {
+                            if (hasSearchQuery) results else items.take(shownCount)
                         }
                         val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
-                        LaunchedEffect(gridState, items, shownCount, searching) {
-                            if (searching) return@LaunchedEffect
+                        LaunchedEffect(gridState, items, shownCount, hasSearchQuery) {
+                            if (hasSearchQuery) return@LaunchedEffect
                             androidx.compose.runtime.snapshotFlow {
                                 gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                             }.collect { lastVisible ->
