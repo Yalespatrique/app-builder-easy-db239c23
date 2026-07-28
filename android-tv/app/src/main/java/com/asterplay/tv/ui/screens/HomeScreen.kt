@@ -516,10 +516,12 @@ private fun SettingsPanel(
                         SettingsPaneTitle(
                             "DNS / Anti-bloqueio",
                             "Alguns provedores de internet bloqueiam listas de IPTV pelo DNS. " +
-                                "Escolha um DNS público e o app passa a resolver os endereços por " +
-                                "conta própria (DNS sobre HTTPS), sem depender do provedor.",
+                                "No modo Automático (padrão) o app detecta o bloqueio sozinho e " +
+                                "passa a resolver os endereços por DNS sobre HTTPS — você não " +
+                                "precisa mexer em nada.",
                         )
                         listOf(
+                            Net.DNS_AUTO,
                             Net.DNS_SYSTEM,
                             Net.DNS_GOOGLE,
                             Net.DNS_CLOUDFLARE,
@@ -536,11 +538,15 @@ private fun SettingsPanel(
                             )
                         }
                         Text(
-                            "Se a lista parar de abrir depois de trocar, volte para \"Padrão do provedor\".",
+                            if (dns == Net.DNS_AUTO && Net.autoFallbackActive)
+                                "Bloqueio do provedor detectado — o app já está usando DNS seguro automaticamente."
+                            else
+                                "Deixe em \"Automático\" se não souber o que escolher.",
                             color = TextMuted,
                             style = MaterialTheme.typography.labelMedium,
                         )
                     }
+
                     SettingsSection.CACHE -> {
                         SettingsPaneTitle(
                             "Cache da lista",
