@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,6 +81,7 @@ import java.util.Locale
  * Master-detail via Xtream API + cache SQLite com TTL.
  * Só carrega o que o usuário abre.
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) -> Unit = {}, onOpenSeriesDetail: (Channel) -> Unit = {}) {
 

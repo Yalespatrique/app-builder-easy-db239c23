@@ -30,6 +30,7 @@ import com.asterplay.tv.ui.theme.BgBase
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent { AsterplayApp() }
     }
 }
