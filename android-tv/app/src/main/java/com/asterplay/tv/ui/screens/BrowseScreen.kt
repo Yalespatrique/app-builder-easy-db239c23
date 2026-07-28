@@ -297,10 +297,11 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         // Overlay fullscreen cobre TODA a tela (inclusive a barra de categorias)
         if (isChannels && selectedLive != null && fullscreen) {
             FullscreenChannelOverlay(
-                channel = selectedLive!!,
-                onExit = { fullscreen = false },
+                playerView = livePlayerView,
+                onExit = { toggleFullscreen(false) },
             )
         }
+
     }
 }
 
