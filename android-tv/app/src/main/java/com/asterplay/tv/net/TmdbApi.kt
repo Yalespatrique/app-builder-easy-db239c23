@@ -16,7 +16,13 @@ object TmdbApi {
     private const val IMG = "https://image.tmdb.org/t/p/w342"
     private const val BACKDROP = "https://image.tmdb.org/t/p/w1280"
 
-    data class Item(val title: String, val poster: String?, val tmdbId: Long)
+    data class Item(
+        val title: String,
+        val poster: String?,
+        val tmdbId: Long,
+        val originalTitle: String? = null,
+        val year: String? = null,
+    )
 
     data class Details(
         val overview: String?,
@@ -81,7 +87,10 @@ object TmdbApi {
                     val name = o.optString(nameField).ifBlank { o.optString("title") }
                     if (name.isBlank()) continue
                     val poster = o.optString("poster_path", "").takeIf { it.isNotBlank() }?.let { "$IMG$it" }
-                    out += Item(title = name, poster = poster, tmdbId = o.optLong("id"))
+                    val original = o.optString("original_title").ifBlank { o.optString("original_name") }.ifBlank { null }
+                    val date = o.optString("release_date").ifBlank { o.optString("first_air_date") }
+                    val year = date.take(4).takeIf { it.length == 4 && it.all { c -> c.isDigit() } }
+                    out += Item(title = name, poster = poster, tmdbId = o.optLong("id"), originalTitle = original, year = year)
                 }
                 out
             } catch (_: Throwable) { emptyList() } finally { con.disconnect() }

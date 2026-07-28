@@ -78,22 +78,27 @@ object TopHomePreload {
 
     private fun match(tmdb: List<TmdbApi.Item>, server: List<Channel>, limit: Int): List<TopCacheStore.Entry> {
         if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
-        data class IdxEntry(val key: String, val ch: Channel)
+        data class IdxEntry(val key: String, val rawLower: String, val ch: Channel)
         val index = ArrayList<IdxEntry>(server.size)
-        val seen = HashSet<String>()
         for (c in server) {
             val k = norm(c.name)
-            if (k.isNotEmpty() && seen.add(k)) index += IdxEntry(k, c)
+            if (k.isNotEmpty()) index += IdxEntry(k, c.name.lowercase(), c)
         }
         val out = ArrayList<TopCacheStore.Entry>(limit)
         val usedUrls = HashSet<String>()
         for (t in tmdb) {
             if (out.size >= limit) break
-            val tk = norm(t.title); if (tk.isEmpty()) continue
-            var hit: Channel? = index.firstOrNull { it.key == tk }?.ch
-            if (hit == null) hit = index.firstOrNull { it.key.startsWith("$tk ") || it.key.endsWith(" $tk") }?.ch
-            if (hit == null) hit = index.firstOrNull { it.key.contains(" $tk ") }?.ch
-            if (hit == null && tk.length >= 4) hit = index.firstOrNull { it.key.contains(tk) || tk.contains(it.key) }?.ch
+            val keys = listOfNotNull(norm(t.title), t.originalTitle?.let { norm(it) })
+                .filter { it.isNotEmpty() }
+                .distinct()
+            if (keys.isEmpty()) continue
+            val year = t.year
+            // 1) Match exato + ano no nome bruto (mais seguro)
+            var hit: Channel? = if (year != null) {
+                index.firstOrNull { e -> e.key in keys && e.rawLower.contains(year) }?.ch
+            } else null
+            // 2) Match exato do título normalizado
+            if (hit == null) hit = index.firstOrNull { it.key in keys }?.ch
             if (hit != null && usedUrls.add(hit.url)) out += TopCacheStore.Entry(
                 title = t.title, poster = t.poster, tmdbId = t.tmdbId,
                 chName = hit.name, chUrl = hit.url, chLogo = hit.logo,
