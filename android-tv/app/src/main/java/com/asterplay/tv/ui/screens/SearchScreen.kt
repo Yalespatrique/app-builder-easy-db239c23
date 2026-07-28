@@ -34,6 +34,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.asterplay.tv.net.Channel
 import com.asterplay.tv.player.PlayerActivity
+import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.PosterCard
@@ -103,7 +104,7 @@ fun SearchScreen(onBack: () -> Unit) {
                     onClick = {
                         if (ch.url.startsWith("asterplay://")) return@PosterCard
                         val i = Intent(ctx, PlayerActivity::class.java)
-                        i.putExtra("url", ch.url); i.putExtra("name", ch.name)
+                        i.putExtra("url", SettingsStore.applyFormat(ctx, ch.url)); i.putExtra("name", ch.name)
                         ctx.startActivity(i)
                     },
                 )
