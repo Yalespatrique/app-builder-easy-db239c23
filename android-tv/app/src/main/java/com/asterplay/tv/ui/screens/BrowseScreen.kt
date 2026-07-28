@@ -96,6 +96,19 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     var loadingItems by remember { mutableStateOf(false) }
     var loadingCats by remember { mutableStateOf(true) }
     var selectedLive by remember { mutableStateOf<Channel?>(null) }
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<Channel>>(emptyList()) }
+    var searchLoading by remember { mutableStateOf(false) }
+    val searching = query.trim().length >= 2
+
+    LaunchedEffect(query, type) {
+        if (creds == null || !searching) { results = emptyList(); searchLoading = false; return@LaunchedEffect }
+        searchLoading = true
+        kotlinx.coroutines.delay(300)
+        val account = CacheDb.accountKey(creds.host, creds.username)
+        results = withContext(Dispatchers.IO) { CacheDb.get(ctx).searchKind(account, type, query.trim()) }
+        searchLoading = false
+    }
 
     val pageSize = 100
 
@@ -186,6 +199,14 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         if (loadingCats) "Carregando..." else "${categories.size} categorias",
                         color = TextMuted, style = MaterialTheme.typography.labelMedium,
                     )
+                    if (!isChannels) {
+                        Spacer(Modifier.height(12.dp))
+                        SearchField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = if (type == "vod") "Buscar filme..." else "Buscar série...",
+                        )
+                    }
                 }
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
@@ -195,8 +216,8 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         CategoryItem(
                             name = cat.name,
                             count = 0,
-                            selected = i == selectedIdx,
-                            onClick = { onSelectCategory(i) },
+                            selected = i == selectedIdx && !searching,
+                            onClick = { query = ""; onSelectCategory(i) },
                             onFocus = { /* não trocar por foco: evita voltar pra primeira */ },
                         )
                     }
@@ -221,17 +242,27 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             } else {
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
                     val catName = categories.getOrNull(selectedIdx)?.name ?: ""
-                    Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
                     Text(
-                        if (loadingItems) "Carregando..."
-                        else "Mostrando $shownCount de ${items.size} itens",
+                        if (searching) "Resultados para \"$query\"" else catName,
+                        color = TextPrimary, style = MaterialTheme.typography.headlineLarge,
+                    )
+                    Text(
+                        when {
+                            searching && searchLoading -> "Buscando..."
+                            searching -> "${results.size} resultados no conteúdo já carregado"
+                            loadingItems -> "Carregando..."
+                            else -> "Mostrando $shownCount de ${items.size} itens"
+                        },
                         color = TextMuted, style = MaterialTheme.typography.labelMedium,
                     )
                     Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
-                        val visible = remember(items, shownCount) { items.take(shownCount) }
+                        val visible = remember(items, shownCount, results, searching) {
+                            if (searching) results else items.take(shownCount)
+                        }
                         val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
-                        LaunchedEffect(gridState, items, shownCount) {
+                        LaunchedEffect(gridState, items, shownCount, searching) {
+                            if (searching) return@LaunchedEffect
                             androidx.compose.runtime.snapshotFlow {
                                 gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                             }.collect { lastVisible ->
@@ -511,6 +542,73 @@ private fun EpgRow(item: XtreamApi.EpgItem, isNow: Boolean) {
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Campo de busca (EditText nativo) — o teclado da TV abre ao apertar OK.
+ */
+@Composable
+private fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(BgElevated, RoundedCornerShape(8.dp))
+            .then(
+                if (focused) Modifier.border(2.dp, Accent, RoundedCornerShape(8.dp))
+                else Modifier.border(1.dp, Color(0x14FFFFFF), RoundedCornerShape(8.dp)),
+            )
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { c ->
+                android.widget.EditText(c).apply {
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setTextColor(android.graphics.Color.WHITE)
+                    setHintTextColor(android.graphics.Color.GRAY)
+                    hint = placeholder
+                    textSize = 16f
+                    isSingleLine = true
+                    setPadding(0, 0, 0, 0)
+                    inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                        android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    showSoftInputOnFocus = false
+
+                    fun openKeyboard() {
+                        requestFocus()
+                        val imm = c.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                            as android.view.inputmethod.InputMethodManager
+                        imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                    }
+
+                    setOnClickListener { openKeyboard() }
+                    setOnKeyListener { _, keyCode, event ->
+                        if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+                            (keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_ENTER)
+                        ) {
+                            openKeyboard(); true
+                        } else false
+                    }
+                    setOnFocusChangeListener { _, hasFocus -> focused = hasFocus }
+                    addTextChangedListener(object : android.text.TextWatcher {
+                        override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
+                        override fun onTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
+                        override fun afterTextChanged(s: android.text.Editable?) {
+                            val t = s?.toString().orEmpty()
+                            if (t != value) onValueChange(t)
+                        }
+                    })
+                }
+            },
+            update = { et -> if (et.text.toString() != value) et.setText(value) },
         )
     }
 }

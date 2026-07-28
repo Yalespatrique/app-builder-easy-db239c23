@@ -90,7 +90,6 @@ fun AsterplayApp() {
                 composable(Routes.Home) {
                     HomeScreen(
                         onOpenBrowse = { type -> nav.navigate(Routes.browse(type)) },
-                        onOpenSearch = { nav.navigate(Routes.Search) },
                         onLogout = {
                             nav.navigate(Routes.Pairing) {
                                 popUpTo(Routes.Home) { inclusive = true }

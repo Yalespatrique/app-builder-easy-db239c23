@@ -32,7 +32,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
 
 import androidx.compose.runtime.Composable
@@ -91,7 +91,6 @@ private data class TopHit(val tmdb: TmdbApi.Item, val channel: Channel)
 @Composable
 fun HomeScreen(
     onOpenBrowse: (String) -> Unit,
-    onOpenSearch: () -> Unit,
     onLogout: () -> Unit,
     onOpenMovieDetail: (Channel, Long?) -> Unit,
     onOpenSeriesDetail: (Channel, Long?) -> Unit,
@@ -106,6 +105,7 @@ fun HomeScreen(
     var recentMovies by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val creds = XtreamStore.get(ctx)
@@ -169,7 +169,7 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.LiveTv, "Canais") { onOpenBrowse("live") }
                 SideMenuItem(Icons.Default.Movie, "Filmes") { onOpenBrowse("vod") }
                 SideMenuItem(Icons.Default.Tv, "Séries") { onOpenBrowse("series") }
-                SideMenuItem(Icons.Default.Search, "Busca") { onOpenSearch() }
+                SideMenuItem(Icons.Default.Settings, "Configurações") { showSettings = true }
                 SideMenuItem(Icons.Default.Favorite, "Favoritos") { /* futuro */ }
                 Spacer(Modifier.weight(1f))
                 SideMenuItem(Icons.Default.Logout, "Sair") {
@@ -233,6 +233,59 @@ fun HomeScreen(
                     onPick = { ch -> onOpenSeriesDetail(ch, null) },
                 )
             }
+        }
+
+        if (showSettings) {
+            SettingsPanel(
+                mac = mac,
+                onClose = { showSettings = false },
+                onClearCache = {
+                    CacheDb.get(ctx).clearAll()
+                    TopCacheStore.clear(ctx)
+                    topMovies = emptyList(); topSeries = emptyList()
+                    recentMovies = emptyList(); recentSeries = emptyList()
+                    showSettings = false
+                },
+                onLogout = {
+                    PlaylistStore.clear(ctx); XtreamStore.clear(ctx)
+                    CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx)
+                    showSettings = false
+                    onLogout()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsPanel(
+    mac: String,
+    onClose: () -> Unit,
+    onClearCache: () -> Unit,
+    onLogout: () -> Unit,
+) {
+    androidx.activity.compose.BackHandler(enabled = true) { onClose() }
+    Box(
+        Modifier.fillMaxSize().background(Color(0xE605060B)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .width(560.dp)
+                .background(BgSurface, RoundedCornerShape(16.dp))
+                .padding(32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("CONFIGURAÇÕES", color = Accent, style = MaterialTheme.typography.labelLarge)
+            Text("Dispositivo e conta", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text("MAC: ${DeviceId.formatted(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+            Text("Chave: ${DeviceId.getKey(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+            Text("Versão: v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(16.dp))
+            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClearCache)
+            SideMenuItem(Icons.Default.Logout, "Sair da conta", onLogout)
+            SideMenuItem(Icons.Default.Tv, "Fechar", onClose)
         }
     }
 }

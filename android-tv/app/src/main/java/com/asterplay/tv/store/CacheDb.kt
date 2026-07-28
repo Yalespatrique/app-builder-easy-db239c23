@@ -162,6 +162,23 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         return out
     }
 
+    /** Busca restrita a um tipo (live / vod / series). */
+    fun searchKind(account: String, kind: String, query: String, limit: Int = 300): List<Channel> {
+        val out = ArrayList<Channel>()
+        readableDatabase.rawQuery(
+            "SELECT name,url,logo,cat_id,tvg FROM streams_cache WHERE account=? AND kind=? AND name LIKE ? ORDER BY name COLLATE NOCASE LIMIT ?",
+            arrayOf(account, kind, "%$query%", limit.toString()),
+        ).use {
+            while (it.moveToNext()) {
+                out += Channel(
+                    name = it.getString(0), url = it.getString(1), logo = it.getString(2),
+                    group = it.getString(3), tvgId = it.getString(4),
+                )
+            }
+        }
+        return out
+    }
+
     /** Busca canais no cache pelas URLs (usado no Home para "Continuar assistindo"). */
     fun findByUrls(account: String, urls: List<String>): Map<String, Channel> {
         if (urls.isEmpty()) return emptyMap()
