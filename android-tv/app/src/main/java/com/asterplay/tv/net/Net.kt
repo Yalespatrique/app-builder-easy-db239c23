@@ -88,13 +88,30 @@ object Net {
      * loopback/0.0.0.0 — refaz a consulta por DNS-over-HTTPS. Assim o usuário
      * leigo não precisa configurar nada.
      */
+    @Volatile
+    private var forcedDoh = false
+
+    /**
+     * Liga o DNS seguro imediatamente (usado quando um conteúdo demora demais
+     * para abrir — sintoma clássico de bloqueio do provedor).
+     * Retorna true se algo mudou e vale a pena tentar de novo.
+     */
+    fun forceSecureDnsNow(): Boolean {
+        if (mode != DNS_AUTO || forcedDoh) return false
+        forcedDoh = true
+        autoFallbackActive = true
+        cached = null
+        cachedMode = null
+        return true
+    }
+
     private object AutoDns : Dns {
         private val fallbacks: List<Dns> by lazy {
             listOf(doh(DNS_CLOUDFLARE), doh(DNS_GOOGLE))
         }
 
         override fun lookup(hostname: String): List<InetAddress> {
-            val system = runCatching { Dns.SYSTEM.lookup(hostname) }.getOrNull()
+            val system = if (forcedDoh) null else runCatching { Dns.SYSTEM.lookup(hostname) }.getOrNull()
             val ok = system?.filter { it.isUsable() }.orEmpty()
             if (ok.isNotEmpty()) return ok
             for (f in fallbacks) {
@@ -111,6 +128,7 @@ object Net {
         private fun InetAddress.isUsable(): Boolean =
             !isLoopbackAddress && !isAnyLocalAddress && !isLinkLocalAddress && !isMulticastAddress
     }
+
 
 
     private fun doh(m: String): Dns {
