@@ -187,7 +187,6 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 channels = items,
                 current = selectedLive!!,
                 onPick = { selectedLive = it },
-                onReselect = { /* fullscreen handled internally */ },
             )
         } else {
             Column(Modifier.fillMaxSize().padding(32.dp)) {
