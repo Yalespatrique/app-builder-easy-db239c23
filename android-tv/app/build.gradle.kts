@@ -73,6 +73,7 @@ dependencies {
     implementation("androidx.media3:media3-datasource-okhttp:$media3")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
 
     // Image loading (Compose)
     implementation("io.coil-kt:coil-compose:2.7.0")
