@@ -91,16 +91,26 @@ fun PairingScreen(onActivated: () -> Unit) {
         if (code.isBlank() || user.isBlank() || pass.isBlank()) {
             message = "Preencha código, usuário e senha"; return
         }
-        loading = true; message = null
+        loading = true; message = "Verificando sua conta..."
         scope.launch {
             val r = PanelApi.activateWithCode(code.trim(), user.trim(), pass.trim())
+            if (!r.ok || r.playlistUrl == null || r.xtream == null) {
+                loading = false
+                message = r.message ?: "Código, usuário ou senha inválidos"
+                return@launch
+            }
+            // Confirma direto no servidor da lista antes de entrar.
+            val auth = com.asterplay.tv.net.XtreamApi.authenticateDetailed(r.xtream)
             loading = false
-            if (r.ok && r.playlistUrl != null && r.xtream != null) {
-                PlaylistStore.save(ctx, r.playlistUrl)
-                com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
-                com.asterplay.tv.store.LoginStore.saveCode(ctx, code.trim(), user.trim(), pass.trim())
-                onActivated()
-            } else message = r.message ?: "Falha no login"
+            if (auth == com.asterplay.tv.net.XtreamApi.AuthResult.INVALID) {
+                message = "Usuário ou senha inválidos para esse código"
+                return@launch
+            }
+            PlaylistStore.save(ctx, r.playlistUrl)
+            com.asterplay.tv.store.XtreamStore.save(ctx, r.xtream)
+            com.asterplay.tv.store.LoginStore.saveCode(ctx, code.trim(), user.trim(), pass.trim())
+            message = null
+            onActivated()
         }
     }
 
