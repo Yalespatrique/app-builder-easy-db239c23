@@ -297,7 +297,7 @@ private fun TvTextField(
                         }
                         isFocusable = true
                         isFocusableInTouchMode = true
-                        showSoftInputOnFocus = true
+                        showSoftInputOnFocus = false
 
                         fun openKeyboard() {
                             requestFocus()
@@ -306,9 +306,16 @@ private fun TvTextField(
                         }
 
                         setOnClickListener { openKeyboard() }
+                        setOnKeyListener { _, keyCode, event ->
+                            if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+                                (keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER || keyCode == android.view.KeyEvent.KEYCODE_ENTER)
+                            ) {
+                                openKeyboard()
+                                true
+                            } else false
+                        }
                         setOnFocusChangeListener { _, hasFocus ->
                             focused = hasFocus
-                            if (hasFocus) post { openKeyboard() }
                         }
                         addTextChangedListener(object : android.text.TextWatcher {
                             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
