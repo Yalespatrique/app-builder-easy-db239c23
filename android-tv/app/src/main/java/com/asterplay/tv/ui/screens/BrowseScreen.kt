@@ -186,6 +186,14 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         if (loadingCats) "Carregando..." else "${categories.size} categorias",
                         color = TextMuted, style = MaterialTheme.typography.labelMedium,
                     )
+                    if (!isChannels) {
+                        Spacer(Modifier.height(12.dp))
+                        SearchField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = if (type == "vod") "Buscar filme..." else "Buscar série...",
+                        )
+                    }
                 }
                 LazyColumn(
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
@@ -195,8 +203,8 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         CategoryItem(
                             name = cat.name,
                             count = 0,
-                            selected = i == selectedIdx,
-                            onClick = { onSelectCategory(i) },
+                            selected = i == selectedIdx && !searching,
+                            onClick = { query = ""; onSelectCategory(i) },
                             onFocus = { /* não trocar por foco: evita voltar pra primeira */ },
                         )
                     }
