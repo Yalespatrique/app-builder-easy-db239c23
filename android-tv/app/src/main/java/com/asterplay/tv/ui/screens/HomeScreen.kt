@@ -265,30 +265,237 @@ private fun SettingsPanel(
     onLogout: () -> Unit,
 ) {
     androidx.activity.compose.BackHandler(enabled = true) { onClose() }
+    val ctx = LocalContext.current
+
+    var parental by remember { mutableStateOf(SettingsStore.parentalEnabled(ctx)) }
+    var tmdb by remember { mutableStateOf(SettingsStore.tmdbEnabled(ctx)) }
+    var format by remember { mutableStateOf(SettingsStore.streamFormat(ctx)) }
+
+    // "toggle" = pede PIN pra ligar/desligar | "change" = pede PIN atual e depois novo
+    var pinMode by remember { mutableStateOf<String?>(null) }
+
     Box(
         Modifier.fillMaxSize().background(Color(0xE605060B)),
         contentAlignment = Alignment.Center,
     ) {
         Column(
             Modifier
-                .width(560.dp)
+                .width(620.dp)
                 .background(BgSurface, RoundedCornerShape(16.dp))
-                .padding(32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(28.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("CONFIGURAÇÕES", color = Accent, style = MaterialTheme.typography.labelLarge)
-            Text("Dispositivo e conta", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text("MAC: ${DeviceId.formatted(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
-            Text("Chave: ${DeviceId.getKey(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
+            Text("Dispositivo e conta", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("MAC: ${DeviceId.formatted(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Text("Chave: ${DeviceId.getKey(mac)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             Text("Versão: v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.height(16.dp))
+
+            Spacer(Modifier.height(10.dp))
+            Text("Preferências", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            SettingRow(
+                icon = Icons.Default.Lock,
+                label = "Controle parental",
+                value = if (parental) "Ativado — categorias adultas ocultas" else "Desativado",
+                onClick = { pinMode = "toggle" },
+            )
+            SettingRow(
+                icon = Icons.Default.Lock,
+                label = "Alterar senha do controle parental",
+                value = "PIN de 4 dígitos (padrão 0000)",
+                onClick = { pinMode = "change" },
+            )
+            SettingRow(
+                icon = Icons.Default.Movie,
+                label = "Informações via TMDB",
+                value = if (tmdb) "Ativado — capas e sinopses do TMDB" else "Desativado — dados do provedor",
+                onClick = {
+                    tmdb = !tmdb
+                    SettingsStore.setTmdbEnabled(ctx, tmdb)
+                },
+            )
+            SettingRow(
+                icon = Icons.Default.LiveTv,
+                label = "Fluxo de vídeo",
+                value = when (format) {
+                    SettingsStore.FORMAT_HLS -> "HLS (m3u8)"
+                    SettingsStore.FORMAT_TS -> "TS (.ts)"
+                    else -> "Padrão do provedor"
+                },
+                onClick = {
+                    format = when (format) {
+                        SettingsStore.FORMAT_DEFAULT -> SettingsStore.FORMAT_HLS
+                        SettingsStore.FORMAT_HLS -> SettingsStore.FORMAT_TS
+                        else -> SettingsStore.FORMAT_DEFAULT
+                    }
+                    SettingsStore.setStreamFormat(ctx, format)
+                },
+            )
+
+            Spacer(Modifier.height(10.dp))
             SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClearCache)
             SideMenuItem(Icons.Default.Logout, "Sair da conta", onLogout)
             SideMenuItem(Icons.Default.Tv, "Fechar", onClose)
         }
+
+        if (pinMode != null) {
+            PinDialog(
+                mode = pinMode!!,
+                onDismiss = { pinMode = null },
+                onUnlockToggle = {
+                    parental = !parental
+                    SettingsStore.setParentalEnabled(ctx, parental)
+                    pinMode = null
+                },
+                onChangePin = { novo ->
+                    SettingsStore.setPin(ctx, novo)
+                    pinMode = null
+                },
+            )
+        }
     }
 }
+
+@Composable
+private fun SettingRow(icon: ImageVector, label: String, value: String, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Surface(
+        onClick = onClick,
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = BgElevated,
+        ),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
+        modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, null, tint = if (focused) Accent else TextSecondary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    label,
+                    color = if (focused) TextPrimary else TextSecondary,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+                )
+                Text(value, color = if (focused) Accent else TextMuted, style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinDialog(
+    mode: String,
+    onDismiss: () -> Unit,
+    onUnlockToggle: () -> Unit,
+    onChangePin: (String) -> Unit,
+) {
+    androidx.activity.compose.BackHandler(enabled = true) { onDismiss() }
+    val ctx = LocalContext.current
+    var step by remember { mutableStateOf(0) } // 0 = PIN atual, 1 = novo PIN
+    var pin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    Box(Modifier.fillMaxSize().background(Color(0xF2000000)), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                if (step == 0) "Digite o PIN" else "Novo PIN",
+                color = TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                if (step == 0) "PIN padrão: 0000" else "Informe 4 dígitos",
+                color = TextMuted,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            PinField(value = pin, onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) })
+            error?.let { Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.labelMedium) }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SideMenuItem(Icons.Default.Lock, "Confirmar") {
+                    if (step == 0) {
+                        if (SettingsStore.checkPin(ctx, pin)) {
+                            error = null
+                            if (mode == "toggle") onUnlockToggle() else { step = 1; pin = "" }
+                        } else {
+                            error = "PIN incorreto."
+                        }
+                    } else {
+                        if (pin.length == 4) onChangePin(pin) else error = "Use 4 dígitos."
+                    }
+                }
+                SideMenuItem(Icons.Default.Tv, "Cancelar", onDismiss)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinField(value: String, onValueChange: (String) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .background(BgSurface, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        androidx.compose.ui.viewinterop.AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { c ->
+                android.widget.EditText(c).apply {
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setTextColor(android.graphics.Color.WHITE)
+                    setHintTextColor(android.graphics.Color.GRAY)
+                    hint = "0000"
+                    textSize = 18f
+                    isSingleLine = true
+                    setPadding(0, 0, 0, 0)
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                        android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    showSoftInputOnFocus = false
+
+                    fun openKeyboard() {
+                        requestFocus()
+                        val imm = c.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
+                            as android.view.inputmethod.InputMethodManager
+                        imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                    }
+                    setOnClickListener { openKeyboard() }
+                    setOnKeyListener { _, keyCode, event ->
+                        if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+                            (keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_ENTER)
+                        ) { openKeyboard(); true } else false
+                    }
+                    setOnFocusChangeListener { _, hasFocus -> focused = hasFocus }
+                    addTextChangedListener(object : android.text.TextWatcher {
+                        override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
+                        override fun onTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
+                        override fun afterTextChanged(s: android.text.Editable?) {
+                            val t = s?.toString().orEmpty()
+                            if (t != value) onValueChange(t)
+                        }
+                    })
+                }
+            },
+            update = { et -> if (et.text.toString() != value) et.setText(value) },
+        )
+    }
+}
+
 
 private fun TopCacheStore.Entry.toHit() = TopHit(
     tmdb = TmdbApi.Item(title = title, poster = poster, tmdbId = tmdbId),
