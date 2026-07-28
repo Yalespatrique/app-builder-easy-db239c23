@@ -210,7 +210,7 @@ private fun AsterplayPlayerScreen(
         while (true) {
             position = player.currentPosition.coerceAtLeast(0L)
             duration = player.duration.let { if (it > 0) it else 0L }
-            if (!isLive && duration > 0) {
+            if (!isLive && duration > 0 && pendingResume == 0L) {
                 // salva o progresso a cada ~5s pra retomar mesmo se o app for encerrado
                 tick++
                 if (tick % 10 == 0) ResumeStore.save(ctx, url, position, duration)
