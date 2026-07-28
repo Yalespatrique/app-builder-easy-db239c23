@@ -119,8 +119,21 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     val header = when (type) { "vod" -> "FILMES"; "series" -> "SÉRIES"; else -> "CANAIS" }
     val isChannels = type == "live"
 
+    // Categoria virtual "Continuar assistindo" (só filmes e séries)
+    val continueCat = remember(type) {
+        if (type == "vod" || type == "series") {
+            XtreamCategory(ContinueStore.CATEGORY_ID, ContinueStore.CATEGORY_NAME)
+        } else null
+    }
+    var continueItems by remember { mutableStateOf<List<Channel>>(emptyList()) }
+
+    fun refreshContinue() {
+        continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
+    }
+
     LaunchedEffect(type) {
         if (creds == null) { onBack(); return@LaunchedEffect }
+        refreshContinue()
         val account = CacheDb.accountKey(creds.host, creds.username)
         loadingCats = true
         val cats = withContext(Dispatchers.IO) {
@@ -131,10 +144,16 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 fresh
             }
         }
-        categories = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
-        loadingCats = false
         val visibleCats = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
-        if (visibleCats.isNotEmpty()) {
+        val hasContinue = continueCat != null && continueItems.isNotEmpty()
+        categories = if (hasContinue) listOf(continueCat!!) + visibleCats else visibleCats
+        loadingCats = false
+        if (hasContinue) {
+            selectedIdx = 0
+            items = continueItems
+            shownCount = minOf(pageSize, continueItems.size)
+            loadingItems = false
+        } else if (visibleCats.isNotEmpty()) {
             selectedIdx = 0
             loadingItems = true
             val first = withContext(Dispatchers.IO) {
@@ -158,6 +177,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         loadingItems = true
         items = emptyList()
         shownCount = 0
+        if (categories[idx].id == ContinueStore.CATEGORY_ID) {
+            refreshContinue()
+            items = continueItems
+            shownCount = minOf(pageSize, continueItems.size)
+            loadingItems = false
+            return
+        }
         val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
             val list = withContext(Dispatchers.IO) {
@@ -173,6 +199,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             loadingItems = false
         }
     }
+
 
     val livePlayer = remember {
         ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
