@@ -131,8 +131,9 @@ object XtreamApi {
                     name = name, url = url,
                     logo = logo.ifEmpty { null },
                     group = o.optString("category_id").ifEmpty { null },
-                    tvgId = null,
+                    tvgId = o.optString("epg_channel_id").ifEmpty { null },
                 )
+
             }
         } catch (_: Exception) {}
         return@withContext out
