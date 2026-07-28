@@ -364,6 +364,7 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier, onRendering: (Boolean) -> Unit = {}) {
     val ctx = LocalContext.current
+    val renderCb = rememberUpdatedState(onRendering)
     val player = remember(url) {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(2_000, 8_000, 500, 1_000)
@@ -389,12 +390,24 @@ private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier, onRend
                             playWhenReady = true
                         }
                     }
+
+                    override fun onRenderedFirstFrame() {
+                        renderCb.value(true)
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        if (isPlaying) renderCb.value(true)
+                    }
                 })
             }
     }
     DisposableEffect(player) {
-        onDispose { player.release() }
+        onDispose {
+            renderCb.value(false)
+            player.release()
+        }
     }
+
     AndroidView(
         modifier = modifier,
         factory = { context ->
