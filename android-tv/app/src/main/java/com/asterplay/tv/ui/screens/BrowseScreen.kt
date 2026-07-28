@@ -60,6 +60,7 @@ import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.net.XtreamCategory
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
+import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.CategoryItem
 import com.asterplay.tv.ui.components.PosterCard
@@ -108,6 +109,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         kotlinx.coroutines.delay(500)
         val account = CacheDb.accountKey(creds.host, creds.username)
         results = withContext(Dispatchers.IO) { CacheDb.get(ctx).searchKind(account, type, query.trim()) }
+            .filter { !SettingsStore.isBlocked(ctx, it.name) }
         searchLoading = false
     }
 
@@ -129,16 +131,17 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 fresh
             }
         }
-        categories = cats
+        categories = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
         loadingCats = false
-        if (cats.isNotEmpty()) {
+        val visibleCats = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
+        if (visibleCats.isNotEmpty()) {
             selectedIdx = 0
             loadingItems = true
             val first = withContext(Dispatchers.IO) {
                 val db = CacheDb.get(ctx)
-                db.readStreams(account, type, cats[0].id) ?: run {
-                    val fresh = XtreamApi.streams(creds, type, cats[0].id)
-                    if (fresh.isNotEmpty()) db.writeStreams(account, type, cats[0].id, fresh, CacheDb.TTL_STREAMS)
+                db.readStreams(account, type, visibleCats[0].id) ?: run {
+                    val fresh = XtreamApi.streams(creds, type, visibleCats[0].id)
+                    if (fresh.isNotEmpty()) db.writeStreams(account, type, visibleCats[0].id, fresh, CacheDb.TTL_STREAMS)
                     fresh
                 }
             }
@@ -180,7 +183,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     LaunchedEffect(selectedLive?.url) {
         val url = selectedLive?.url
         if (url != null) {
-            livePlayer.setMediaItem(MediaItem.fromUri(url))
+            livePlayer.setMediaItem(MediaItem.fromUri(SettingsStore.applyFormat(ctx, url)))
             livePlayer.prepare()
             livePlayer.playWhenReady = true
         } else {
@@ -235,7 +238,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     onPick = { selectedLive = it },
                     onEnterFullscreen = {
                         val i = Intent(ctx, PlayerActivity::class.java)
-                        i.putExtra("url", selectedLive!!.url)
+                        i.putExtra("url", SettingsStore.applyFormat(ctx, selectedLive!!.url))
                         i.putExtra("name", selectedLive!!.name)
                         i.putExtra("type", "live")
                         ctx.startActivity(i)

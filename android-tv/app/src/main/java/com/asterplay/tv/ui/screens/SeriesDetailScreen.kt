@@ -48,6 +48,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.asterplay.tv.net.TmdbApi
+import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.WatchedStore
@@ -110,7 +111,7 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
                 }
                 val full = fullDef.await()
                 val finalTmdbId = args.tmdbId ?: full?.meta?.tmdbId
-                val tmdb = if (finalTmdbId != null) TmdbApi.details(finalTmdbId, "tv") else null
+                val tmdb = if (finalTmdbId != null && SettingsStore.tmdbEnabled(ctx)) TmdbApi.details(finalTmdbId, "tv") else null
 
                 SeriesMerged(
                     title = channel.name,

@@ -518,7 +518,7 @@ private fun play(ctx: android.content.Context, ch: Channel) {
         return
     }
     val i = Intent(ctx, PlayerActivity::class.java)
-    i.putExtra("url", ch.url); i.putExtra("name", ch.name)
+    i.putExtra("url", SettingsStore.applyFormat(ctx, ch.url)); i.putExtra("name", ch.name)
     i.putExtra("type", if (ch.url.contains("/live/")) "live" else "vod")
     ctx.startActivity(i)
 }

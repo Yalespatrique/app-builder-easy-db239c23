@@ -56,6 +56,7 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.TmdbApi
+import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.XtreamStore
@@ -111,7 +112,7 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                 }
                 val vod = vodDeferred.await()
                 val finalTmdbId = args.tmdbId ?: vod?.tmdbId
-                val tmdb = if (finalTmdbId != null) TmdbApi.details(finalTmdbId, args.kind) else null
+                val tmdb = if (finalTmdbId != null && SettingsStore.tmdbEnabled(ctx)) TmdbApi.details(finalTmdbId, args.kind) else null
 
                 MergedDetail(
                     title = channel.name,
