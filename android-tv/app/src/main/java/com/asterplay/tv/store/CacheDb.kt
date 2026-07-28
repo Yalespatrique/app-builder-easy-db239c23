@@ -144,6 +144,18 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         } finally { db.endTransaction() }
     }
 
+    /** Quantidade de itens já cacheados por categoria (para exibir o total no menu). */
+    fun countsByCategory(account: String, kind: String): Map<String, Int> {
+        val out = HashMap<String, Int>()
+        readableDatabase.rawQuery(
+            "SELECT cat_id, COUNT(*) FROM streams_cache WHERE account=? AND kind=? GROUP BY cat_id",
+            arrayOf(account, kind),
+        ).use {
+            while (it.moveToNext()) out[it.getString(0)] = it.getInt(1)
+        }
+        return out
+    }
+
     // -------- Busca (só nos itens já cacheados) --------
 
     fun search(account: String, query: String, limit: Int = 200): List<Channel> {
