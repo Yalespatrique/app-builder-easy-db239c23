@@ -182,14 +182,42 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     }
     LaunchedEffect(selectedLive?.url) {
         val url = selectedLive?.url
+        // sempre encerra o stream anterior antes de iniciar o novo
+        livePlayer.playWhenReady = false
+        livePlayer.stop()
+        livePlayer.clearMediaItems()
         if (url != null) {
             livePlayer.setMediaItem(MediaItem.fromUri(SettingsStore.applyFormat(ctx, url)))
             livePlayer.prepare()
             livePlayer.playWhenReady = true
-        } else {
-            livePlayer.stop()
         }
     }
+
+    // Pausa o player embutido quando a tela sai de foco (ex.: player em tela cheia)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
+                    livePlayer.playWhenReady = false
+                    livePlayer.stop()
+                }
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                    if (selectedLive != null && livePlayer.mediaItemCount == 0) {
+                        livePlayer.setMediaItem(
+                            MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
+                        )
+                        livePlayer.prepare()
+                        livePlayer.playWhenReady = true
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
 
     BackHandler(enabled = selectedLive != null) { selectedLive = null }
 
