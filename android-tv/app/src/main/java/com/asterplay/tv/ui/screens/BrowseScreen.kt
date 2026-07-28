@@ -441,6 +441,7 @@ private fun ChannelRowItem(
     selected: Boolean,
     onClick: () -> Unit,
     onFocus: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     Surface(
@@ -450,7 +451,7 @@ private fun ChannelRowItem(
             focusedContainerColor = BgElevated,
         ),
         shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(8.dp)),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .onFocusChanged {
                 focused = it.isFocused
