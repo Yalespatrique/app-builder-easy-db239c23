@@ -188,7 +188,7 @@ fun HomeScreen(
                     .padding(start = 24.dp, end = 16.dp, top = 24.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(R.drawable.logo_asterplay),
                         contentDescription = "Asterplay",
@@ -199,7 +199,10 @@ fun HomeScreen(
                         Text("EM ALTA ESTA SEMANA", color = Accent, style = MaterialTheme.typography.labelMedium)
                         Text("Top 10 do momento", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
                     }
+                    Spacer(Modifier.weight(1f))
+                    ValidityBadge(trial = isTrial, text = validity)
                 }
+
 
                 TopRow(
                     title = "🔥 TOP 10 FILMES DA SEMANA",
