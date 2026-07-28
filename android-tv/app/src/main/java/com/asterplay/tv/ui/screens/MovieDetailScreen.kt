@@ -57,6 +57,7 @@ import androidx.tv.material3.Text
 import coil.compose.AsyncImage
 import com.asterplay.tv.net.Channel
 import com.asterplay.tv.net.TmdbApi
+import com.asterplay.tv.store.ContinueStore
 import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
@@ -311,6 +312,7 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                         modifier = Modifier.focusRequester(playFocus),
                         onClick = {
                             previewSuspended = true
+                            ContinueStore.save(ctx, "vod", channel, channel.url)
                             val i = Intent(ctx, PlayerActivity::class.java)
                             i.putExtra("url", channel.url); i.putExtra("name", channel.name); i.putExtra("type", "vod")
                             ctx.startActivity(i)

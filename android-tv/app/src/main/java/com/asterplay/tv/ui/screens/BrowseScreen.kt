@@ -60,6 +60,7 @@ import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.net.XtreamCategory
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
+import com.asterplay.tv.store.ContinueStore
 import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.CategoryItem
@@ -119,8 +120,21 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     val header = when (type) { "vod" -> "FILMES"; "series" -> "SÉRIES"; else -> "CANAIS" }
     val isChannels = type == "live"
 
+    // Categoria virtual "Continuar assistindo" (só filmes e séries)
+    val continueCat = remember(type) {
+        if (type == "vod" || type == "series") {
+            XtreamCategory(ContinueStore.CATEGORY_ID, ContinueStore.CATEGORY_NAME)
+        } else null
+    }
+    var continueItems by remember { mutableStateOf<List<Channel>>(emptyList()) }
+
+    fun refreshContinue() {
+        continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
+    }
+
     LaunchedEffect(type) {
         if (creds == null) { onBack(); return@LaunchedEffect }
+        refreshContinue()
         val account = CacheDb.accountKey(creds.host, creds.username)
         loadingCats = true
         val cats = withContext(Dispatchers.IO) {
@@ -131,10 +145,16 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 fresh
             }
         }
-        categories = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
-        loadingCats = false
         val visibleCats = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
-        if (visibleCats.isNotEmpty()) {
+        val hasContinue = continueCat != null && continueItems.isNotEmpty()
+        categories = if (hasContinue) listOf(continueCat!!) + visibleCats else visibleCats
+        loadingCats = false
+        if (hasContinue) {
+            selectedIdx = 0
+            items = continueItems
+            shownCount = minOf(pageSize, continueItems.size)
+            loadingItems = false
+        } else if (visibleCats.isNotEmpty()) {
             selectedIdx = 0
             loadingItems = true
             val first = withContext(Dispatchers.IO) {
@@ -158,6 +178,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         loadingItems = true
         items = emptyList()
         shownCount = 0
+        if (categories[idx].id == ContinueStore.CATEGORY_ID) {
+            refreshContinue()
+            items = continueItems
+            shownCount = minOf(pageSize, continueItems.size)
+            loadingItems = false
+            return
+        }
         val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
             val list = withContext(Dispatchers.IO) {
@@ -173,6 +200,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             loadingItems = false
         }
     }
+
 
     val livePlayer = remember {
         ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
@@ -203,6 +231,22 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     livePlayer.stop()
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                    if (continueCat != null) {
+                        refreshContinue()
+                        val hasCont = continueItems.isNotEmpty()
+                        val hadCont = categories.firstOrNull()?.id == ContinueStore.CATEGORY_ID
+                        if (hasCont && !hadCont) {
+                            categories = listOf(continueCat) + categories
+                            selectedIdx += 1
+                        } else if (!hasCont && hadCont) {
+                            categories = categories.drop(1)
+                            selectedIdx = maxOf(0, selectedIdx - 1)
+                        }
+                        if (categories.getOrNull(selectedIdx)?.id == ContinueStore.CATEGORY_ID) {
+                            items = continueItems
+                            shownCount = minOf(pageSize, continueItems.size)
+                        }
+                    }
                     if (selectedLive != null && livePlayer.mediaItemCount == 0) {
                         livePlayer.setMediaItem(
                             MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
