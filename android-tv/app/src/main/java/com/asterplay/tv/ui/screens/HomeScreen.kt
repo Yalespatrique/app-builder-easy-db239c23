@@ -156,7 +156,13 @@ fun HomeScreen(
         )
         Box(Modifier.fillMaxSize().background(Color(0xCC07070F)))
 
-        Row(Modifier.fillMaxSize()) {
+        Row(
+            Modifier
+                .fillMaxSize()
+                // Com o painel de configurações aberto, o menu/conteúdo de trás
+                // fica inteiramente fora do foco do controle.
+                .focusProperties { canFocus = !showSettings },
+        ) {
             Column(
                 Modifier
                     .width(240.dp)
