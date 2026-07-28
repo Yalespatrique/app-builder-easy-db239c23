@@ -395,9 +395,9 @@ private fun SettingsPanel(
             )
 
             Spacer(Modifier.height(10.dp))
-            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClearCache)
-            SideMenuItem(Icons.Default.Logout, "Sair da conta", onLogout)
-            SideMenuItem(Icons.Default.Tv, "Fechar", onClose)
+            SideMenuItem(Icons.Default.Settings, "Limpar cache da lista", onClick = onClearCache)
+            SideMenuItem(Icons.Default.Logout, "Sair da conta", onClick = onLogout)
+            SideMenuItem(Icons.Default.Tv, "Fechar", onClick = onClose)
         }
 
         if (pinMode != null) {
@@ -499,7 +499,7 @@ private fun PinDialog(
                         if (pin.length == 4) onChangePin(pin) else error = "Use 4 dígitos."
                     }
                 }
-                SideMenuItem(Icons.Default.Tv, "Cancelar", onDismiss)
+                SideMenuItem(Icons.Default.Tv, "Cancelar", onClick = onDismiss)
             }
         }
     }
