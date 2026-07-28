@@ -94,6 +94,7 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onLogout: () -> Unit,
     onOpenMovieDetail: (Channel, Long?) -> Unit,
+    onOpenSeriesDetail: (Channel, Long?) -> Unit,
 ) {
 
     val ctx = LocalContext.current
