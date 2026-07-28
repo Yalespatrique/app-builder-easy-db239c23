@@ -294,6 +294,14 @@ private fun AsterplayPlayerScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(title, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     }
+                    if (!isLive && resumedFrom > 0) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "retomando de ${fmt(resumedFrom)}",
+                            color = NeonCyan,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
             }
         }
