@@ -466,7 +466,6 @@ private fun AsterplayPlayerScreen(
                 }
             }
         }
-        }
     }
 }
 
