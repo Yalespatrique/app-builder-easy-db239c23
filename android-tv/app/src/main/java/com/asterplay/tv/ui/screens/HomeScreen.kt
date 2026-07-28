@@ -478,9 +478,14 @@ private fun PinDialog(
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val confirmFocus = remember { FocusRequester() }
-    LaunchedEffect(step) { runCatching { confirmFocus.requestFocus() } }
+    LaunchedEffect(step) {
+        repeat(20) {
+            if (runCatching { confirmFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(60)
+        }
+    }
 
-    Box(Modifier.fillMaxSize().background(Color(0xF2000000)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color(0xF2000000)).focusGroup(), contentAlignment = Alignment.Center) {
         Column(
             Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp).focusGroup(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
