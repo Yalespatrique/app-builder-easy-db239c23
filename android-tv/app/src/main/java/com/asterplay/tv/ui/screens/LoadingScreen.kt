@@ -105,7 +105,33 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             sub = "usando dados salvos..."
             delay(1200)
         }
+
+        // Validade da lista (exp_date do painel Xtream) pra mostrar no menu inicial.
+        sub = "verificando validade da lista..."
+        XtreamApi.accountInfo(c)?.let {
+            AccountStore.saveExpiry(ctx, it.expiryMillis, it.status)
+        }
+
+        // DNS cadastrada no painel admin? Se não estiver, o app roda em
+        // teste grátis de 7 dias; depois disso volta pro login.
+        when (PanelApi.isDnsRegistered(c.host)) {
+            true -> AccountStore.markDnsRegistered(ctx)
+            false -> {
+                AccountStore.startTrialIfNeeded(ctx)
+                if (AccountStore.trialExpired(ctx)) {
+                    status = "Teste grátis encerrado"
+                    sub = "Ative o app ou use uma lista com DNS cadastrada."
+                    delay(2600)
+                    XtreamStore.clear(ctx); PlaylistStore.clear(ctx); LoginStore.clear(ctx)
+                    onFail()
+                    return@LaunchedEffect
+                }
+            }
+            null -> { /* sem internet pra checar: não bloqueia */ }
+        }
+
         // Conta validada: carrega o menu antes de abrir a Home.
+
         // - categorias de canais, filmes e séries
         // - todos os canais ao vivo (filmes/séries continuam lazy por categoria)
         MenuPreload.run(ctx, c) { sub = it }
