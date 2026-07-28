@@ -273,6 +273,33 @@ fun HomeScreen(
     }
 }
 
+/** Selo com a validade da lista (ou os dias restantes do teste grátis). */
+@Composable
+private fun ValidityBadge(trial: Boolean, text: String) {
+    val accent = if (trial) Color(0xFFFFB020) else Accent
+    Box(
+        Modifier
+            .background(Color(0xE60E1220), RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                if (trial) "TESTE GRÁTIS" else "SUA LISTA",
+                color = accent,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text,
+                color = TextPrimary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+
 @Composable
 private fun SettingsPanel(
     mac: String,
