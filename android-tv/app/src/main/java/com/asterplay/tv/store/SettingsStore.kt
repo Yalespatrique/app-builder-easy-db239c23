@@ -46,6 +46,24 @@ object SettingsStore {
     fun tmdbEnabled(ctx: Context): Boolean = p(ctx).getBoolean(K_TMDB, true)
     fun setTmdbEnabled(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean(K_TMDB, v).apply()
 
+    // ---------- DNS (anti-bloqueio de provedor) ----------
+    private const val K_DNS = "dns_mode"
+
+    fun dnsMode(ctx: Context): String =
+        p(ctx).getString(K_DNS, com.asterplay.tv.net.Net.DNS_SYSTEM) ?: com.asterplay.tv.net.Net.DNS_SYSTEM
+
+    fun setDnsMode(ctx: Context, v: String) {
+        p(ctx).edit().putString(K_DNS, v).apply()
+        com.asterplay.tv.net.Net.setMode(v)
+    }
+
+    fun dnsLabel(mode: String): String = when (mode) {
+        com.asterplay.tv.net.Net.DNS_GOOGLE -> "Google (8.8.8.8)"
+        com.asterplay.tv.net.Net.DNS_CLOUDFLARE -> "Cloudflare (1.1.1.1)"
+        com.asterplay.tv.net.Net.DNS_ADGUARD -> "AdGuard DNS"
+        else -> "Padrão do provedor"
+    }
+
     // ---------- Fluxo de vídeo ----------
     fun streamFormat(ctx: Context): String = p(ctx).getString(K_STREAM, FORMAT_DEFAULT) ?: FORMAT_DEFAULT
     fun setStreamFormat(ctx: Context, v: String) = p(ctx).edit().putString(K_STREAM, v).apply()
