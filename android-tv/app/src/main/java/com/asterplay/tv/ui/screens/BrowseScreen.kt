@@ -277,8 +277,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         if (liveFullscreen) liveFullscreen = false else selectedLive = null
     }
 
-
+    val showLiveFullscreen = liveFullscreen && selectedLive != null
     Box(Modifier.fillMaxSize().background(BgBase)) {
+        if (!showLiveFullscreen)
         Row(Modifier.fillMaxSize()) {
             Column(
                 Modifier.width(300.dp).fillMaxHeight().background(BgSurface).padding(vertical = 20.dp),
