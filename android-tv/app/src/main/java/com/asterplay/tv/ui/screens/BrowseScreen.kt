@@ -226,14 +226,17 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
     }
 
-    // Pausa o player embutido quando a tela sai de foco (ex.: player em tela cheia)
+    // Estado de tela cheia do canal ao vivo (mesmo player, sem recarregar)
+    var liveFullscreen by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedLive?.url) { if (selectedLive == null) liveFullscreen = false }
+
+    // Apenas pausa o player embutido quando a tela sai de foco — não recarrega ao voltar
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
                     livePlayer.playWhenReady = false
-                    livePlayer.stop()
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                     if (continueCat != null) {
@@ -252,11 +255,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                             shownCount = minOf(pageSize, continueItems.size)
                         }
                     }
-                    if (selectedLive != null && livePlayer.mediaItemCount == 0) {
-                        livePlayer.setMediaItem(
-                            MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
-                        )
-                        livePlayer.prepare()
+                    if (selectedLive != null) {
+                        if (livePlayer.mediaItemCount == 0) {
+                            livePlayer.setMediaItem(
+                                MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
+                            )
+                            livePlayer.prepare()
+                        }
                         livePlayer.playWhenReady = true
                     }
                 }
@@ -268,7 +273,10 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     }
 
 
-    BackHandler(enabled = selectedLive != null) { selectedLive = null }
+    BackHandler(enabled = selectedLive != null) {
+        if (liveFullscreen) liveFullscreen = false else selectedLive = null
+    }
+
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
         Row(Modifier.fillMaxSize()) {
