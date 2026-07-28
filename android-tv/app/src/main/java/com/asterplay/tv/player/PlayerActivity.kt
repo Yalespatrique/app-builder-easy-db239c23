@@ -151,25 +151,29 @@ private fun AsterplayPlayerScreen(
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var autoNextIn by remember { mutableIntStateOf(-1) }
     var resumedFrom by remember { mutableLongStateOf(0L) }
+    // > 0 => diálogo "retomar ou reiniciar" aberto
+    var pendingResume by remember { mutableLongStateOf(0L) }
 
     fun touch() { lastInteraction = System.currentTimeMillis(); controlsVisible = true }
 
-    // Troca de mídia + retomada automática do último tempo assistido
+    // Troca de mídia + pergunta se deve retomar do último tempo assistido
     LaunchedEffect(url) {
         buffering = true
+        resumedFrom = 0L
         val resume = if (isLive) 0L else ResumeStore.get(ctx, url)
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
         if (resume > 10_000) {
-            player.seekTo(resume)
-            resumedFrom = resume
+            pendingResume = resume
+            player.playWhenReady = false
         } else {
-            resumedFrom = 0L
+            pendingResume = 0L
+            player.playWhenReady = true
         }
-        player.playWhenReady = true
         autoNextIn = -1
         touch()
     }
+
 
     // Salva a posição ao sair da mídia atual (troca de episódio ou saída do player)
     DisposableEffect(url) {
