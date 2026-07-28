@@ -29,6 +29,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,6 +81,7 @@ import java.util.Locale
  * Master-detail via Xtream API + cache SQLite com TTL.
  * Só carrega o que o usuário abre.
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) -> Unit = {}, onOpenSeriesDetail: (Channel) -> Unit = {}) {
 
@@ -155,8 +157,46 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     }
 
     var fullscreen by remember { mutableStateOf(false) }
+    var lastToggle by remember { mutableLongStateOf(0L) }
 
-    BackHandler(enabled = fullscreen) { fullscreen = false }
+    // ÚNICO player + ÚNICA PlayerView reutilizada entre painel e tela cheia:
+    // evita reinício do vídeo ao alternar fullscreen.
+    val livePlayer = remember {
+        ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
+    }
+    val livePlayerView = remember {
+        (android.view.LayoutInflater.from(ctx)
+            .inflate(com.asterplay.tv.R.layout.view_preview_player, null) as PlayerView).apply {
+            useController = false
+            keepScreenOn = true
+            player = livePlayer
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            livePlayerView.player = null
+            livePlayer.release()
+        }
+    }
+    LaunchedEffect(selectedLive?.url) {
+        val url = selectedLive?.url
+        if (url != null) {
+            livePlayer.setMediaItem(MediaItem.fromUri(url))
+            livePlayer.prepare()
+            livePlayer.playWhenReady = true
+        } else {
+            livePlayer.stop()
+        }
+    }
+
+    fun toggleFullscreen(enter: Boolean) {
+        val now = System.currentTimeMillis()
+        if (now - lastToggle < 600) return
+        lastToggle = now
+        fullscreen = enter
+    }
+
+    BackHandler(enabled = fullscreen) { toggleFullscreen(false) }
     BackHandler(enabled = !fullscreen && selectedLive != null) { selectedLive = null }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
@@ -192,12 +232,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 LiveChannelPane(
                     channels = items,
                     current = selectedLive!!,
+                    playerView = livePlayerView,
+                    showPlayer = !fullscreen,
                     onPick = { selectedLive = it },
-                    fullscreen = fullscreen,
-                    onEnterFullscreen = { fullscreen = true },
-                    onExitFullscreen = { fullscreen = false },
+                    onEnterFullscreen = { toggleFullscreen(true) },
                 )
             } else {
+
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
                     val catName = categories.getOrNull(selectedIdx)?.name ?: ""
                     Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
@@ -258,10 +299,11 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         // Overlay fullscreen cobre TODA a tela (inclusive a barra de categorias)
         if (isChannels && selectedLive != null && fullscreen) {
             FullscreenChannelOverlay(
-                channel = selectedLive!!,
-                onExit = { fullscreen = false },
+                playerView = livePlayerView,
+                onExit = { toggleFullscreen(false) },
             )
         }
+
     }
 }
 
@@ -273,10 +315,10 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
 private fun LiveChannelPane(
     channels: List<Channel>,
     current: Channel,
+    playerView: PlayerView,
+    showPlayer: Boolean,
     onPick: (Channel) -> Unit,
-    fullscreen: Boolean,
     onEnterFullscreen: () -> Unit,
-    onExitFullscreen: () -> Unit,
 ) {
     val ctx = LocalContext.current
     val creds = remember { XtreamStore.get(ctx) }
@@ -295,26 +337,10 @@ private fun LiveChannelPane(
         loadingEpg = false
     }
 
-    // Player persistente entre trocas de canal.
-    val player = remember {
-        ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
-    }
-    LaunchedEffect(current.url) {
-        player.setMediaItem(MediaItem.fromUri(current.url))
-        player.prepare()
-        player.playWhenReady = !fullscreen
-    }
-    LaunchedEffect(fullscreen) {
-        // Pausa este player enquanto o overlay em tela cheia toca o mesmo canal.
-        player.playWhenReady = !fullscreen
-    }
-    DisposableEffect(Unit) {
-        onDispose { player.release() }
-    }
-
     // Auto-foco no canal atual da lista.
     val listFocus = remember { FocusRequester() }
     LaunchedEffect(current.url) { runCatching { listFocus.requestFocus() } }
+
 
     Row(Modifier.fillMaxSize()) {
         // Lista de canais da categoria
@@ -359,19 +385,17 @@ private fun LiveChannelPane(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.Black),
             ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { c ->
-                        val inflater = android.view.LayoutInflater.from(c)
-                        val view = inflater.inflate(
-                            com.asterplay.tv.R.layout.view_preview_player, null
-                        ) as PlayerView
-                        view.useController = false
-                        view.player = player
-                        view
-                    },
-                )
+                if (showPlayer) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = {
+                            (playerView.parent as? android.view.ViewGroup)?.removeView(playerView)
+                            playerView
+                        },
+                    )
+                }
             }
+
             Spacer(Modifier.height(16.dp))
             Text("PROGRAMAÇÃO", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
@@ -396,17 +420,7 @@ private fun LiveChannelPane(
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun FullscreenChannelOverlay(channel: Channel, onExit: () -> Unit) {
-    val ctx = LocalContext.current
-    val player = remember(channel.url) {
-        ExoPlayer.Builder(ctx).build().apply {
-            setMediaItem(MediaItem.fromUri(channel.url))
-            prepare()
-            playWhenReady = true
-        }
-    }
-    DisposableEffect(player) { onDispose { player.release() } }
-
+private fun FullscreenChannelOverlay(playerView: PlayerView, onExit: () -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
@@ -421,18 +435,14 @@ private fun FullscreenChannelOverlay(channel: Channel, onExit: () -> Unit) {
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { c ->
-                val inflater = android.view.LayoutInflater.from(c)
-                val view = inflater.inflate(
-                    com.asterplay.tv.R.layout.view_preview_player, null
-                ) as PlayerView
-                view.useController = false
-                view.player = player
-                view
+            factory = {
+                (playerView.parent as? android.view.ViewGroup)?.removeView(playerView)
+                playerView
             },
         )
     }
 }
+
 
 
 @Composable
