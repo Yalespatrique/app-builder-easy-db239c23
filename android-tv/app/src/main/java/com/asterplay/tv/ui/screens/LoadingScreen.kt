@@ -131,14 +131,12 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             null -> { /* sem internet pra checar: não bloqueia */ }
         }
 
-        // Conta validada: carrega o menu antes de abrir a Home.
-
-        // - categorias de canais, filmes e séries
-        // - todos os canais ao vivo (filmes/séries continuam lazy por categoria)
-        MenuPreload.run(ctx, c) { sub = it }
-        sub = "montando destaques..."
-        TopHomePreload.run(ctx)
-        delay(120); onReady()
+        // Conta validada: carrega só as categorias (rápido) e abre a Home.
+        // O catálogo completo (totais por categoria, canais e destaques)
+        // continua baixando em segundo plano, sem travar o app.
+        MenuPreload.fast(ctx, c) { sub = it }
+        MenuPreload.startBackground(ctx, c)
+        onReady()
     }
 
 

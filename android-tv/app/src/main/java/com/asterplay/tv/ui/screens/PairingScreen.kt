@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.graphics.Color
@@ -72,6 +73,15 @@ fun PairingScreen(onActivated: () -> Unit) {
 
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+
+    // Na TV/Fire TV o cursor já começa fixado no campo CÓDIGO.
+    val codeFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        repeat(20) {
+            if (runCatching { codeFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            kotlinx.coroutines.delay(100)
+        }
+    }
 
     fun tryActivateMac() {
         if (loading) return
@@ -225,7 +235,7 @@ fun PairingScreen(onActivated: () -> Unit) {
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Spacer(Modifier.height(2.dp))
-                    TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO")
+                    TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO", focusRequester = codeFocus)
                     TvTextField(value = user, onChange = { user = it }, label = "USUÁRIO")
                     TvTextField(value = pass, onChange = { pass = it }, label = "SENHA", isPassword = true)
 
@@ -265,6 +275,7 @@ private fun TvTextField(
     onChange: (String) -> Unit,
     label: String,
     isPassword: Boolean = false,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -286,6 +297,7 @@ private fun TvTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged {
                     focused = it.isFocused
                     if (it.isFocused) keyboard?.show()

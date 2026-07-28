@@ -51,11 +51,23 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         )
         db.execSQL("CREATE INDEX idx_streams_cat ON streams_cache(account, kind, cat_id)")
         db.execSQL("CREATE INDEX idx_streams_name ON streams_cache(account, name)")
+        db.execSQL(
+            """
+            CREATE TABLE cat_counts(
+              account TEXT NOT NULL,
+              kind    TEXT NOT NULL,
+              cat_id  TEXT NOT NULL,
+              total   INTEGER NOT NULL,
+              PRIMARY KEY(account, kind, cat_id)
+            )
+            """.trimIndent()
+        )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS cat_cache")
         db.execSQL("DROP TABLE IF EXISTS streams_cache")
+        db.execSQL("DROP TABLE IF EXISTS cat_counts")
         onCreate(db)
     }
 
@@ -144,7 +156,10 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         } finally { db.endTransaction() }
     }
 
-    /** Quantidade de itens já cacheados por categoria (para exibir o total no menu). */
+    /**
+     * Totais por categoria. Usa primeiro o total real do provedor (cat_counts,
+     * preenchido no preload) e, se não houver, cai no que já está cacheado.
+     */
     fun countsByCategory(account: String, kind: String): Map<String, Int> {
         val out = HashMap<String, Int>()
         readableDatabase.rawQuery(
@@ -153,7 +168,38 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         ).use {
             while (it.moveToNext()) out[it.getString(0)] = it.getInt(1)
         }
+        out.putAll(readCounts(account, kind))
         return out
+    }
+
+    /** Totais oficiais (vindos do catálogo do provedor). */
+    fun readCounts(account: String, kind: String): Map<String, Int> {
+        val out = HashMap<String, Int>()
+        readableDatabase.rawQuery(
+            "SELECT cat_id, total FROM cat_counts WHERE account=? AND kind=?",
+            arrayOf(account, kind),
+        ).use {
+            while (it.moveToNext()) out[it.getString(0)] = it.getInt(1)
+        }
+        return out
+    }
+
+    fun writeCounts(account: String, kind: String, counts: Map<String, Int>) {
+        if (counts.isEmpty()) return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete("cat_counts", "account=? AND kind=?", arrayOf(account, kind))
+            val ins = db.compileStatement("INSERT INTO cat_counts(account,kind,cat_id,total) VALUES(?,?,?,?)")
+            for ((catId, total) in counts) {
+                ins.clearBindings()
+                ins.bindString(1, account); ins.bindString(2, kind)
+                ins.bindString(3, catId); ins.bindLong(4, total.toLong())
+                ins.executeInsert()
+            }
+            ins.close()
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
     }
 
     // -------- Busca (só nos itens já cacheados) --------
@@ -228,11 +274,12 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
     fun clearAll() {
         writableDatabase.execSQL("DELETE FROM cat_cache")
         writableDatabase.execSQL("DELETE FROM streams_cache")
+        writableDatabase.execSQL("DELETE FROM cat_counts")
     }
 
     companion object {
         private const val DB_NAME = "asterplay_cache.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
 
         // TTLs
         const val TTL_CATEGORIES = 24L * 3600 * 1000

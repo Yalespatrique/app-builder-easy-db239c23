@@ -3,56 +3,94 @@ package com.asterplay.tv.net
 import android.content.Context
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.XtreamCreds
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Pré-carrega o menu logo após a validação no painel:
- * - categorias de CANAIS, FILMES e SÉRIES;
- * - TODOS os canais ao vivo (já separados por categoria no cache).
+ * Estado global do preload. A tela de categorias observa a versão para
+ * atualizar os totais assim que o catálogo termina de baixar em segundo plano.
+ */
+object PreloadState {
+    /** Incrementa toda vez que os totais por categoria mudam. */
+    val countsVersion = MutableStateFlow(0)
+
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var job: Job? = null
+
+    fun launchBackground(block: suspend () -> Unit) {
+        if (job?.isActive == true) return
+        job = scope.launch { runCatching { block() } }
+    }
+}
+
+/**
+ * Preload do menu, dividido em duas etapas:
  *
- * Filmes e séries continuam lazy: só baixam os conteúdos quando a
- * categoria for aberta na BrowseScreen.
+ * - [fast]: só as categorias dos três tipos (3 requests leves, em paralelo).
+ *   É o único bloqueio antes de abrir a Home — leva poucos segundos.
+ * - [background]: catálogo completo (totais por categoria + canais ao vivo)
+ *   e os destaques do Home. Roda depois, sem travar o app.
  */
 object MenuPreload {
 
-    suspend fun run(ctx: Context, creds: XtreamCreds, onProgress: (String) -> Unit = {}) =
+    private val KINDS = listOf("live", "vod", "series")
+
+    /** Só categorias — rápido. */
+    suspend fun fast(ctx: Context, creds: XtreamCreds, onProgress: (String) -> Unit = {}) =
         withContext(Dispatchers.IO) {
             val db = CacheDb.get(ctx)
             val account = CacheDb.accountKey(creds.host, creds.username)
-
-            // 1) Categorias dos três tipos (leve).
-            for ((kind, label) in listOf(
-                "live" to "canais",
-                "vod" to "filmes",
-                "series" to "séries",
-            )) {
-                onProgress("carregando categorias de $label...")
-                if (db.readCategories(account, kind) == null) {
-                    val fresh = XtreamApi.categories(creds, kind)
-                    if (fresh.isNotEmpty()) {
-                        db.writeCategories(account, kind, fresh, CacheDb.TTL_CATEGORIES)
+            onProgress("carregando categorias...")
+            coroutineScope {
+                KINDS.map { kind ->
+                    async {
+                        if (db.readCategories(account, kind) == null) {
+                            val fresh = XtreamApi.categories(creds, kind)
+                            if (fresh.isNotEmpty()) {
+                                db.writeCategories(account, kind, fresh, CacheDb.TTL_CATEGORIES)
+                            }
+                        }
                     }
-                }
+                }.forEach { it.await() }
             }
+        }
 
-            // 2) Todos os canais ao vivo, agrupados por categoria.
-            val liveCats = db.readCategories(account, "live").orEmpty()
-            if (liveCats.isNotEmpty()) {
-                val missing = liveCats.filter { db.readStreams(account, "live", it.id) == null }
-                if (missing.isNotEmpty()) {
-                    onProgress("carregando canais...")
-                    val all = XtreamApi.allStreams(creds, "live")
-                    if (all.isNotEmpty()) {
-                        val byCat = all.groupBy { it.group.orEmpty() }
-                        for (cat in liveCats) {
-                            val list = byCat[cat.id].orEmpty()
-                            if (list.isNotEmpty()) {
-                                db.writeStreams(account, "live", cat.id, list, CacheDb.TTL_STREAMS)
+    /** Catálogo completo em segundo plano: totais + canais ao vivo + destaques. */
+    fun startBackground(ctx: Context, creds: XtreamCreds) = PreloadState.launchBackground {
+        val db = CacheDb.get(ctx)
+        val account = CacheDb.accountKey(creds.host, creds.username)
+
+        coroutineScope {
+            KINDS.map { kind ->
+                async {
+                    val all = runCatching { XtreamApi.allStreams(creds, kind) }.getOrDefault(emptyList())
+                    if (all.isEmpty()) return@async
+                    val byCat = all.groupBy { it.group.orEmpty() }
+
+                    // Totais reais por categoria (mostrados no menu).
+                    db.writeCounts(account, kind, byCat.mapValues { it.value.size }.filterKeys { it.isNotEmpty() })
+                    PreloadState.countsVersion.value++
+
+                    // Só canais ao vivo ficam pré-cacheados; filmes/séries seguem lazy.
+                    if (kind == "live") {
+                        for ((catId, list) in byCat) {
+                            if (catId.isBlank() || list.isEmpty()) continue
+                            if (db.readStreams(account, "live", catId) == null) {
+                                db.writeStreams(account, "live", catId, list, CacheDb.TTL_STREAMS)
                             }
                         }
                     }
                 }
-            }
+            }.forEach { it.await() }
         }
+
+        runCatching { TopHomePreload.run(ctx) }
+    }
 }
