@@ -181,7 +181,14 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.Logout, "Sair") {
                     PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx); onLogout()
                 }
+                Text(
+                    validity,
+                    color = if (isTrial) Color(0xFFFFB020) else TextSecondary,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Spacer(Modifier.height(6.dp))
                 Text("MAC ${DeviceId.formatted(mac)}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+
                 Text("v${BuildConfig.VERSION_NAME}", color = TextMuted, style = MaterialTheme.typography.labelMedium)
             }
 
