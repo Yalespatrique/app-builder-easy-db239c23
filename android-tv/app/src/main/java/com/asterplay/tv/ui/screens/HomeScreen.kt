@@ -91,7 +91,6 @@ private data class TopHit(val tmdb: TmdbApi.Item, val channel: Channel)
 @Composable
 fun HomeScreen(
     onOpenBrowse: (String) -> Unit,
-    onOpenSearch: () -> Unit,
     onLogout: () -> Unit,
     onOpenMovieDetail: (Channel, Long?) -> Unit,
     onOpenSeriesDetail: (Channel, Long?) -> Unit,
@@ -106,6 +105,7 @@ fun HomeScreen(
     var recentMovies by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val creds = XtreamStore.get(ctx)
