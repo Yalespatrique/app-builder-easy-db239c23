@@ -254,6 +254,7 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun TvTextField(
     value: String,
