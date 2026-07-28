@@ -330,10 +330,19 @@ private fun SettingsPanel(
     var pinMode by remember { mutableStateOf<String?>(null) }
 
     val firstItem = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstItem.requestFocus() } }
+    // O painel abre por cima do menu (que fica desativado). Se o pedido de foco
+    // acontecer antes do nó estar posicionado, o controle fica "morto" — por isso
+    // tentamos algumas vezes até o foco realmente entrar no painel.
+    LaunchedEffect(pinMode) {
+        if (pinMode != null) return@LaunchedEffect
+        repeat(20) {
+            if (runCatching { firstItem.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(60)
+        }
+    }
 
     Box(
-        Modifier.fillMaxSize().background(Color(0xE605060B)),
+        Modifier.fillMaxSize().background(Color(0xE605060B)).focusGroup(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
