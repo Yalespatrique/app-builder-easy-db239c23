@@ -10,6 +10,10 @@ import org.json.JSONObject
  */
 object TopCacheStore {
     private const val PREF = "asterplay_top_cache"
+    // Bump this whenever the Top 10 matching rule changes.
+    // This prevents old wrong matches (ex: Homem-Aranha novo puxando 2002)
+    // from staying on screen for 24h after an app update.
+    private const val CACHE_VERSION = "v3"
     const val TTL_MS = 24L * 3600 * 1000
 
     data class Entry(
@@ -23,7 +27,7 @@ object TopCacheStore {
         val chTvg: String?,
     )
 
-    private fun key(account: String, kind: String) = "$kind|$account"
+    private fun key(account: String, kind: String) = "$CACHE_VERSION|$kind|$account"
 
     fun read(ctx: Context, account: String, kind: String): List<Entry>? {
         val sp = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)

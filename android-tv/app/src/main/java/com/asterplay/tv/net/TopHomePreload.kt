@@ -67,22 +67,52 @@ object TopHomePreload {
         chTvg = tvgId,
     )
 
-    private val STRIP_TAGS = Regex("\\[[^\\]]*]|\\([^)]*\\)|\\bs\\d{1,2}e\\d{1,3}\\b|\\bs\\d{1,2}\\b|\\b\\d{4}\\b|\\b(4k|fhd|hd|sd|hevc|dub|dublado|leg|legendado|br|nac|multi|imax|remux)\\b")
+    private val BRACKETED = Regex("""\(([^)]*)\)|\[([^]]*)]""")
+    private val EPISODE_TAGS = Regex("""\bs\d{1,2}e\d{1,3}\b|\bs\d{1,2}\b""", RegexOption.IGNORE_CASE)
+    private val YEAR = Regex("""\b(19|20)\d{2}\b""")
+    private val NOISE_WORDS = setOf(
+        "4k", "uhd", "fhd", "hd", "sd", "hevc", "h265", "x265", "x264",
+        "dub", "dublado", "dual", "audio", "leg", "legendado", "br", "nac",
+        "multi", "imax", "remux", "bluray", "webdl", "web", "dl", "hdtv",
+        "cam", "rip", "1080p", "720p", "2160p",
+    )
+
+    private fun deaccent(s: String): String = Normalizer.normalize(s, Normalizer.Form.NFD)
+        .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+
+    private fun isNoiseBlock(s: String): Boolean {
+        val tokens = deaccent(s.lowercase()).replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+        return tokens.isNotEmpty() && tokens.all { it in NOISE_WORDS || YEAR.matches(it) }
+    }
 
     private fun norm(s: String): String {
-        val stripped = s.lowercase().replace(STRIP_TAGS, " ")
-        val n = Normalizer.normalize(stripped, Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        // Normalização segura para Top 10:
+        // - remove só ruído técnico/ano de release;
+        // - mantém subtítulos dentro de parênteses/colchetes quando são parte do nome;
+        // - evita falso positivo tipo "Homem-Aranha: Um Novo Dia" casar com "Homem-Aranha (2002)".
+        val bracketHandled = BRACKETED.replace(s.lowercase()) { m ->
+            val inside = (m.groups[1]?.value ?: m.groups[2]?.value ?: "").trim()
+            if (isNoiseBlock(inside)) " " else " $inside "
+        }
+        val noTechTags = bracketHandled
+            .replace(EPISODE_TAGS, " ")
+            .replace(YEAR, " ")
+        val n = deaccent(noTechTags)
         return n.replace(Regex("[^a-z0-9]+"), " ").trim()
     }
 
+    private fun yearOf(s: String): String? = YEAR.find(s)?.value
+
     private fun match(tmdb: List<TmdbApi.Item>, server: List<Channel>, limit: Int): List<TopCacheStore.Entry> {
         if (tmdb.isEmpty() || server.isEmpty()) return emptyList()
-        data class IdxEntry(val key: String, val rawLower: String, val ch: Channel)
+        data class IdxEntry(val key: String, val year: String?, val ch: Channel)
         val index = ArrayList<IdxEntry>(server.size)
         for (c in server) {
             val k = norm(c.name)
-            if (k.isNotEmpty()) index += IdxEntry(k, c.name.lowercase(), c)
+            if (k.isNotEmpty()) index += IdxEntry(k, yearOf(c.name), c)
         }
         val out = ArrayList<TopCacheStore.Entry>(limit)
         val usedUrls = HashSet<String>()
@@ -93,12 +123,11 @@ object TopHomePreload {
                 .distinct()
             if (keys.isEmpty()) continue
             val year = t.year
-            // 1) Match exato + ano no nome bruto (mais seguro)
-            var hit: Channel? = if (year != null) {
-                index.firstOrNull { e -> e.key in keys && e.rawLower.contains(year) }?.ch
-            } else null
-            // 2) Match exato do título normalizado
-            if (hit == null) hit = index.firstOrNull { it.key in keys }?.ch
+            // Match somente por título completo normalizado.
+            // Se o item do servidor tiver ano no nome, ele precisa bater com o ano do TMDB.
+            val hit = index.firstOrNull { e ->
+                e.key in keys && (year == null || e.year == null || e.year == year)
+            }?.ch
             if (hit != null && usedUrls.add(hit.url)) out += TopCacheStore.Entry(
                 title = t.title, poster = t.poster, tmdbId = t.tmdbId,
                 chName = hit.name, chUrl = hit.url, chLogo = hit.logo,
