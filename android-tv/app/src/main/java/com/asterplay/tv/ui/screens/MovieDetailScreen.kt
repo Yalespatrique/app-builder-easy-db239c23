@@ -391,12 +391,13 @@ private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier) {
     }
     AndroidView(
         modifier = modifier,
-        factory = {
-            PlayerView(it).apply {
-                useController = false
-                this.player = player
-                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            }
+        factory = { context ->
+            val inflater = android.view.LayoutInflater.from(context)
+            val view = inflater.inflate(com.asterplay.tv.R.layout.view_preview_player, null) as PlayerView
+            view.useController = false
+            view.player = player
+            view.resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            view
         },
     )
 }
