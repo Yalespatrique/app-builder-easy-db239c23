@@ -143,26 +143,10 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
-    // Preview de vídeo: começa na metade do filme, roda 50s com áudio.
-    // A capa de fundo só some quando o vídeo já está renderizando frames.
-    var wantVideo by remember { mutableStateOf(false) }
-    var videoReady by remember { mutableStateOf(false) }
-    val showPreview = wantVideo && videoReady
-    LaunchedEffect(channel.url) {
-        delay(800)
-        while (true) {
-            wantVideo = true
-            delay(50_000)
-            wantVideo = false
-            videoReady = false
-            delay(20_000)
-        }
-    }
-
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Backdrop (permanece visível até o vídeo renderizar)
+        // Backdrop estático (sem preview de vídeo em background — muito mais leve).
         val d = detail
-        if (d?.backdropUrl != null && !showPreview) {
+        if (d?.backdropUrl != null) {
             AsyncImage(
                 model = d.backdropUrl,
                 contentDescription = null,
@@ -171,16 +155,6 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             )
         }
 
-        // Preview de vídeo (mantém montado enquanto wantVideo, revela após 1º frame)
-        if (wantVideo) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .then(if (showPreview) Modifier else Modifier.alpha(0f))
-            ) {
-                MoviePreviewVideo(url = channel.url, onFirstFrame = { videoReady = true })
-            }
-        }
         // Dark gradient overlay
         Box(
             Modifier.fillMaxSize().background(
