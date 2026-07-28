@@ -467,10 +467,12 @@ private fun PinDialog(
     var step by remember { mutableStateOf(0) } // 0 = PIN atual, 1 = novo PIN
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val confirmFocus = remember { FocusRequester() }
+    LaunchedEffect(step) { runCatching { confirmFocus.requestFocus() } }
 
     Box(Modifier.fillMaxSize().background(Color(0xF2000000)), contentAlignment = Alignment.Center) {
         Column(
-            Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp),
+            Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp).focusGroup(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -487,7 +489,7 @@ private fun PinDialog(
             PinField(value = pin, onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) })
             error?.let { Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.labelMedium) }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SideMenuItem(Icons.Default.Lock, "Confirmar") {
+                SideMenuItem(Icons.Default.Lock, "Confirmar", modifier = Modifier.focusRequester(confirmFocus)) {
                     if (step == 0) {
                         if (SettingsStore.checkPin(ctx, pin)) {
                             error = null
