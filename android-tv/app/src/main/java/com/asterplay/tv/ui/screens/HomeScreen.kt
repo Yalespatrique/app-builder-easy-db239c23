@@ -72,6 +72,7 @@ import com.asterplay.tv.BuildConfig
 import com.asterplay.tv.R
 import com.asterplay.tv.core.DeviceId
 import com.asterplay.tv.net.Channel
+import com.asterplay.tv.net.Net
 import com.asterplay.tv.net.TmdbApi
 import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.player.PlayerActivity
@@ -335,7 +336,7 @@ private fun ValidityBadge(trial: Boolean, text: String) {
 }
 
 
-private enum class SettingsSection { ACCOUNT, PARENTAL, TMDB, STREAM, CACHE, LOGOUT }
+private enum class SettingsSection { ACCOUNT, PARENTAL, TMDB, STREAM, DNS, CACHE, LOGOUT }
 
 @Composable
 private fun SettingsPanel(
@@ -350,6 +351,7 @@ private fun SettingsPanel(
     var parental by remember { mutableStateOf(SettingsStore.parentalEnabled(ctx)) }
     var tmdb by remember { mutableStateOf(SettingsStore.tmdbEnabled(ctx)) }
     var format by remember { mutableStateOf(SettingsStore.streamFormat(ctx)) }
+    var dns by remember { mutableStateOf(SettingsStore.dnsMode(ctx)) }
     var section by remember { mutableStateOf(SettingsSection.ACCOUNT) }
 
     // "toggle" = pede PIN pra ligar/desligar | "change" = pede PIN atual e depois novo
@@ -416,6 +418,12 @@ private fun SettingsPanel(
                     label = "Fluxo de vídeo",
                     selected = section == SettingsSection.STREAM,
                     onSelect = { section = SettingsSection.STREAM },
+                )
+                SettingsNavItem(
+                    icon = Icons.Default.Settings,
+                    label = "DNS / Anti-bloqueio",
+                    selected = section == SettingsSection.DNS,
+                    onSelect = { section = SettingsSection.DNS },
                 )
                 SettingsNavItem(
                     icon = Icons.Default.Settings,
@@ -503,6 +511,35 @@ private fun SettingsPanel(
                                 },
                             )
                         }
+                    }
+                    SettingsSection.DNS -> {
+                        SettingsPaneTitle(
+                            "DNS / Anti-bloqueio",
+                            "Alguns provedores de internet bloqueiam listas de IPTV pelo DNS. " +
+                                "Escolha um DNS público e o app passa a resolver os endereços por " +
+                                "conta própria (DNS sobre HTTPS), sem depender do provedor.",
+                        )
+                        listOf(
+                            Net.DNS_SYSTEM,
+                            Net.DNS_GOOGLE,
+                            Net.DNS_CLOUDFLARE,
+                            Net.DNS_ADGUARD,
+                        ).forEach { value ->
+                            SettingRow(
+                                icon = Icons.Default.Settings,
+                                label = SettingsStore.dnsLabel(value),
+                                value = if (dns == value) "Selecionado" else "Tocar para usar",
+                                onClick = {
+                                    dns = value
+                                    SettingsStore.setDnsMode(ctx, value)
+                                },
+                            )
+                        }
+                        Text(
+                            "Se a lista parar de abrir depois de trocar, volte para \"Padrão do provedor\".",
+                            color = TextMuted,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
                     }
                     SettingsSection.CACHE -> {
                         SettingsPaneTitle(
