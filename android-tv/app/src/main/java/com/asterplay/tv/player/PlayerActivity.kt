@@ -219,7 +219,9 @@ private fun AsterplayPlayerScreen(
                 if (tick % 10 == 0) ResumeStore.save(ctx, url, position, duration)
 
                 val remaining = ((duration - position) / 1000).toInt()
-                if (hasPlaylist && index < (epUrls?.size ?: 0) - 1 && remaining in 0..10) {
+                if (hasPlaylist && index < (epUrls?.size ?: 0) - 1 &&
+                    remaining in 0..120 && !autoNextCancelled
+                ) {
                     autoNextIn = remaining
                     controlsVisible = true
                     if (remaining <= 0) {
@@ -227,7 +229,7 @@ private fun AsterplayPlayerScreen(
                         ResumeStore.clear(ctx, url)
                         index++
                     }
-                } else if (autoNextIn >= 0 && remaining > 10) {
+                } else if (autoNextIn >= 0 && (remaining > 120 || autoNextCancelled)) {
                     autoNextIn = -1
                 }
                 if (position > 0 && duration > 0 && position >= duration * 0.95) {
