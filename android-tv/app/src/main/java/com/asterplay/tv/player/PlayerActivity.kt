@@ -17,11 +17,13 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_player)
         url = intent.getStringExtra("url") ?: run { finish(); return }
         val view = findViewById<PlayerView>(R.id.playerView)
         player = ExoPlayer.Builder(this).build()
         view.player = player
+        view.keepScreenOn = true
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
         val resume = ResumeStore.get(this, url)
