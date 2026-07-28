@@ -398,18 +398,33 @@ private fun LiveChannelPane(
 
                 // Loader personalizado enquanto o canal sintoniza
                 var buffering by remember(current.url) { mutableStateOf(true) }
-                DisposableEffect(player) {
+                fun computeBuffering(): Boolean =
+                    !player.isPlaying &&
+                        (player.playbackState == androidx.media3.common.Player.STATE_BUFFERING ||
+                            player.playbackState == androidx.media3.common.Player.STATE_IDLE)
+
+                DisposableEffect(player, current.url) {
                     val l = object : androidx.media3.common.Player.Listener {
-                        override fun onPlaybackStateChanged(state: Int) {
-                            buffering = state == androidx.media3.common.Player.STATE_BUFFERING ||
-                                state == androidx.media3.common.Player.STATE_IDLE
+                        override fun onPlaybackStateChanged(state: Int) { buffering = computeBuffering() }
+                        override fun onIsPlayingChanged(isPlaying: Boolean) {
+                            if (isPlaying) buffering = false else buffering = computeBuffering()
                         }
+                        override fun onRenderedFirstFrame() { buffering = false }
                     }
-                    buffering = player.playbackState == androidx.media3.common.Player.STATE_BUFFERING ||
-                        player.playbackState == androidx.media3.common.Player.STATE_IDLE
+                    buffering = computeBuffering()
                     player.addListener(l)
                     onDispose { player.removeListener(l) }
                 }
+                // Fallback: se por algum motivo nenhum evento chegar, some assim que houver progresso
+                LaunchedEffect(player, current.url) {
+                    while (true) {
+                        if (buffering && (player.isPlaying ||
+                                player.playbackState == androidx.media3.common.Player.STATE_READY)
+                        ) buffering = false
+                        kotlinx.coroutines.delay(400)
+                    }
+                }
+
                 if (buffering) {
                     Box(
                         Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.65f)),
