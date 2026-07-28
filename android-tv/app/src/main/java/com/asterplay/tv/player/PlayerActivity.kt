@@ -151,6 +151,7 @@ private fun AsterplayPlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var autoNextIn by remember { mutableIntStateOf(-1) }
+    var autoNextCancelled by remember { mutableStateOf(false) }
     var resumedFrom by remember { mutableLongStateOf(0L) }
     // > 0 => diálogo "retomar ou reiniciar" aberto
     var pendingResume by remember { mutableLongStateOf(0L) }
