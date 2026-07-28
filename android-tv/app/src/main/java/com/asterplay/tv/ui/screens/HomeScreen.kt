@@ -114,6 +114,15 @@ fun HomeScreen(
     var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    val settingsMenuFocus = remember { FocusRequester() }
+    // Ao fechar o painel, devolve o foco ao menu lateral (senão o controle "trava").
+    LaunchedEffect(showSettings) {
+        if (showSettings) return@LaunchedEffect
+        repeat(20) {
+            if (runCatching { settingsMenuFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(60)
+        }
+    }
     val validity = remember { AccountStore.badgeText(ctx) }
     val isTrial = remember { !AccountStore.dnsRegistered(ctx) && AccountStore.trialStart(ctx) > 0L }
 
