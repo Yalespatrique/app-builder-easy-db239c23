@@ -383,19 +383,17 @@ private fun LiveChannelPane(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.Black),
             ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { c ->
-                        val inflater = android.view.LayoutInflater.from(c)
-                        val view = inflater.inflate(
-                            com.asterplay.tv.R.layout.view_preview_player, null
-                        ) as PlayerView
-                        view.useController = false
-                        view.player = player
-                        view
-                    },
-                )
+                if (showPlayer) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = {
+                            (playerView.parent as? android.view.ViewGroup)?.removeView(playerView)
+                            playerView
+                        },
+                    )
+                }
             }
+
             Spacer(Modifier.height(16.dp))
             Text("PROGRAMAÇÃO", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
