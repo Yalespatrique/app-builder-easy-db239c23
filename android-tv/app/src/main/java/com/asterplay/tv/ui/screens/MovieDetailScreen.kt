@@ -284,7 +284,7 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                         modifier = Modifier.focusRequester(playFocus),
                         onClick = {
                             val i = Intent(ctx, PlayerActivity::class.java)
-                            i.putExtra("url", channel.url); i.putExtra("name", channel.name)
+                            i.putExtra("url", channel.url); i.putExtra("name", channel.name); i.putExtra("type", "vod")
                             ctx.startActivity(i)
                         },
                     )

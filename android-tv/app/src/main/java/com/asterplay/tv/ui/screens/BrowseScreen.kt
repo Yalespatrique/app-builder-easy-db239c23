@@ -212,6 +212,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         val i = Intent(ctx, PlayerActivity::class.java)
                         i.putExtra("url", selectedLive!!.url)
                         i.putExtra("name", selectedLive!!.name)
+                        i.putExtra("type", "live")
                         ctx.startActivity(i)
                     },
                 )
@@ -260,7 +261,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                                             "live" -> selectedLive = ch
                                             else -> {
                                                 val i = Intent(ctx, PlayerActivity::class.java)
-                                                i.putExtra("url", ch.url); i.putExtra("name", ch.name)
+                                                i.putExtra("url", ch.url); i.putExtra("name", ch.name); i.putExtra("type", "vod")
                                                 ctx.startActivity(i)
                                             }
                                         }
