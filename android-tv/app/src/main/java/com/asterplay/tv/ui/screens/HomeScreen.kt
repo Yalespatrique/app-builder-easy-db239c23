@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
@@ -72,6 +73,7 @@ import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.player.PlayerActivity
 import com.asterplay.tv.store.CacheDb
 import com.asterplay.tv.store.PlaylistStore
+import com.asterplay.tv.store.SettingsStore
 import com.asterplay.tv.store.TopCacheStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.components.PosterCard
