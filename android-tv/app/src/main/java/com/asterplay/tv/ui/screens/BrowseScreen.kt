@@ -248,7 +248,8 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                         }
                         val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
 
-                        LaunchedEffect(gridState, items, shownCount) {
+                        LaunchedEffect(gridState, items, shownCount, searching) {
+                            if (searching) return@LaunchedEffect
                             androidx.compose.runtime.snapshotFlow {
                                 gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
                             }.collect { lastVisible ->
