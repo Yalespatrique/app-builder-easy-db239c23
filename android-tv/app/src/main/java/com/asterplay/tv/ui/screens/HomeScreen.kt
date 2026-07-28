@@ -94,6 +94,7 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onLogout: () -> Unit,
     onOpenMovieDetail: (Channel, Long?) -> Unit,
+    onOpenSeriesDetail: (Channel, Long?) -> Unit,
 ) {
 
     val ctx = LocalContext.current
@@ -212,7 +213,7 @@ fun HomeScreen(
                     items = topSeries,
                     loaded = loaded,
                     emptyMsg = "Nenhuma das séries em alta está na sua lista.",
-                    onPick = { hit -> scope.launch { play(ctx, hit.channel) } },
+                    onPick = { hit -> onOpenSeriesDetail(hit.channel, hit.tmdb.tmdbId) },
                 )
 
                 RecentRow(
@@ -229,7 +230,7 @@ fun HomeScreen(
                     items = recentSeries,
                     loaded = loaded,
                     emptyMsg = "Sem séries recentes.",
-                    onPick = { ch -> scope.launch { play(ctx, ch) } },
+                    onPick = { ch -> onOpenSeriesDetail(ch, null) },
                 )
             }
         }

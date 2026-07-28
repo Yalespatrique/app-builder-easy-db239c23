@@ -18,6 +18,8 @@ import com.asterplay.tv.ui.screens.HomeScreen
 import com.asterplay.tv.ui.screens.LoadingScreen
 import com.asterplay.tv.ui.screens.MovieDetailArgs
 import com.asterplay.tv.ui.screens.MovieDetailScreen
+import com.asterplay.tv.ui.screens.SeriesDetailArgs
+import com.asterplay.tv.ui.screens.SeriesDetailScreen
 import com.asterplay.tv.ui.screens.PairingScreen
 import com.asterplay.tv.ui.screens.SearchScreen
 import com.asterplay.tv.ui.screens.SplashScreen
@@ -40,6 +42,7 @@ object Routes {
     const val Browse = "browse/{type}"
     const val Search = "search"
     const val MovieDetail = "movie_detail"
+    const val SeriesDetail = "series_detail"
     fun browse(type: String) = "browse/$type"
 }
 
@@ -101,6 +104,10 @@ fun AsterplayApp() {
                             MovieDetailArgs.set(ch, tmdbId, kind = "movie")
                             nav.navigate(Routes.MovieDetail)
                         },
+                        onOpenSeriesDetail = { ch, tmdbId ->
+                            SeriesDetailArgs.set(ch, tmdbId)
+                            nav.navigate(Routes.SeriesDetail)
+                        },
                     )
                 }
                 composable(Routes.Browse) { backStack ->
@@ -112,6 +119,10 @@ fun AsterplayApp() {
                             MovieDetailArgs.set(ch, null, kind = "movie")
                             nav.navigate(Routes.MovieDetail)
                         },
+                        onOpenSeriesDetail = { ch ->
+                            SeriesDetailArgs.set(ch, null)
+                            nav.navigate(Routes.SeriesDetail)
+                        },
                     )
                 }
                 composable(Routes.Search) {
@@ -119,6 +130,9 @@ fun AsterplayApp() {
                 }
                 composable(Routes.MovieDetail) {
                     MovieDetailScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.SeriesDetail) {
+                    SeriesDetailScreen(onBack = { nav.popBackStack() })
                 }
             }
 
