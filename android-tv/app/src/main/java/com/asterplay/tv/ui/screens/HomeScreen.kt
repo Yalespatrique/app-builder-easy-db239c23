@@ -90,6 +90,7 @@ import com.asterplay.tv.ui.theme.BrandGradient
 import com.asterplay.tv.ui.theme.TextMuted
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Item TMDB já resolvido com um Channel real do servidor do usuário. */
@@ -113,6 +114,15 @@ fun HomeScreen(
     var recentSeries by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    val settingsMenuFocus = remember { FocusRequester() }
+    // Ao fechar o painel, devolve o foco ao menu lateral (senão o controle "trava").
+    LaunchedEffect(showSettings) {
+        if (showSettings) return@LaunchedEffect
+        repeat(20) {
+            if (runCatching { settingsMenuFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(60)
+        }
+    }
     val validity = remember { AccountStore.badgeText(ctx) }
     val isTrial = remember { !AccountStore.dnsRegistered(ctx) && AccountStore.trialStart(ctx) > 0L }
 
@@ -186,7 +196,11 @@ fun HomeScreen(
                 SideMenuItem(Icons.Default.LiveTv, "Canais") { onOpenBrowse("live") }
                 SideMenuItem(Icons.Default.Movie, "Filmes") { onOpenBrowse("vod") }
                 SideMenuItem(Icons.Default.Tv, "Séries") { onOpenBrowse("series") }
-                SideMenuItem(Icons.Default.Settings, "Configurações") { showSettings = true }
+                SideMenuItem(
+                    Icons.Default.Settings,
+                    "Configurações",
+                    modifier = Modifier.focusRequester(settingsMenuFocus),
+                ) { showSettings = true }
                 SideMenuItem(Icons.Default.Favorite, "Favoritos") { /* futuro */ }
                 Spacer(Modifier.weight(1f))
                 SideMenuItem(Icons.Default.Logout, "Sair") {
@@ -329,10 +343,19 @@ private fun SettingsPanel(
     var pinMode by remember { mutableStateOf<String?>(null) }
 
     val firstItem = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstItem.requestFocus() } }
+    // O painel abre por cima do menu (que fica desativado). Se o pedido de foco
+    // acontecer antes do nó estar posicionado, o controle fica "morto" — por isso
+    // tentamos algumas vezes até o foco realmente entrar no painel.
+    LaunchedEffect(pinMode) {
+        if (pinMode != null) return@LaunchedEffect
+        repeat(20) {
+            if (runCatching { firstItem.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(60)
+        }
+    }
 
     Box(
-        Modifier.fillMaxSize().background(Color(0xE605060B)),
+        Modifier.fillMaxSize().background(Color(0xE605060B)).focusGroup(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -468,9 +491,14 @@ private fun PinDialog(
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val confirmFocus = remember { FocusRequester() }
-    LaunchedEffect(step) { runCatching { confirmFocus.requestFocus() } }
+    LaunchedEffect(step) {
+        repeat(20) {
+            if (runCatching { confirmFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            delay(60)
+        }
+    }
 
-    Box(Modifier.fillMaxSize().background(Color(0xF2000000)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color(0xF2000000)).focusGroup(), contentAlignment = Alignment.Center) {
         Column(
             Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp).focusGroup(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
