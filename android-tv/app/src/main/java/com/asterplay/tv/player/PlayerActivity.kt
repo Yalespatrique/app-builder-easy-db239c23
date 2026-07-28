@@ -253,7 +253,7 @@ private fun AsterplayPlayerScreen(
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> { touch(); true }
             KeyEvent.KEYCODE_MEDIA_NEXT -> {
                 if (hasPlaylist && index < (epUrls?.size ?: 0) - 1) {
-                    WatchedStore.mark(ctx, url); index++
+                    WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++
                 }
                 true
             }
@@ -361,7 +361,7 @@ private fun AsterplayPlayerScreen(
                         if (hasPlaylist && index < (epUrls?.size ?: 0) - 1) {
                             Spacer(Modifier.width(18.dp))
                             ControlButton(Icons.Default.SkipNext, "Próximo episódio") {
-                                WatchedStore.mark(ctx, url); index++
+                                WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++
                             }
                         }
                     }
@@ -377,7 +377,7 @@ private fun AsterplayPlayerScreen(
                     .padding(end = 48.dp, bottom = 190.dp),
             ) {
                 androidx.tv.material3.Surface(
-                    onClick = { WatchedStore.mark(ctx, url); index++ },
+                    onClick = { WatchedStore.mark(ctx, url); ResumeStore.clear(ctx, url); index++ },
                     colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
                         containerColor = Color(0xE6111222),
                         focusedContainerColor = NeonCyan,
