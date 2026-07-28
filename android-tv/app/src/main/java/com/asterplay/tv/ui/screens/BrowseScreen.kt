@@ -155,8 +155,46 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     }
 
     var fullscreen by remember { mutableStateOf(false) }
+    var lastToggle by remember { mutableLongStateOf(0L) }
 
-    BackHandler(enabled = fullscreen) { fullscreen = false }
+    // ÚNICO player + ÚNICA PlayerView reutilizada entre painel e tela cheia:
+    // evita reinício do vídeo ao alternar fullscreen.
+    val livePlayer = remember {
+        ExoPlayer.Builder(ctx).build().apply { playWhenReady = true }
+    }
+    val livePlayerView = remember {
+        (android.view.LayoutInflater.from(ctx)
+            .inflate(com.asterplay.tv.R.layout.view_preview_player, null) as PlayerView).apply {
+            useController = false
+            keepScreenOn = true
+            player = livePlayer
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            livePlayerView.player = null
+            livePlayer.release()
+        }
+    }
+    LaunchedEffect(selectedLive?.url) {
+        val url = selectedLive?.url
+        if (url != null) {
+            livePlayer.setMediaItem(MediaItem.fromUri(url))
+            livePlayer.prepare()
+            livePlayer.playWhenReady = true
+        } else {
+            livePlayer.stop()
+        }
+    }
+
+    fun toggleFullscreen(enter: Boolean) {
+        val now = System.currentTimeMillis()
+        if (now - lastToggle < 600) return
+        lastToggle = now
+        fullscreen = enter
+    }
+
+    BackHandler(enabled = fullscreen) { toggleFullscreen(false) }
     BackHandler(enabled = !fullscreen && selectedLive != null) { selectedLive = null }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
@@ -192,12 +230,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 LiveChannelPane(
                     channels = items,
                     current = selectedLive!!,
+                    playerView = livePlayerView,
+                    showPlayer = !fullscreen,
                     onPick = { selectedLive = it },
-                    fullscreen = fullscreen,
-                    onEnterFullscreen = { fullscreen = true },
-                    onExitFullscreen = { fullscreen = false },
+                    onEnterFullscreen = { toggleFullscreen(true) },
                 )
             } else {
+
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
                     val catName = categories.getOrNull(selectedIdx)?.name ?: ""
                     Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
