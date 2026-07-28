@@ -61,8 +61,11 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     var categories by remember { mutableStateOf<List<XtreamCategory>>(emptyList()) }
     var selectedIdx by remember { mutableIntStateOf(0) }
     var items by remember { mutableStateOf<List<Channel>>(emptyList()) }
+    var shownCount by remember { mutableIntStateOf(0) }
     var loadingItems by remember { mutableStateOf(false) }
     var loadingCats by remember { mutableStateOf(true) }
+
+    val pageSize = 100
 
     val header = when (type) { "vod" -> "FILMES"; "series" -> "SÉRIES"; else -> "CANAIS" }
     val isChannels = type == "live"
@@ -92,7 +95,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     fresh
                 }
             }
-            items = first; loadingItems = false
+            items = first
+            shownCount = minOf(pageSize, first.size)
+            loadingItems = false
         }
     }
 
@@ -100,6 +105,8 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         if (idx < 0 || idx >= categories.size || creds == null) return
         selectedIdx = idx
         loadingItems = true
+        items = emptyList()
+        shownCount = 0
         val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
             val list = withContext(Dispatchers.IO) {
@@ -110,7 +117,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     fresh
                 }
             }
-            items = list; loadingItems = false
+            items = list
+            shownCount = minOf(pageSize, list.size)
+            loadingItems = false
         }
     }
 
@@ -145,17 +154,36 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             val catName = categories.getOrNull(selectedIdx)?.name ?: ""
             Text(catName, color = TextPrimary, style = MaterialTheme.typography.headlineLarge)
             Text(
-                if (loadingItems) "Carregando..." else "${items.size} itens",
+                if (loadingItems) "Carregando..."
+                else "Mostrando $shownCount de ${items.size} itens",
                 color = TextMuted, style = MaterialTheme.typography.labelMedium,
             )
             Box(Modifier.fillMaxSize().padding(top = 16.dp)) {
+                val visible = remember(items, shownCount) { items.take(shownCount) }
+                val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+
+                // Auto-carrega próxima página quando o usuário se aproxima do final.
+                LaunchedEffect(gridState, items, shownCount) {
+                    androidx.compose.runtime.snapshotFlow {
+                        gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                    }.collect { lastVisible ->
+                        if (lastVisible >= 0 &&
+                            shownCount < items.size &&
+                            lastVisible >= visible.size - 10
+                        ) {
+                            shownCount = minOf(shownCount + pageSize, items.size)
+                        }
+                    }
+                }
+
                 LazyVerticalGrid(
+                    state = gridState,
                     columns = GridCells.Fixed(if (isChannels) 5 else 6),
                     contentPadding = PaddingValues(bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    items(items, key = { it.url }) { ch ->
+                    items(visible, key = { it.url }) { ch ->
                         PosterCard(
                             title = ch.name,
                             logo = ch.logo,

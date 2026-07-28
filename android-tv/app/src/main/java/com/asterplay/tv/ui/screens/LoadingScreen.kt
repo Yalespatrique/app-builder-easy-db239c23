@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import com.asterplay.tv.net.TopHomePreload
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.theme.BgBase
@@ -42,6 +43,7 @@ import com.asterplay.tv.ui.theme.NeonPurple
 import com.asterplay.tv.ui.theme.TextPrimary
 import com.asterplay.tv.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
@@ -52,17 +54,20 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     LaunchedEffect(Unit) {
         val c = XtreamStore.get(ctx)
         if (c == null) { onFail(); return@LaunchedEffect }
-        // Só autentica. O Top 10 é carregado em background pelo Home,
-        // sem travar a entrada no menu.
         val ok = XtreamApi.authenticate(c)
-        if (ok) {
-            delay(150); onReady()
-        } else {
+        if (!ok) {
             status = "Não foi possível conectar"
             sub = "Verifique seus dados e tente novamente."
             delay(2000)
             XtreamStore.clear(ctx); onFail()
+            return@LaunchedEffect
         }
+        // Pré-carrega o Top 10 e recentes antes de entrar no menu.
+        // As categorias e o conteúdo de cada uma só são baixados quando
+        // o usuário abrir a tela correspondente (lazy).
+        sub = "montando destaques..."
+        withTimeoutOrNull(25_000) { TopHomePreload.run(ctx) }
+        delay(120); onReady()
     }
 
     Box(Modifier.fillMaxSize().background(BgBase), contentAlignment = Alignment.Center) {
