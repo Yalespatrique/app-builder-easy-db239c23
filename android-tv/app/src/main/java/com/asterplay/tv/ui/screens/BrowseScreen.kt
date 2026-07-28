@@ -576,6 +576,33 @@ private fun SharedPlayerView(player: ExoPlayer) {
     )
 }
 
+/** Tela cheia usando o MESMO ExoPlayer — nunca recarrega o canal. */
+@Composable
+private fun LiveFullscreenPane(player: ExoPlayer, name: String, onExit: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        SharedPlayerView(player = player)
+        Surface(
+            onClick = onExit,
+            modifier = Modifier.fillMaxSize().focusRequester(focus),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+            ),
+        ) {
+            Box(Modifier.fillMaxSize())
+        }
+        Text(
+            name,
+            color = TextPrimary,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart).padding(28.dp),
+        )
+    }
+}
+
+
 
 
 
