@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -143,9 +144,22 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     LaunchedEffect(detail) { if (detail != null) runCatching { playFocus.requestFocus() } }
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
-        // Backdrop estático (sempre presente por baixo do vídeo).
+        // Ciclo de preview de vídeo: 5s de backdrop -> 90s de vídeo -> repete.
         val d = detail
-        if (d?.backdropUrl != null) {
+        var showVideo by remember { mutableStateOf(false) }
+        var videoRendering by remember { mutableStateOf(false) }
+        LaunchedEffect(channel.url) {
+            while (true) {
+                showVideo = false
+                videoRendering = false
+                delay(5_000)
+                showVideo = true
+                delay(90_000)
+            }
+        }
+
+        // Backdrop estático: some apenas quando o vídeo estiver realmente rodando.
+        if (d?.backdropUrl != null && !videoRendering) {
             AsyncImage(
                 model = d.backdropUrl,
                 contentDescription = null,
@@ -154,22 +168,14 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             )
         }
 
-        // Ciclo de preview de vídeo: 10s de backdrop -> 90s de vídeo -> repete.
-        var showVideo by remember { mutableStateOf(false) }
-        LaunchedEffect(channel.url) {
-            while (true) {
-                showVideo = false
-                delay(10_000)
-                showVideo = true
-                delay(90_000)
-            }
-        }
         if (showVideo) {
             MoviePreviewVideo(
                 url = channel.url,
                 modifier = Modifier.fillMaxSize(),
+                onRendering = { videoRendering = it },
             )
         }
+
 
         // Dark gradient overlay
         Box(
@@ -357,8 +363,9 @@ private fun SecondaryButton(label: String, onClick: () -> Unit) {
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier) {
+private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier, onRendering: (Boolean) -> Unit = {}) {
     val ctx = LocalContext.current
+    val renderCb = rememberUpdatedState(onRendering)
     val player = remember(url) {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(2_000, 8_000, 500, 1_000)
@@ -384,12 +391,24 @@ private fun MoviePreviewVideo(url: String, modifier: Modifier = Modifier) {
                             playWhenReady = true
                         }
                     }
+
+                    override fun onRenderedFirstFrame() {
+                        renderCb.value(true)
+                    }
+
+                    override fun onIsPlayingChanged(isPlaying: Boolean) {
+                        if (isPlaying) renderCb.value(true)
+                    }
                 })
             }
     }
     DisposableEffect(player) {
-        onDispose { player.release() }
+        onDispose {
+            renderCb.value(false)
+            player.release()
+        }
     }
+
     AndroidView(
         modifier = modifier,
         factory = { context ->
