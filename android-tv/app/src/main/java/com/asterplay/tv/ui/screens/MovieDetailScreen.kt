@@ -164,7 +164,10 @@ fun MovieDetailScreen(onBack: () -> Unit) {
         val d = detail
         var showVideo by remember { mutableStateOf(false) }
         var videoRendering by remember { mutableStateOf(false) }
-        LaunchedEffect(channel.url) {
+        LaunchedEffect(channel.url, previewSuspended) {
+            showVideo = false
+            videoRendering = false
+            if (previewSuspended) return@LaunchedEffect
             while (true) {
                 showVideo = false
                 videoRendering = false
@@ -184,13 +187,14 @@ fun MovieDetailScreen(onBack: () -> Unit) {
             )
         }
 
-        if (showVideo) {
+        if (showVideo && !previewSuspended) {
             MoviePreviewVideo(
                 url = channel.url,
                 modifier = Modifier.fillMaxSize(),
                 onRendering = { videoRendering = it },
             )
         }
+
 
 
         // Dark gradient overlay
