@@ -268,19 +268,21 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
  * Painel de canais ao vivo: lista à esquerda, player 16:9 no topo direito, EPG abaixo.
  */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun LiveChannelPane(
     channels: List<Channel>,
     current: Channel,
     onPick: (Channel) -> Unit,
+    fullscreen: Boolean,
+    onEnterFullscreen: () -> Unit,
+    onExitFullscreen: () -> Unit,
 ) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val creds = remember { XtreamStore.get(ctx) }
 
     var epg by remember(current.url) { mutableStateOf<List<XtreamApi.EpgItem>>(emptyList()) }
     var loadingEpg by remember(current.url) { mutableStateOf(true) }
-    var fullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(current.url) {
         loadingEpg = true
@@ -300,116 +302,138 @@ private fun LiveChannelPane(
     LaunchedEffect(current.url) {
         player.setMediaItem(MediaItem.fromUri(current.url))
         player.prepare()
-        player.playWhenReady = true
+        player.playWhenReady = !fullscreen
+    }
+    LaunchedEffect(fullscreen) {
+        // Pausa este player enquanto o overlay em tela cheia toca o mesmo canal.
+        player.playWhenReady = !fullscreen
     }
     DisposableEffect(Unit) {
         onDispose { player.release() }
     }
 
-    // Sai do fullscreen com back.
-    BackHandler(enabled = fullscreen) { fullscreen = false }
+    // Auto-foco no canal atual da lista.
+    val listFocus = remember { FocusRequester() }
+    LaunchedEffect(current.url) { runCatching { listFocus.requestFocus() } }
 
-    Box(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxSize()) {
-            // Lista de canais da categoria
-            Column(
-                Modifier.width(320.dp).fillMaxHeight().background(BgSurface).padding(vertical = 16.dp),
+    Row(Modifier.fillMaxSize()) {
+        // Lista de canais da categoria
+        Column(
+            Modifier.width(320.dp).fillMaxHeight().background(BgSurface).padding(vertical = 16.dp),
+        ) {
+            Text(
+                "CANAIS",
+                color = Accent,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    "CANAIS",
-                    color = Accent,
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-                Spacer(Modifier.height(8.dp))
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    items(channels, key = { it.url }) { ch ->
-                        ChannelRowItem(
-                            channel = ch,
-                            selected = ch.url == current.url,
-                            onClick = {
-                                if (ch.url == current.url) fullscreen = true
-                                else onPick(ch)
-                            },
-                            onFocus = { if (ch.url != current.url) onPick(ch) },
-                        )
-                    }
-                }
-            }
-
-            // Player + EPG
-            Column(Modifier.fillMaxSize().padding(24.dp)) {
-                Text(current.name, color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(12.dp))
-                Surface(
-                    onClick = { fullscreen = true },
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.Black,
-                        focusedContainerColor = Color.Black,
-                    ),
-                    shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(12.dp)),
-                    modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-                ) {
-                    if (!fullscreen) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = {
-                                PlayerView(it).apply {
-                                    useController = false
-                                    this.player = player
-                                }
-                            },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(16.dp))
-                Text("PROGRAMAÇÃO", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                if (loadingEpg) {
-                    Text("Carregando EPG...", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-                } else if (epg.isEmpty()) {
-                    Text("EPG não disponível para este canal.", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    val now = System.currentTimeMillis()
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp),
-                    ) {
-                        items(epg) { item ->
-                            EpgRow(item, isNow = now in item.start..item.end)
-                        }
-                    }
+                items(channels, key = { it.url }) { ch ->
+                    val isCurrent = ch.url == current.url
+                    ChannelRowItem(
+                        channel = ch,
+                        selected = isCurrent,
+                        modifier = if (isCurrent) Modifier.focusRequester(listFocus) else Modifier,
+                        onClick = {
+                            if (isCurrent) onEnterFullscreen()
+                            else onPick(ch)
+                        },
+                        onFocus = { /* trocar canal só com OK, não com foco */ },
+                    )
                 }
             }
         }
 
-        // Overlay fullscreen: OK sai
-        if (fullscreen) {
-            Surface(
-                onClick = { fullscreen = false },
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = Color.Black,
-                    focusedContainerColor = Color.Black,
-                ),
-                shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(0.dp)),
-                modifier = Modifier.fillMaxSize(),
+        // Player + EPG
+        Column(Modifier.fillMaxSize().padding(24.dp)) {
+            Text(current.name, color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black),
             ) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
-                    factory = {
-                        PlayerView(it).apply {
-                            useController = false
-                            this.player = player
-                        }
+                    factory = { c ->
+                        val inflater = android.view.LayoutInflater.from(c)
+                        val view = inflater.inflate(
+                            com.asterplay.tv.R.layout.view_preview_player, null
+                        ) as PlayerView
+                        view.useController = false
+                        view.player = player
+                        view
                     },
                 )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text("PROGRAMAÇÃO", color = Accent, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(6.dp))
+            if (loadingEpg) {
+                Text("Carregando EPG...", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+            } else if (epg.isEmpty()) {
+                Text("EPG não disponível para este canal.", color = TextMuted, style = MaterialTheme.typography.bodyMedium)
+            } else {
+                val now = System.currentTimeMillis()
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp),
+                ) {
+                    items(epg) { item ->
+                        EpgRow(item, isNow = now in item.start..item.end)
+                    }
+                }
             }
         }
     }
 }
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun FullscreenChannelOverlay(channel: Channel, onExit: () -> Unit) {
+    val ctx = LocalContext.current
+    val player = remember(channel.url) {
+        ExoPlayer.Builder(ctx).build().apply {
+            setMediaItem(MediaItem.fromUri(channel.url))
+            prepare()
+            playWhenReady = true
+        }
+    }
+    DisposableEffect(player) { onDispose { player.release() } }
+
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+
+    Surface(
+        onClick = onExit,
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Black,
+            focusedContainerColor = Color.Black,
+        ),
+        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(0.dp)),
+        modifier = Modifier.fillMaxSize().focusRequester(focus),
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { c ->
+                val inflater = android.view.LayoutInflater.from(c)
+                val view = inflater.inflate(
+                    com.asterplay.tv.R.layout.view_preview_player, null
+                ) as PlayerView
+                view.useController = false
+                view.player = player
+                view
+            },
+        )
+    }
+}
+
 
 @Composable
 private fun ChannelRowItem(
