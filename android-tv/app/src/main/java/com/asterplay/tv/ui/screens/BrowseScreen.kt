@@ -418,17 +418,7 @@ private fun LiveChannelPane(
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-private fun FullscreenChannelOverlay(channel: Channel, onExit: () -> Unit) {
-    val ctx = LocalContext.current
-    val player = remember(channel.url) {
-        ExoPlayer.Builder(ctx).build().apply {
-            setMediaItem(MediaItem.fromUri(channel.url))
-            prepare()
-            playWhenReady = true
-        }
-    }
-    DisposableEffect(player) { onDispose { player.release() } }
-
+private fun FullscreenChannelOverlay(playerView: PlayerView, onExit: () -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
@@ -443,18 +433,14 @@ private fun FullscreenChannelOverlay(channel: Channel, onExit: () -> Unit) {
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { c ->
-                val inflater = android.view.LayoutInflater.from(c)
-                val view = inflater.inflate(
-                    com.asterplay.tv.R.layout.view_preview_player, null
-                ) as PlayerView
-                view.useController = false
-                view.player = player
-                view
+            factory = {
+                (playerView.parent as? android.view.ViewGroup)?.removeView(playerView)
+                playerView
             },
         )
     }
 }
+
 
 
 @Composable
