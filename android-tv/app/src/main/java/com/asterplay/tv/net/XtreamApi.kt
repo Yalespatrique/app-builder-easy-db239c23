@@ -340,7 +340,7 @@ object XtreamApi {
                     val ext = o.optString("container_extension").ifEmpty { "mp4" }
                     if (id.isEmpty()) continue
                     val url = "${c.host}/series/${c.username}/${c.password}/$id.$ext"
-                    list += Episode(id, title, season, ext, url)
+                    list += Episode(id = id, title = title, season = season, episodeNum = o.optInt("episode_num"), ext = ext, url = url)
                 }
                 bySeason[season] = list
             }
