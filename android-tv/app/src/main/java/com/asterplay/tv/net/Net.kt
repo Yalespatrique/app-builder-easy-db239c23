@@ -149,6 +149,67 @@ object Net {
     }
 }
 
+/**
+ * Vigia de abertura de conteúdo.
+ *
+ * Se o vídeo não começar dentro de [timeoutMs] (ou der erro de rede antes disso),
+ * assume bloqueio do provedor, liga o DNS seguro na hora e chama [retry] para
+ * recarregar o mesmo conteúdo. Faz isso uma única vez por player.
+ */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+class PlaybackStallGuard(
+    private val player: androidx.media3.common.Player,
+    private val timeoutMs: Long = 9000L,
+    private val retry: () -> Unit,
+) : androidx.media3.common.Player.Listener {
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var armed = false
+    private var used = false
+
+    private val fire = Runnable {
+        if (used) return@Runnable
+        used = true
+        if (Net.forceSecureDnsNow()) retry()
+    }
+
+    init {
+        player.addListener(this)
+    }
+
+    /** Chame logo depois de setMediaItem()/prepare(). */
+    fun arm() {
+        disarm()
+        if (used) return
+        armed = true
+        handler.postDelayed(fire, timeoutMs)
+    }
+
+    fun disarm() {
+        armed = false
+        handler.removeCallbacks(fire)
+    }
+
+    fun release() {
+        disarm()
+        runCatching { player.removeListener(this) }
+    }
+
+    override fun onRenderedFirstFrame() = disarm()
+
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) disarm()
+    }
+
+    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        if (armed) {
+            handler.removeCallbacks(fire)
+            handler.post(fire)
+        }
+    }
+}
+
+
+
 /** Fábrica de origem de mídia do ExoPlayer usando o mesmo DNS/HTTP do app. */
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 fun exoMediaSourceFactory(ctx: Context): androidx.media3.exoplayer.source.MediaSource.Factory {
