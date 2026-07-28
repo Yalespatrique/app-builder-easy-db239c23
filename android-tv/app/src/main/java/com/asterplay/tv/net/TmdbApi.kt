@@ -16,7 +16,13 @@ object TmdbApi {
     private const val IMG = "https://image.tmdb.org/t/p/w342"
     private const val BACKDROP = "https://image.tmdb.org/t/p/w1280"
 
-    data class Item(val title: String, val poster: String?, val tmdbId: Long)
+    data class Item(
+        val title: String,
+        val poster: String?,
+        val tmdbId: Long,
+        val originalTitle: String? = null,
+        val year: String? = null,
+    )
 
     data class Details(
         val overview: String?,
