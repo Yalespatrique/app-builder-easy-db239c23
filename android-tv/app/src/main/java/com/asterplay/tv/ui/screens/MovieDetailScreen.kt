@@ -310,10 +310,12 @@ fun MovieDetailScreen(onBack: () -> Unit) {
                         icon = Icons.Default.PlayArrow,
                         modifier = Modifier.focusRequester(playFocus),
                         onClick = {
+                            previewSuspended = true
                             val i = Intent(ctx, PlayerActivity::class.java)
                             i.putExtra("url", channel.url); i.putExtra("name", channel.name); i.putExtra("type", "vod")
                             ctx.startActivity(i)
                         },
+
                     )
                     SecondaryButton(label = "Voltar", onClick = onBack)
                 }
