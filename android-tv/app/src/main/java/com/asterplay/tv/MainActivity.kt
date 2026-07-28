@@ -42,6 +42,7 @@ object Routes {
     const val Browse = "browse/{type}"
     const val Search = "search"
     const val MovieDetail = "movie_detail"
+    const val SeriesDetail = "series_detail"
     fun browse(type: String) = "browse/$type"
 }
 
