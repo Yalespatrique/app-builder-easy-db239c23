@@ -17,10 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
@@ -48,6 +50,7 @@ import coil.compose.AsyncImage
 import com.asterplay.tv.net.TmdbApi
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.player.PlayerActivity
+import com.asterplay.tv.store.WatchedStore
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.theme.Accent
 import com.asterplay.tv.ui.theme.BgBase
@@ -87,6 +90,15 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
     var data by remember { mutableStateOf<SeriesMerged?>(null) }
     var loading by remember { mutableStateOf(true) }
     var selectedSeason by remember { mutableStateOf<Int?>(null) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var watched by remember { mutableStateOf(WatchedStore.all(ctx)) }
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) watched = WatchedStore.all(ctx)
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
 
     LaunchedEffect(channel.url, args.tmdbId) {
         val creds = XtreamStore.get(ctx)
@@ -252,13 +264,30 @@ fun SeriesDetailScreen(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f),
                     ) {
-                        items(eps) { ep ->
-                            EpisodeRow(ep = ep, onPlay = {
-                                val i = Intent(ctx, PlayerActivity::class.java)
-                                i.putExtra("url", ep.url)
-                                i.putExtra("name", "${channel.name} • T${ep.season}E${ep.episodeNum} - ${ep.title}")
-                                ctx.startActivity(i)
-                            })
+                        itemsIndexed(eps) { idx, ep ->
+                            EpisodeRow(
+                                ep = ep,
+                                watched = watched.contains(ep.url),
+                                onPlay = {
+                                    val i = Intent(ctx, PlayerActivity::class.java)
+                                    i.putExtra(PlayerActivity.EXTRA_URL, ep.url)
+                                    i.putExtra(
+                                        PlayerActivity.EXTRA_NAME,
+                                        "${channel.name} • T${ep.season}E${ep.episodeNum} - ${ep.title}",
+                                    )
+                                    i.putExtra(PlayerActivity.EXTRA_TYPE, "series")
+                                    i.putStringArrayListExtra(
+                                        PlayerActivity.EXTRA_EP_URLS,
+                                        ArrayList(eps.map { it.url }),
+                                    )
+                                    i.putStringArrayListExtra(
+                                        PlayerActivity.EXTRA_EP_NAMES,
+                                        ArrayList(eps.map { e -> "${channel.name} • T${e.season}E${e.episodeNum} - ${e.title}" }),
+                                    )
+                                    i.putExtra(PlayerActivity.EXTRA_EP_INDEX, idx)
+                                    ctx.startActivity(i)
+                                },
+                            )
                         }
                     }
                 }
@@ -303,7 +332,7 @@ private fun SeasonChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EpisodeRow(ep: XtreamApi.Episode, onPlay: () -> Unit) {
+private fun EpisodeRow(ep: XtreamApi.Episode, watched: Boolean, onPlay: () -> Unit) {
     Surface(
         onClick = onPlay,
         colors = ClickableSurfaceDefaults.colors(
@@ -357,6 +386,17 @@ private fun EpisodeRow(ep: XtreamApi.Episode, onPlay: () -> Unit) {
                 }
                 if (!ep.duration.isNullOrBlank()) {
                     Text(ep.duration, color = TextMuted, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            if (watched) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        null,
+                        tint = Accent,
+                        modifier = Modifier.width(20.dp).height(20.dp),
+                    )
+                    Text(" ASSISTIDO", color = Accent, style = MaterialTheme.typography.labelSmall)
                 }
             }
             Icon(Icons.Default.PlayArrow, null, tint = Accent, modifier = Modifier.width(28.dp).height(28.dp))

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.asterplay.tv.net.TopHomePreload
+import com.asterplay.tv.ui.components.NeonLoader
 import com.asterplay.tv.net.XtreamApi
 import com.asterplay.tv.store.XtreamStore
 import com.asterplay.tv.ui.theme.BgBase
@@ -83,72 +84,5 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             Text(status, color = TextPrimary, style = MaterialTheme.typography.headlineMedium)
             Text(sub, color = TextSecondary, style = MaterialTheme.typography.bodyLarge)
         }
-    }
-}
-
-@Composable
-private fun NeonLoader(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "neon-loader")
-    val angleOuter by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing)),
-        label = "outer",
-    )
-    val angleInner by transition.animateFloat(
-        initialValue = 360f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing)),
-        label = "inner",
-    )
-
-    Canvas(modifier = modifier) {
-        val stroke = 6.dp.toPx()
-        val innerStroke = 4.dp.toPx()
-        val pad = stroke
-        val outerSize = Size(size.width - pad * 2, size.height - pad * 2)
-        val outerOffset = Offset(pad, pad)
-
-        // Anel de fundo sutil
-        drawArc(
-            color = Color.White.copy(alpha = 0.06f),
-            startAngle = 0f,
-            sweepAngle = 360f,
-            useCenter = false,
-            topLeft = outerOffset,
-            size = outerSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-
-        // Arco externo neon (ciano→roxo)
-        drawArc(
-            brush = Brush.sweepGradient(
-                listOf(NeonCyan, NeonPurple, NeonCyan),
-                center = Offset(size.width / 2f, size.height / 2f),
-            ),
-            startAngle = angleOuter,
-            sweepAngle = 270f,
-            useCenter = false,
-            topLeft = outerOffset,
-            size = outerSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-
-        // Arco interno menor girando ao contrário
-        val innerPad = stroke * 3.5f
-        val innerSize = Size(size.width - innerPad * 2, size.height - innerPad * 2)
-        val innerOffset = Offset(innerPad, innerPad)
-        drawArc(
-            brush = Brush.sweepGradient(
-                listOf(NeonPurple, NeonCyan, NeonPurple),
-                center = Offset(size.width / 2f, size.height / 2f),
-            ),
-            startAngle = angleInner,
-            sweepAngle = 140f,
-            useCenter = false,
-            topLeft = innerOffset,
-            size = innerSize,
-            style = Stroke(width = innerStroke, cap = StrokeCap.Round),
-        )
     }
 }
