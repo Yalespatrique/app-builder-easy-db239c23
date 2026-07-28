@@ -97,6 +97,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     var shownCount by remember { mutableIntStateOf(0) }
     var loadingItems by remember { mutableStateOf(false) }
     var loadingCats by remember { mutableStateOf(true) }
+    var catCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var selectedLive by remember { mutableStateOf<Channel?>(null) }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Channel>>(emptyList()) }
