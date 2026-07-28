@@ -226,14 +226,17 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
     }
 
-    // Pausa o player embutido quando a tela sai de foco (ex.: player em tela cheia)
+    // Estado de tela cheia do canal ao vivo (mesmo player, sem recarregar)
+    var liveFullscreen by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedLive?.url) { if (selectedLive == null) liveFullscreen = false }
+
+    // Apenas pausa o player embutido quando a tela sai de foco — não recarrega ao voltar
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
                     livePlayer.playWhenReady = false
-                    livePlayer.stop()
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                     if (continueCat != null) {
@@ -252,11 +255,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                             shownCount = minOf(pageSize, continueItems.size)
                         }
                     }
-                    if (selectedLive != null && livePlayer.mediaItemCount == 0) {
-                        livePlayer.setMediaItem(
-                            MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
-                        )
-                        livePlayer.prepare()
+                    if (selectedLive != null) {
+                        if (livePlayer.mediaItemCount == 0) {
+                            livePlayer.setMediaItem(
+                                MediaItem.fromUri(SettingsStore.applyFormat(ctx, selectedLive!!.url)),
+                            )
+                            livePlayer.prepare()
+                        }
                         livePlayer.playWhenReady = true
                     }
                 }
@@ -268,9 +273,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     }
 
 
-    BackHandler(enabled = selectedLive != null) { selectedLive = null }
+    BackHandler(enabled = selectedLive != null) {
+        if (liveFullscreen) liveFullscreen = false else selectedLive = null
+    }
 
+    val showLiveFullscreen = liveFullscreen && selectedLive != null
     Box(Modifier.fillMaxSize().background(BgBase)) {
+        if (!showLiveFullscreen)
         Row(Modifier.fillMaxSize()) {
             Column(
                 Modifier.width(300.dp).fillMaxHeight().background(BgSurface).padding(vertical = 20.dp),
@@ -315,13 +324,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     current = selectedLive!!,
                     player = livePlayer,
                     onPick = { selectedLive = it },
-                    onEnterFullscreen = {
-                        val i = Intent(ctx, PlayerActivity::class.java)
-                        i.putExtra("url", SettingsStore.applyFormat(ctx, selectedLive!!.url))
-                        i.putExtra("name", selectedLive!!.name)
-                        i.putExtra("type", "live")
-                        ctx.startActivity(i)
-                    },
+                    onEnterFullscreen = { liveFullscreen = true },
+
+
                 )
             } else {
                 Column(Modifier.fillMaxSize().padding(32.dp)) {
@@ -392,6 +397,14 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     }
                 }
             }
+        }
+
+        if (showLiveFullscreen) {
+            LiveFullscreenPane(
+                player = livePlayer,
+                name = selectedLive!!.name,
+                onExit = { liveFullscreen = false },
+            )
         }
     }
 }
@@ -562,6 +575,33 @@ private fun SharedPlayerView(player: ExoPlayer) {
         },
     )
 }
+
+/** Tela cheia usando o MESMO ExoPlayer — nunca recarrega o canal. */
+@Composable
+private fun LiveFullscreenPane(player: ExoPlayer, name: String, onExit: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        SharedPlayerView(player = player)
+        Surface(
+            onClick = onExit,
+            modifier = Modifier.fillMaxSize().focusRequester(focus),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+            ),
+        ) {
+            Box(Modifier.fillMaxSize())
+        }
+        Text(
+            name,
+            color = TextPrimary,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.align(androidx.compose.ui.Alignment.TopStart).padding(28.dp),
+        )
+    }
+}
+
 
 
 
