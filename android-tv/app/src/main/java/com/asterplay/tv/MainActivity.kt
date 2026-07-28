@@ -104,6 +104,10 @@ fun AsterplayApp() {
                             MovieDetailArgs.set(ch, tmdbId, kind = "movie")
                             nav.navigate(Routes.MovieDetail)
                         },
+                        onOpenSeriesDetail = { ch, tmdbId ->
+                            SeriesDetailArgs.set(ch, tmdbId)
+                            nav.navigate(Routes.SeriesDetail)
+                        },
                     )
                 }
                 composable(Routes.Browse) { backStack ->
@@ -115,6 +119,10 @@ fun AsterplayApp() {
                             MovieDetailArgs.set(ch, null, kind = "movie")
                             nav.navigate(Routes.MovieDetail)
                         },
+                        onOpenSeriesDetail = { ch ->
+                            SeriesDetailArgs.set(ch, null)
+                            nav.navigate(Routes.SeriesDetail)
+                        },
                     )
                 }
                 composable(Routes.Search) {
@@ -122,6 +130,9 @@ fun AsterplayApp() {
                 }
                 composable(Routes.MovieDetail) {
                     MovieDetailScreen(onBack = { nav.popBackStack() })
+                }
+                composable(Routes.SeriesDetail) {
+                    SeriesDetailScreen(onBack = { nav.popBackStack() })
                 }
             }
 
