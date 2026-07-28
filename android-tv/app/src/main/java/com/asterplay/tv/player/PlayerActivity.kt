@@ -173,6 +173,7 @@ private fun AsterplayPlayerScreen(
             player.playWhenReady = true
         }
         autoNextIn = -1
+        autoNextCancelled = false
         touch()
     }
 
