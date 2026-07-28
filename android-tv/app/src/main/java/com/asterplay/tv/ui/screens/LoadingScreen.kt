@@ -55,6 +55,7 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
     LaunchedEffect(Unit) {
         val c = XtreamStore.get(ctx)
         if (c == null) { onFail(); return@LaunchedEffect }
+        sub = "verificando sua conta..."
         val ok = XtreamApi.authenticate(c)
         if (!ok) {
             status = "Não foi possível conectar"
@@ -63,15 +64,15 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             XtreamStore.clear(ctx); onFail()
             return@LaunchedEffect
         }
-        // Pré-carrega o Top 10 e recentes antes de entrar no menu.
-        // As categorias e o conteúdo de cada uma só são baixados quando
-        // o usuário abrir a tela correspondente (lazy).
+        // Conta validada: carrega o menu antes de abrir a Home.
+        // - categorias de canais, filmes e séries
+        // - todos os canais ao vivo (filmes/séries continuam lazy por categoria)
+        MenuPreload.run(ctx, c) { sub = it }
         sub = "montando destaques..."
-        // Espera todo o preload terminar antes de abrir o menu — sem timeout,
-        // para o Home já entrar com Top 10 e recentes populados.
         TopHomePreload.run(ctx)
         delay(120); onReady()
     }
+
 
     Box(Modifier.fillMaxSize().background(BgBase), contentAlignment = Alignment.Center) {
         Column(
