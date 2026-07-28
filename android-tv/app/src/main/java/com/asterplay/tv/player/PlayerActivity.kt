@@ -490,3 +490,75 @@ private fun ControlButton(
         }
     }
 }
+
+@Composable
+private fun ResumeDialog(
+    title: String,
+    positionMs: Long,
+    onResume: () -> Unit,
+    onRestart: () -> Unit,
+) {
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+
+    Box(
+        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xF2101024))
+                .padding(horizontal = 44.dp, vertical = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                "Continuar assistindo?",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            if (title.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(title, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Você parou em ${fmt(positionMs)}",
+                color = NeonCyan,
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Spacer(Modifier.height(26.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                DialogButton("Retomar", primary = true, modifier = Modifier.focusRequester(focus), onClick = onResume)
+                DialogButton("Começar do início", onClick = onRestart)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogButton(
+    label: String,
+    primary: Boolean = false,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    androidx.tv.material3.Surface(
+        onClick = onClick,
+        modifier = modifier,
+        colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+            containerColor = if (primary) NeonPurple.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.12f),
+            focusedContainerColor = NeonCyan,
+        ),
+        shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+    ) {
+        Text(
+            label,
+            color = TextPrimary,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(horizontal = 26.dp, vertical = 14.dp),
+        )
+    }
+}
