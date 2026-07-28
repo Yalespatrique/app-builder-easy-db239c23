@@ -1,6 +1,7 @@
 package com.asterplay.tv.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -283,7 +285,7 @@ private fun TvTextField(
                 .then(if (focused) Modifier.border(2.dp, Accent, RoundedCornerShape(8.dp)) else Modifier)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focused = it.isFocused; if (it.isFocused) keyboard?.show() }
-                .androidx.compose.foundation.clickable { focusRequester.requestFocus(); keyboard?.show() }
+                .clickable { focusRequester.requestFocus(); keyboard?.show() }
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         )
     }
