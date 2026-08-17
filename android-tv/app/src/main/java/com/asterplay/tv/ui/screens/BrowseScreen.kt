@@ -174,7 +174,32 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         val hasContinue = continueCat != null && continueItems.isNotEmpty()
         categories = if (hasContinue) listOf(continueCat!!) + visibleCats else visibleCats
         loadingCats = false
-        catCounts = catCounts + withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
+        val cachedCounts = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
+        catCounts = catCounts + cachedCounts
+
+        // Garante que o total de cada categoria seja carregado antes de ela ser aberta.
+        // O preload global normalmente já faz isso, mas a tela também precisa funcionar
+        // quando o usuário chega aqui rapidamente ou quando o preload ainda está em andamento.
+        if (visibleCats.isNotEmpty() && visibleCats.any { catCounts[it.id] == null }) {
+            scope.launch {
+                val totals = withContext(Dispatchers.IO) {
+                    val all = XtreamApi.allStreams(creds, type)
+                    val byCategory = all.groupingBy { it.group.orEmpty() }.eachCount()
+                    visibleCats.associate { category ->
+                        category.id to (byCategory[category.id] ?: 0)
+                    }.also { counts ->
+                        if (counts.isNotEmpty()) {
+                            CacheDb.get(ctx).writeCounts(account, type, counts)
+                        }
+                    }
+                }
+                if (totals.isNotEmpty()) {
+                    catCounts = catCounts + totals
+                    com.asterplay.tv.net.PreloadState.countsVersion.value++
+                }
+            }
+        }
+
         if (hasContinue) {
             selectedIdx = 0
             items = continueItems
