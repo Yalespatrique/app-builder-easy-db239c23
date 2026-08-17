@@ -221,7 +221,7 @@ fun HomeScreen(
                     "Configurações",
                     modifier = Modifier.focusRequester(settingsMenuFocus),
                 ) { showSettings = true }
-                SideMenuItem(Icons.Default.Favorite, "Favoritos") { /* futuro */ }
+                SideMenuItem(androidx.compose.material.icons.Icons.Default.Favorite, "Favoritos") { onOpenBrowse("live") }
                 Spacer(Modifier.weight(1f))
                 SideMenuItem(Icons.Default.Logout, "Sair") {
                     PlaylistStore.clear(ctx); XtreamStore.clear(ctx); CacheDb.get(ctx).clearAll(); TopCacheStore.clear(ctx); onLogout()

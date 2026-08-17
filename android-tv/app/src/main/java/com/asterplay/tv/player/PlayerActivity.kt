@@ -236,7 +236,7 @@ private fun AsterplayPlayerScreen(
 
                 val remaining = ((duration - position) / 1000).toInt()
                 if (hasPlaylist && index < (epUrls?.size ?: 0) - 1 &&
-                    remaining in 0..120 && !autoNextCancelled
+                    remaining in 0..10 && !autoNextCancelled
                 ) {
                     autoNextIn = remaining
                     controlsVisible = true
@@ -245,7 +245,7 @@ private fun AsterplayPlayerScreen(
                         ResumeStore.clear(ctx, url)
                         index++
                     }
-                } else if (autoNextIn >= 0 && (remaining > 120 || autoNextCancelled)) {
+                } else if (autoNextIn >= 0 && (remaining > 10 || autoNextCancelled)) {
                     autoNextIn = -1
                 }
                 if (position > 0 && duration > 0 && position >= duration * 0.95) {
@@ -515,6 +515,7 @@ private fun ControlButton(
         colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
             containerColor = Color.White.copy(alpha = 0.12f),
             focusedContainerColor = NeonCyan,
+            focusedBorder = androidx.tv.material3.Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White)),
         ),
         shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(CircleShape),
         modifier = Modifier.size(if (big) 62.dp else 50.dp),

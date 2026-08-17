@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -103,6 +105,8 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Channel>>(emptyList()) }
     var searchLoading by remember { mutableStateOf(false) }
+    var favorites by remember { mutableStateOf<Set<String>>(emptySet()) }
+    
     val hasSearchQuery = query.trim().isNotEmpty()
     val canSearch = query.trim().length >= 2
 
@@ -141,10 +145,25 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             XtreamCategory(ContinueStore.CATEGORY_ID, ContinueStore.CATEGORY_NAME)
         } else null
     }
+    val favCat = remember(type) {
+        if (type == "live") {
+            XtreamCategory("favorites", "FAVORITOS")
+        } else null
+    }
+    
     var continueItems by remember { mutableStateOf<List<Channel>>(emptyList()) }
+    var favoriteItems by remember { mutableStateOf<List<Channel>>(emptyList()) }
 
-    fun refreshContinue() {
+    fun refreshState() {
+        favorites = com.asterplay.tv.store.FavoritesStore.all(ctx)
         continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
+        favoriteItems = if (favCat != null) {
+            val allFavs = favorites
+            // Idealmente buscaríamos no CacheDb todos os canais que estão nos favoritos
+            // Por simplicidade, vamos filtrar o que já temos se for 'live', 
+            // mas o ideal é uma query no DB.
+            items.filter { allFavs.contains(it.url) } 
+        } else emptyList()
     }
 
     // Totais por categoria: aparecem já no primeiro carregamento e se atualizam
@@ -159,7 +178,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
 
     LaunchedEffect(type) {
         if (creds == null) { onBack(); return@LaunchedEffect }
-        refreshContinue()
+        refreshState()
         val account = CacheDb.accountKey(creds.host, creds.username)
         loadingCats = true
         val cats = withContext(Dispatchers.IO) {
@@ -172,7 +191,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
         val visibleCats = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
         val hasContinue = continueCat != null && continueItems.isNotEmpty()
-        categories = if (hasContinue) listOf(continueCat!!) + visibleCats else visibleCats
+        val hasFavs = favCat != null && favoriteItems.isNotEmpty()
+        
+        categories = mutableListOf<XtreamCategory>().apply {
+            if (hasFavs) add(favCat!!)
+            if (hasContinue) add(continueCat!!)
+            addAll(visibleCats)
+        }
         loadingCats = false
         val cachedCounts = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
         catCounts = catCounts + cachedCounts
@@ -304,20 +329,31 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     livePlayer.playWhenReady = false
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
-                    if (continueCat != null) {
-                        refreshContinue()
+                    refreshState()
+                    if (continueCat != null || favCat != null) {
                         val hasCont = continueItems.isNotEmpty()
-                        val hadCont = categories.firstOrNull()?.id == ContinueStore.CATEGORY_ID
-                        if (hasCont && !hadCont) {
-                            categories = listOf(continueCat) + categories
-                            selectedIdx += 1
-                        } else if (!hasCont && hadCont) {
-                            categories = categories.drop(1)
-                            selectedIdx = maxOf(0, selectedIdx - 1)
+                        val hasFav = favoriteItems.isNotEmpty()
+                        
+                        val newCats = mutableListOf<XtreamCategory>()
+                        if (hasFav) newCats.add(favCat!!)
+                        if (hasCont) newCats.add(continueCat!!)
+                        
+                        // Filtra categorias reais (não virtuais) das atuais
+                        val realCats = categories.filter { it.id != ContinueStore.CATEGORY_ID && it.id != "favorites" }
+                        newCats.addAll(realCats)
+                        
+                        if (newCats != categories) {
+                            categories = newCats
+                            // Ajuste de índice se necessário
                         }
-                        if (categories.getOrNull(selectedIdx)?.id == ContinueStore.CATEGORY_ID) {
+                        
+                        val selectedId = categories.getOrNull(selectedIdx)?.id
+                        if (selectedId == ContinueStore.CATEGORY_ID) {
                             items = continueItems
                             shownCount = minOf(pageSize, continueItems.size)
+                        } else if (selectedId == "favorites") {
+                            items = favoriteItems
+                            shownCount = minOf(pageSize, favoriteItems.size)
                         }
                     }
                     if (selectedLive != null) {
@@ -371,8 +407,11 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     itemsIndexed(categories) { i, cat ->
                         CategoryItem(
                             name = cat.name,
-                            count = if (cat.id == ContinueStore.CATEGORY_ID) continueItems.size
-                                    else catCounts[cat.id] ?: -1,
+                            count = when (cat.id) {
+                                ContinueStore.CATEGORY_ID -> continueItems.size
+                                "favorites" -> favoriteItems.size
+                                else -> catCounts[cat.id] ?: -1
+                            },
                             selected = i == selectedIdx && !hasSearchQuery,
                             onClick = { query = ""; onSelectCategory(i) },
                             onFocus = { /* não trocar por foco: evita voltar pra primeira */ },
@@ -387,7 +426,12 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     channels = items,
                     current = selectedLive!!,
                     player = livePlayer,
+                    isFavorite = favorites.contains(selectedLive!!.url),
                     onPick = { selectedLive = it },
+                    onToggleFavorite = { ch ->
+                        com.asterplay.tv.store.FavoritesStore.toggle(ctx, ch.url)
+                        refreshState()
+                    },
                     onEnterFullscreen = { liveFullscreen = true },
 
 
@@ -483,7 +527,9 @@ private fun LiveChannelPane(
     channels: List<Channel>,
     current: Channel,
     player: ExoPlayer,
+    isFavorite: Boolean,
     onPick: (Channel) -> Unit,
+    onToggleFavorite: (Channel) -> Unit,
     onEnterFullscreen: () -> Unit,
 ) {
     val ctx = LocalContext.current
@@ -541,7 +587,29 @@ private fun LiveChannelPane(
 
         // Player + EPG
         Column(Modifier.fillMaxSize().padding(24.dp)) {
-            Text(current.name, color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(current.name, color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
+                Surface(
+                    onClick = { onToggleFavorite(current) },
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = if (isFavorite) Accent.copy(alpha = 0.2f) else Color.Transparent,
+                        focusedContainerColor = Accent.copy(alpha = 0.4f)
+                    ),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp))
+                ) {
+                    Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.tv.material3.Icon(
+                            imageVector = if (isFavorite) androidx.compose.material.icons.Icons.Default.Favorite else androidx.compose.material.icons.Icons.Default.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isFavorite) Accent else TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isFavorite) "FAVORITO" else "FAVORITAR", color = if (isFavorite) Accent else TextSecondary, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
             Box(
                 modifier = Modifier
