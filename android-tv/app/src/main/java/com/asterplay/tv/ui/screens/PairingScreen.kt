@@ -71,6 +71,15 @@ fun PairingScreen(onActivated: () -> Unit) {
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
 
+    val codeFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        repeat(10) {
+            if (runCatching { codeFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            kotlinx.coroutines.delay(100)
+        }
+    }
+
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
@@ -235,7 +244,7 @@ fun PairingScreen(onActivated: () -> Unit) {
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Spacer(Modifier.height(2.dp))
-                    TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO", focusRequester = codeFocus)
+                    TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO", modifier = Modifier.focusRequester(codeFocus))
                     TvTextField(value = user, onChange = { user = it }, label = "USUÁRIO")
                     TvTextField(value = pass, onChange = { pass = it }, label = "SENHA", isPassword = true)
 
@@ -275,7 +284,7 @@ private fun TvTextField(
     onChange: (String) -> Unit,
     label: String,
     isPassword: Boolean = false,
-    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -294,10 +303,9 @@ private fun TvTextField(
                 imeAction = ImeAction.Next,
                 keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
             ),
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged {
                     focused = it.isFocused
                     if (it.isFocused) keyboard?.show()
