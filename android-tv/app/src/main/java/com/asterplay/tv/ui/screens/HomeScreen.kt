@@ -160,13 +160,18 @@ fun HomeScreen(
                 val freshRM = TopCacheStore.read(ctx, account, "recent_movie")
                 val freshRS = TopCacheStore.read(ctx, account, "recent_series")
                 
+                // Atualiza o estado da UI de forma atômica
                 if (!freshM.isNullOrEmpty()) topMovies = freshM.map { it.toHit() }
                 if (!freshS.isNullOrEmpty()) topSeries = freshS.map { it.toHit() }
                 if (!freshRM.isNullOrEmpty()) recentMovies = freshRM.map { it.toChannel() }
                 if (!freshRS.isNullOrEmpty()) recentSeries = freshRS.map { it.toChannel() }
+                
+                // Se já carregamos algo do cache ou do preload, marcamos como carregado
+                loaded = true
             }
         }
     }
+
 
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
