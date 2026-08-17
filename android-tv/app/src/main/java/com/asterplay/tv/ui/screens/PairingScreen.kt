@@ -244,7 +244,7 @@ fun PairingScreen(onActivated: () -> Unit) {
                         style = MaterialTheme.typography.labelMedium,
                     )
                     Spacer(Modifier.height(2.dp))
-                    TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO", focusRequester = codeFocus)
+                    TvTextField(value = code, onChange = { code = it }, label = "CÓDIGO", modifier = Modifier.focusRequester(codeFocus))
                     TvTextField(value = user, onChange = { user = it }, label = "USUÁRIO")
                     TvTextField(value = pass, onChange = { pass = it }, label = "SENHA", isPassword = true)
 
