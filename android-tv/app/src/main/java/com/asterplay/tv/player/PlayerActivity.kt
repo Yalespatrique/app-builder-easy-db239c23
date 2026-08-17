@@ -253,7 +253,7 @@ private fun AsterplayPlayerScreen(
                 }
             }
             if (controlsVisible && autoNextIn < 0 &&
-                System.currentTimeMillis() - lastInteraction > 4000 && playing
+                System.currentTimeMillis() - lastInteraction > 5000 && playing
             ) controlsVisible = false
             delay(500)
         }
