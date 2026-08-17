@@ -131,11 +131,10 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
             null -> { /* sem internet pra checar: não bloqueia */ }
         }
 
-        // Conta validada: carrega só as categorias (rápido) e abre a Home.
-        // O catálogo completo (totais por categoria, canais e destaques)
-        // continua baixando em segundo plano, sem travar o app.
-        MenuPreload.fast(ctx, c) { sub = it }
-        MenuPreload.startBackground(ctx, c)
+        // Conta validada: carrega o catálogo completo e sincroniza antes de abrir a Home.
+        // O usuário solicitou que o carregamento só termine após montar todo o menu e conteúdos.
+        status = "Carregando catálogo..."
+        MenuPreload.fullSync(ctx, c) { sub = it }
         
         onReady()
     }

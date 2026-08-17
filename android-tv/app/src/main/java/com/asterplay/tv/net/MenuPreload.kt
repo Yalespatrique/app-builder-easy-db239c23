@@ -42,59 +42,59 @@ object MenuPreload {
 
     private val KINDS = listOf("live", "vod", "series")
 
-    /** Só categorias — rápido. */
-    suspend fun fast(ctx: Context, creds: XtreamCreds, onProgress: (String) -> Unit = {}) =
+    /**
+     * Sincronização completa e bloqueante: categorias + contagens + destaques.
+     * Só retorna quando tudo estiver pronto para a Home exibir.
+     */
+    suspend fun fullSync(ctx: Context, creds: XtreamCreds, onProgress: (String) -> Unit = {}) =
         withContext(Dispatchers.IO) {
             val db = CacheDb.get(ctx)
             val account = CacheDb.accountKey(creds.host, creds.username)
+
+            // 1. Categorias (rápido)
             onProgress("carregando categorias...")
             coroutineScope {
                 KINDS.map { kind ->
                     async {
-                        if (db.readCategories(account, kind) == null) {
-                            val fresh = XtreamApi.categories(creds, kind)
-                            if (fresh.isNotEmpty()) {
-                                db.writeCategories(account, kind, fresh, CacheDb.TTL_CATEGORIES)
+                        val fresh = XtreamApi.categories(creds, kind)
+                        if (fresh.isNotEmpty()) {
+                            db.writeCategories(account, kind, fresh, CacheDb.TTL_CATEGORIES)
+                        }
+                    }
+                }.forEach { it.await() }
+            }
+
+            // 2. Contagens e Canais (mais pesado)
+            onProgress("organizando canais e filmes...")
+            coroutineScope {
+                KINDS.map { kind ->
+                    async {
+                        val all = runCatching { XtreamApi.allStreams(creds, kind) }.getOrDefault(emptyList())
+                        if (all.isEmpty()) return@async
+                        val byCat = all.groupBy { it.group.orEmpty() }
+
+                        // Totais reais por categoria
+                        db.writeCounts(account, kind, byCat.mapValues { it.value.size }.filterKeys { it.isNotEmpty() })
+
+                        // Cache de canais ao vivo para navegação instantânea
+                        if (kind == "live") {
+                            for ((catId, list) in byCat) {
+                                if (catId.isBlank() || list.isEmpty()) continue
+                                db.writeStreams(account, "live", catId, list, CacheDb.TTL_STREAMS)
                             }
                         }
                     }
                 }.forEach { it.await() }
             }
+
+            // 3. Destaques (Top 10 / Recentes)
+            onProgress("preparando destaques...")
+            runCatching {
+                TopHomePreload.run(ctx)
+            }
+
+            // Notifica UI que os dados estão prontos
+            PreloadState.countsVersion.value++
         }
-
-    /** Catálogo completo em segundo plano: totais + canais ao vivo + destaques. */
-    fun startBackground(ctx: Context, creds: XtreamCreds) = PreloadState.launchBackground {
-        val db = CacheDb.get(ctx)
-        val account = CacheDb.accountKey(creds.host, creds.username)
-
-        coroutineScope {
-            KINDS.map { kind ->
-                async {
-                    val all = runCatching { XtreamApi.allStreams(creds, kind) }.getOrDefault(emptyList())
-                    if (all.isEmpty()) return@async
-                    val byCat = all.groupBy { it.group.orEmpty() }
-
-                    // Totais reais por categoria (mostrados no menu).
-                    db.writeCounts(account, kind, byCat.mapValues { it.value.size }.filterKeys { it.isNotEmpty() })
-                    PreloadState.countsVersion.value++
-
-                    // Só canais ao vivo ficam pré-cacheados; filmes/séries seguem lazy.
-                    if (kind == "live") {
-                        for ((catId, list) in byCat) {
-                            if (catId.isBlank() || list.isEmpty()) continue
-                            if (db.readStreams(account, "live", catId) == null) {
-                                db.writeStreams(account, "live", catId, list, CacheDb.TTL_STREAMS)
-                            }
-                        }
-                    }
-                }
-            }.forEach { it.await() }
-        }
-
-        runCatching { 
-            TopHomePreload.run(ctx)
-            PreloadState.countsVersion.value++ // Force UI refresh after Top 10 is ready
-        }
-    }
 }
 
