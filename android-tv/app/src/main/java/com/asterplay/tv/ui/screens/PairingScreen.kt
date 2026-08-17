@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onKeyEvent
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Icon
@@ -74,7 +76,7 @@ fun PairingScreen(onActivated: () -> Unit) {
     val codeFocus = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        repeat(10) {
+        repeat(20) {
             if (runCatching { codeFocus.requestFocus() }.isSuccess) return@LaunchedEffect
             kotlinx.coroutines.delay(100)
         }
@@ -82,15 +84,6 @@ fun PairingScreen(onActivated: () -> Unit) {
 
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-
-    // Na TV/Fire TV o cursor já começa fixado no campo CÓDIGO.
-    val codeFocus = remember { androidx.compose.ui.focus.FocusRequester() }
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        repeat(20) {
-            if (runCatching { codeFocus.requestFocus() }.isSuccess) return@LaunchedEffect
-            kotlinx.coroutines.delay(100)
-        }
-    }
 
     fun tryActivateMac() {
         if (loading) return
