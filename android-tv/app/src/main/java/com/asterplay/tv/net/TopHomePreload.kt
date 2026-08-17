@@ -30,13 +30,14 @@ object TopHomePreload {
 
         val (tmdbM, tmdbS, vodPair, seriesPair) = withContext(Dispatchers.IO) {
             coroutineScope {
-                val a = async { TmdbApi.topMovies(25) }
-                val b = async { TmdbApi.topSeries(25) }
-                val c = async { XtreamApi.streamsAndRecent(creds, "vod", 20) }
-                val d = async { XtreamApi.streamsAndRecent(creds, "series", 20) }
+                val a = async { runCatching { TmdbApi.topMovies(25) }.getOrDefault(emptyList()) }
+                val b = async { runCatching { TmdbApi.topSeries(25) }.getOrDefault(emptyList()) }
+                val c = async { runCatching { XtreamApi.streamsAndRecent(creds, "vod", 20) }.getOrDefault(emptyList<Channel>() to emptyList()) }
+                val d = async { runCatching { XtreamApi.streamsAndRecent(creds, "series", 20) }.getOrDefault(emptyList<Channel>() to emptyList()) }
                 HomePayload(a.await(), b.await(), c.await(), d.await())
             }
         }
+
         val srvM = vodPair.first
         val srvS = seriesPair.first
         val recentM = vodPair.second

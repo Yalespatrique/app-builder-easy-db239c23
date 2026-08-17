@@ -91,6 +91,10 @@ object MenuPreload {
             }.forEach { it.await() }
         }
 
-        runCatching { TopHomePreload.run(ctx) }
+        runCatching { 
+            TopHomePreload.run(ctx)
+            PreloadState.countsVersion.value++ // Force UI refresh after Top 10 is ready
+        }
     }
 }
+
