@@ -82,6 +82,9 @@ fun PairingScreen(onActivated: () -> Unit) {
         }
     }
 
+    var loading by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+
     fun tryActivateMac() {
         if (loading) return
         loading = true; message = null
