@@ -149,21 +149,25 @@ fun HomeScreen(
         if (!cachedRecentM.isNullOrEmpty()) recentMovies = cachedRecentM.map { it.toChannel() }
         if (!cachedRecentS.isNullOrEmpty()) recentSeries = cachedRecentS.map { it.toChannel() }
 
-        // 2) Libera a UI já. Se falta cache, dispara preload em background
-        // sem bloquear a navegação — quando terminar, o Home é atualizado.
+        // 2) Libera a UI já.
         loaded = true
-        val missing = cachedM.isNullOrEmpty() || cachedS.isNullOrEmpty() ||
-            cachedRecentM.isNullOrEmpty() || cachedRecentS.isNullOrEmpty()
-        if (missing) {
-            scope.launch {
-                TopHomePreload.run(ctx)
-                topMovies = TopCacheStore.read(ctx, account, "movie")?.map { it.toHit() }.orEmpty()
-                topSeries = TopCacheStore.read(ctx, account, "series")?.map { it.toHit() }.orEmpty()
-                recentMovies = TopCacheStore.read(ctx, account, "recent_movie")?.map { it.toChannel() }.orEmpty()
-                recentSeries = TopCacheStore.read(ctx, account, "recent_series")?.map { it.toChannel() }.orEmpty()
+        
+        // 3) Monitora o estado global do preload para atualizar a Home
+        scope.launch {
+            com.asterplay.tv.net.PreloadState.countsVersion.collect {
+                val freshM = TopCacheStore.read(ctx, account, "movie")
+                val freshS = TopCacheStore.read(ctx, account, "series")
+                val freshRM = TopCacheStore.read(ctx, account, "recent_movie")
+                val freshRS = TopCacheStore.read(ctx, account, "recent_series")
+                
+                if (!freshM.isNullOrEmpty()) topMovies = freshM.map { it.toHit() }
+                if (!freshS.isNullOrEmpty()) topSeries = freshS.map { it.toHit() }
+                if (!freshRM.isNullOrEmpty()) recentMovies = freshRM.map { it.toChannel() }
+                if (!freshRS.isNullOrEmpty()) recentSeries = freshRS.map { it.toChannel() }
             }
         }
     }
+
 
     Box(Modifier.fillMaxSize().background(BgBase)) {
         Image(
@@ -268,22 +272,24 @@ fun HomeScreen(
                     onPick = { hit -> onOpenSeriesDetail(hit.channel, hit.tmdb.tmdbId) },
                 )
 
+                val recentMoviesLoaded = loaded && recentMovies.isNotEmpty()
                 RecentRow(
                     title = "🆕 FILMES RECENTES",
                     items = recentMovies,
                     loaded = loaded,
-                    emptyMsg = "Sem filmes recentes.",
+                    emptyMsg = if (loaded && recentMovies.isEmpty()) "Sem filmes recentes." else "Carregando...",
                     onPick = { ch -> onOpenMovieDetail(ch, null) },
-
                 )
 
+                val recentSeriesLoaded = loaded && recentSeries.isNotEmpty()
                 RecentRow(
                     title = "🆕 SÉRIES RECENTES",
                     items = recentSeries,
                     loaded = loaded,
-                    emptyMsg = "Sem séries recentes.",
+                    emptyMsg = if (loaded && recentSeries.isEmpty()) "Sem séries recentes." else "Carregando...",
                     onPick = { ch -> onOpenSeriesDetail(ch, null) },
                 )
+
             }
         }
 
