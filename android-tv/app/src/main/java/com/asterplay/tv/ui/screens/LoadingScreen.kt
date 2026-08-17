@@ -136,6 +136,7 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
         // continua baixando em segundo plano, sem travar o app.
         MenuPreload.fast(ctx, c) { sub = it }
         MenuPreload.startBackground(ctx, c)
+        
         onReady()
     }
 

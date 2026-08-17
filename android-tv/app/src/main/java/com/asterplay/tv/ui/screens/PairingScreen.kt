@@ -71,6 +71,15 @@ fun PairingScreen(onActivated: () -> Unit) {
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
 
+    val codeFocus = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        repeat(10) {
+            if (runCatching { codeFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            kotlinx.coroutines.delay(100)
+        }
+    }
+
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
