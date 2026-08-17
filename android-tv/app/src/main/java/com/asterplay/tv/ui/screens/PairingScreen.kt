@@ -284,7 +284,7 @@ private fun TvTextField(
     onChange: (String) -> Unit,
     label: String,
     isPassword: Boolean = false,
-    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -303,10 +303,9 @@ private fun TvTextField(
                 imeAction = ImeAction.Next,
                 keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
             ),
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged {
                     focused = it.isFocused
                     if (it.isFocused) keyboard?.show()
