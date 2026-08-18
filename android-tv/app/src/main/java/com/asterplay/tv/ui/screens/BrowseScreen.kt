@@ -257,8 +257,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         shownCount = 0
         if (categories[idx].id == ContinueStore.CATEGORY_ID) {
             scope.launch {
-                ContinueStore.refresh(ctx, account)
-                items = ContinueStore.getItems(type)
+                items = ContinueStore.channels(ctx, type)
                 shownCount = minOf(pageSize, items.size)
                 loadingItems = false
             }
