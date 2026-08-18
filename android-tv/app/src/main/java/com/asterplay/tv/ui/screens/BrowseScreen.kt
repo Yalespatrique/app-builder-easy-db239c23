@@ -341,31 +341,27 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                     refreshState()
-                    if (continueCat != null || favCat != null) {
-                        val hasCont = continueItems.isNotEmpty()
-                        val hasFav = favoriteItems.isNotEmpty()
-                        
-                        val newCats = mutableListOf<XtreamCategory>()
-                        if (hasFav) newCats.add(favCat!!)
-                        if (hasCont) newCats.add(continueCat!!)
-                        
-                        // Filtra categorias reais (não virtuais) das atuais
-                        val realCats = categories.filter { it.id != ContinueStore.CATEGORY_ID && it.id != "favorites" }
-                        newCats.addAll(realCats)
-                        
-                        if (newCats != categories) {
-                            categories = newCats
-                            // Ajuste de índice se necessário
-                        }
-                        
-                        val selectedId = categories.getOrNull(selectedIdx)?.id
-                        if (selectedId == ContinueStore.CATEGORY_ID) {
-                            items = continueItems
-                            shownCount = minOf(pageSize, continueItems.size)
-                        } else if (selectedId == "favorites") {
-                            items = favoriteItems
-                            shownCount = minOf(pageSize, favoriteItems.size)
-                        }
+                    val hasCont = continueItems.isNotEmpty()
+                    val hasFav = favoriteItems.isNotEmpty()
+                    
+                    val newCats = mutableListOf<XtreamCategory>()
+                    if (hasFav && favCat != null) newCats.add(favCat!!)
+                    if (hasCont && continueCat != null) newCats.add(continueCat!!)
+                    
+                    val realCats = categories.filter { it.id != ContinueStore.CATEGORY_ID && it.id != "favorites" }
+                    newCats.addAll(realCats)
+                    
+                    if (newCats.size != categories.size || newCats.zip(categories).any { it.first.id != it.second.id }) {
+                        categories = newCats
+                    }
+                    
+                    val selectedId = categories.getOrNull(selectedIdx)?.id
+                    if (selectedId == ContinueStore.CATEGORY_ID) {
+                        items = continueItems
+                        shownCount = minOf(pageSize, continueItems.size)
+                    } else if (selectedId == "favorites") {
+                        items = favoriteItems
+                        shownCount = minOf(pageSize, favoriteItems.size)
                     }
                     if (selectedLive != null) {
                         if (livePlayer.mediaItemCount == 0) {
