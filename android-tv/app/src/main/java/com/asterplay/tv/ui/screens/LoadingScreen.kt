@@ -133,6 +133,7 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
 
         // Conta validada: carrega o catálogo completo e sincroniza antes de abrir a Home.
         // O usuário solicitou que o carregamento só termine após montar todo o menu e conteúdos.
+        // Se os dados já estiverem no banco e dentro do TTL, o MenuPreload.fullSync retornará rápido.
         status = "Carregando catálogo..."
         MenuPreload.fullSync(ctx, c) { sub = it }
         

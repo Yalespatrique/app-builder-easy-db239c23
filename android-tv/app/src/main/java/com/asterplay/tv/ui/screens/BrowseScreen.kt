@@ -256,10 +256,12 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         items = emptyList()
         shownCount = 0
         if (categories[idx].id == ContinueStore.CATEGORY_ID) {
-            refreshContinue()
-            items = continueItems
-            shownCount = minOf(pageSize, continueItems.size)
-            loadingItems = false
+            scope.launch {
+                ContinueStore.refresh(ctx, account)
+                items = ContinueStore.getItems(type)
+                shownCount = minOf(pageSize, items.size)
+                loadingItems = false
+            }
             return
         }
         val account = CacheDb.accountKey(creds.host, creds.username)
