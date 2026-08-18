@@ -255,6 +255,8 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
             }
         }
         return out
+    }
+
     fun findChannelsByUrls(account: String, kind: String, urls: List<String>): List<Channel> {
         if (urls.isEmpty()) return emptyList()
         val placeholders = urls.joinToString(",") { "?" }
@@ -262,7 +264,7 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
         val out = mutableListOf<Channel>()
         readableDatabase.rawQuery(
             "SELECT s.name, s.url, s.logo, s.cat_id, s.tvg FROM streams_cache s " +
-            "JOIN cat_cache c ON s.cat_id = c.id AND s.account = c.account " +
+            "JOIN cat_cache c ON s.cat_id = c.cat_id AND s.account = c.account " +
             "WHERE s.account=? AND c.kind=? AND s.url IN ($placeholders)",
             args.toTypedArray(),
         ).use {
