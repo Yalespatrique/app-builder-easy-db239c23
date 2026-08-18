@@ -504,9 +504,19 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                                             "series" -> onOpenSeriesDetail(ch)
                                             "live" -> selectedLive = ch
                                             else -> {
-                                                val i = Intent(ctx, PlayerActivity::class.java)
-                                                i.putExtra("url", ch.url); i.putExtra("name", ch.name); i.putExtra("type", "vod")
-                                                ctx.startActivity(i)
+                                                // Lógica para categorias virtuais que podem conter filmes ou séries
+                                                val entry = ContinueStore.list(ctx, "vod").find { it.channel.url == ch.url }
+                                                    ?: ContinueStore.list(ctx, "series").find { it.channel.url == ch.url }
+                                                
+                                                if (entry != null) {
+                                                    if (entry.kind == "series") onOpenSeriesDetail(ch)
+                                                    else onOpenMovieDetail(ch)
+                                                } else {
+                                                    // Fallback para quando o tipo é ambíguo
+                                                    val i = Intent(ctx, PlayerActivity::class.java)
+                                                    i.putExtra("url", ch.url); i.putExtra("name", ch.name); i.putExtra("type", "vod")
+                                                    ctx.startActivity(i)
+                                                }
                                             }
                                         }
                                     },
