@@ -202,9 +202,6 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         val cachedCounts = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
         catCounts = catCounts + cachedCounts
 
-        // Garante que o total de cada categoria seja carregado antes de ela ser aberta.
-        // O preload global normalmente já faz isso, mas a tela também precisa funcionar
-        // quando o usuário chega aqui rapidamente ou quando o preload ainda está em andamento.
         if (visibleCats.isNotEmpty() && visibleCats.any { catCounts[it.id] == null }) {
             scope.launch {
                 val totals = withContext(Dispatchers.IO) {
@@ -225,7 +222,12 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             }
         }
 
-        if (hasContinue) {
+        if (hasFavs) {
+            selectedIdx = 0
+            items = favoriteItems
+            shownCount = minOf(pageSize, items.size)
+            loadingItems = false
+        } else if (hasContinue) {
             selectedIdx = 0
             items = continueItems
             shownCount = minOf(pageSize, continueItems.size)
