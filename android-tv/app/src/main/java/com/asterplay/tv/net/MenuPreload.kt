@@ -51,6 +51,17 @@ object MenuPreload {
             val db = CacheDb.get(ctx)
             val account = CacheDb.accountKey(creds.host, creds.username)
 
+            // Checa se já temos o catálogo completo cacheado e válido
+            val hasCategories = KINDS.all { db.readCategories(account, it) != null }
+            val hasCounts = KINDS.all { db.readCounts(account, it).isNotEmpty() }
+            
+            if (hasCategories && hasCounts) {
+                onProgress("carregando dados do cache...")
+                // Mesmo com cache, atualizamos a versão para a Home ler
+                PreloadState.countsVersion.value++
+                return@withContext
+            }
+
             // 1. Categorias (rápido)
             onProgress("carregando categorias...")
             coroutineScope {

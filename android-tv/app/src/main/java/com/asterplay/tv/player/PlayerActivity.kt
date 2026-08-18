@@ -515,7 +515,9 @@ private fun ControlButton(
         colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
             containerColor = Color.White.copy(alpha = 0.12f),
             focusedContainerColor = NeonCyan,
-            focusedBorder = androidx.tv.material3.Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White)),
+        ),
+        border = androidx.tv.material3.ClickableSurfaceDefaults.border(
+            focusedBorder = androidx.tv.material3.Border(androidx.compose.foundation.BorderStroke(2.dp, Color.White))
         ),
         shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(CircleShape),
         modifier = Modifier.size(if (big) 62.dp else 50.dp),
