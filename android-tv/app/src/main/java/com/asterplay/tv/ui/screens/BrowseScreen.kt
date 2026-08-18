@@ -157,12 +157,15 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     fun refreshState() {
         favorites = com.asterplay.tv.store.FavoritesStore.all(ctx)
         continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
-        favoriteItems = if (favCat != null) {
+        favoriteItems = if (favCat != null && creds != null) {
+            val account = CacheDb.accountKey(creds.host, creds.username)
             val allFavs = favorites
-            // Idealmente buscaríamos no CacheDb todos os canais que estão nos favoritos
-            // Por simplicidade, vamos filtrar o que já temos se for 'live', 
-            // mas o ideal é uma query no DB.
-            items.filter { allFavs.contains(it.url) } 
+            // Busca canais favoritos no banco
+            runBlocking {
+                withContext(Dispatchers.IO) {
+                    CacheDb.get(ctx).findChannelsByUrls(account, type, allFavs.toList())
+                }
+            }
         } else emptyList()
     }
 
