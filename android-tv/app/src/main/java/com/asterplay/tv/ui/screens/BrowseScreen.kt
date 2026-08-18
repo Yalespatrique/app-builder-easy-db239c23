@@ -48,6 +48,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.runBlocking
+
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -157,12 +159,15 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     fun refreshState() {
         favorites = com.asterplay.tv.store.FavoritesStore.all(ctx)
         continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
-        favoriteItems = if (favCat != null) {
+        favoriteItems = if (favCat != null && creds != null) {
+            val account = CacheDb.accountKey(creds.host, creds.username)
             val allFavs = favorites
-            // Idealmente buscaríamos no CacheDb todos os canais que estão nos favoritos
-            // Por simplicidade, vamos filtrar o que já temos se for 'live', 
-            // mas o ideal é uma query no DB.
-            items.filter { allFavs.contains(it.url) } 
+            // Busca canais favoritos no banco
+            runBlocking {
+                withContext(Dispatchers.IO) {
+                    CacheDb.get(ctx).findChannelsByUrls(account, type, allFavs.toList())
+                }
+            }
         } else emptyList()
     }
 
@@ -202,9 +207,6 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         val cachedCounts = withContext(Dispatchers.IO) { CacheDb.get(ctx).countsByCategory(account, type) }
         catCounts = catCounts + cachedCounts
 
-        // Garante que o total de cada categoria seja carregado antes de ela ser aberta.
-        // O preload global normalmente já faz isso, mas a tela também precisa funcionar
-        // quando o usuário chega aqui rapidamente ou quando o preload ainda está em andamento.
         if (visibleCats.isNotEmpty() && visibleCats.any { catCounts[it.id] == null }) {
             scope.launch {
                 val totals = withContext(Dispatchers.IO) {
@@ -225,7 +227,12 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             }
         }
 
-        if (hasContinue) {
+        if (hasFavs) {
+            selectedIdx = 0
+            items = favoriteItems
+            shownCount = minOf(pageSize, items.size)
+            loadingItems = false
+        } else if (hasContinue) {
             selectedIdx = 0
             items = continueItems
             shownCount = minOf(pageSize, continueItems.size)
@@ -255,10 +262,18 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         loadingItems = true
         items = emptyList()
         shownCount = 0
-        if (categories[idx].id == ContinueStore.CATEGORY_ID) {
+        val catId = categories[idx].id
+        if (catId == ContinueStore.CATEGORY_ID) {
             scope.launch {
-                ContinueStore.refresh(ctx, account)
-                items = ContinueStore.getItems(type)
+                items = ContinueStore.channels(ctx, type)
+                shownCount = minOf(pageSize, items.size)
+                loadingItems = false
+            }
+            return
+        }
+        if (catId == "favorites") {
+            scope.launch {
+                items = favoriteItems
                 shownCount = minOf(pageSize, items.size)
                 loadingItems = false
             }
@@ -266,7 +281,6 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
         val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
-            val catId = categories[idx].id
             val list = withContext(Dispatchers.IO) {
                 val db = CacheDb.get(ctx)
                 db.readStreams(account, type, catId) ?: run {
@@ -332,31 +346,27 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 }
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                     refreshState()
-                    if (continueCat != null || favCat != null) {
-                        val hasCont = continueItems.isNotEmpty()
-                        val hasFav = favoriteItems.isNotEmpty()
-                        
-                        val newCats = mutableListOf<XtreamCategory>()
-                        if (hasFav) newCats.add(favCat!!)
-                        if (hasCont) newCats.add(continueCat!!)
-                        
-                        // Filtra categorias reais (não virtuais) das atuais
-                        val realCats = categories.filter { it.id != ContinueStore.CATEGORY_ID && it.id != "favorites" }
-                        newCats.addAll(realCats)
-                        
-                        if (newCats != categories) {
-                            categories = newCats
-                            // Ajuste de índice se necessário
-                        }
-                        
-                        val selectedId = categories.getOrNull(selectedIdx)?.id
-                        if (selectedId == ContinueStore.CATEGORY_ID) {
-                            items = continueItems
-                            shownCount = minOf(pageSize, continueItems.size)
-                        } else if (selectedId == "favorites") {
-                            items = favoriteItems
-                            shownCount = minOf(pageSize, favoriteItems.size)
-                        }
+                    val hasCont = continueItems.isNotEmpty()
+                    val hasFav = favoriteItems.isNotEmpty()
+                    
+                    val newCats = mutableListOf<XtreamCategory>()
+                    if (hasFav && favCat != null) newCats.add(favCat!!)
+                    if (hasCont && continueCat != null) newCats.add(continueCat!!)
+                    
+                    val realCats = categories.filter { it.id != ContinueStore.CATEGORY_ID && it.id != "favorites" }
+                    newCats.addAll(realCats)
+                    
+                    if (newCats.size != categories.size || newCats.zip(categories).any { it.first.id != it.second.id }) {
+                        categories = newCats
+                    }
+                    
+                    val selectedId = categories.getOrNull(selectedIdx)?.id
+                    if (selectedId == ContinueStore.CATEGORY_ID) {
+                        items = continueItems
+                        shownCount = minOf(pageSize, continueItems.size)
+                    } else if (selectedId == "favorites") {
+                        items = favoriteItems
+                        shownCount = minOf(pageSize, favoriteItems.size)
                     }
                     if (selectedLive != null) {
                         if (livePlayer.mediaItemCount == 0) {
@@ -495,9 +505,19 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                                             "series" -> onOpenSeriesDetail(ch)
                                             "live" -> selectedLive = ch
                                             else -> {
-                                                val i = Intent(ctx, PlayerActivity::class.java)
-                                                i.putExtra("url", ch.url); i.putExtra("name", ch.name); i.putExtra("type", "vod")
-                                                ctx.startActivity(i)
+                                                // Lógica para categorias virtuais que podem conter filmes ou séries
+                                                val entry = ContinueStore.list(ctx, "vod").find { it.channel.url == ch.url }
+                                                    ?: ContinueStore.list(ctx, "series").find { it.channel.url == ch.url }
+                                                
+                                                if (entry != null) {
+                                                    if (entry.kind == "series") onOpenSeriesDetail(ch)
+                                                    else onOpenMovieDetail(ch)
+                                                } else {
+                                                    // Fallback para quando o tipo é ambíguo
+                                                    val i = Intent(ctx, PlayerActivity::class.java)
+                                                    i.putExtra("url", ch.url); i.putExtra("name", ch.name); i.putExtra("type", "vod")
+                                                    ctx.startActivity(i)
+                                                }
                                             }
                                         }
                                     },
