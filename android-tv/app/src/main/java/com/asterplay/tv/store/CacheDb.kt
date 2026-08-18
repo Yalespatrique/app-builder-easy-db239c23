@@ -255,7 +255,27 @@ class CacheDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, DB_NAME, 
             }
         }
         return out
+    fun findChannelsByUrls(account: String, kind: String, urls: List<String>): List<Channel> {
+        if (urls.isEmpty()) return emptyList()
+        val placeholders = urls.joinToString(",") { "?" }
+        val args = ArrayList<String>(urls.size + 2).apply { add(account); add(kind); addAll(urls) }
+        val out = mutableListOf<Channel>()
+        readableDatabase.rawQuery(
+            "SELECT s.name, s.url, s.logo, s.cat_id, s.tvg FROM streams_cache s " +
+            "JOIN cat_cache c ON s.cat_id = c.id AND s.account = c.account " +
+            "WHERE s.account=? AND c.kind=? AND s.url IN ($placeholders)",
+            args.toTypedArray(),
+        ).use {
+            while (it.moveToNext()) {
+                out.add(Channel(
+                    name = it.getString(0), url = it.getString(1), logo = it.getString(2),
+                    group = it.getString(3), tvgId = it.getString(4),
+                ))
+            }
+        }
+        return out
     }
+
 
     /** Procura no cache o primeiro item cujo nome contenha [query] (case-insensitive). */
     fun findFirstByName(account: String, query: String): Channel? {
