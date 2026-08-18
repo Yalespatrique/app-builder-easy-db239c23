@@ -257,7 +257,8 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         loadingItems = true
         items = emptyList()
         shownCount = 0
-        if (categories[idx].id == ContinueStore.CATEGORY_ID) {
+        val catId = categories[idx].id
+        if (catId == ContinueStore.CATEGORY_ID) {
             scope.launch {
                 items = ContinueStore.channels(ctx, type)
                 shownCount = minOf(pageSize, items.size)
@@ -265,9 +266,16 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             }
             return
         }
+        if (catId == "favorites") {
+            scope.launch {
+                items = favoriteItems
+                shownCount = minOf(pageSize, items.size)
+                loadingItems = false
+            }
+            return
+        }
         val account = CacheDb.accountKey(creds.host, creds.username)
         scope.launch {
-            val catId = categories[idx].id
             val list = withContext(Dispatchers.IO) {
                 val db = CacheDb.get(ctx)
                 db.readStreams(account, type, catId) ?: run {
