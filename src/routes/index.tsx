@@ -66,7 +66,7 @@ function Activate() {
     <main className="min-h-screen bg-background text-foreground">
       <section className="mx-auto max-w-4xl px-6 py-10">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Asterplay</p>
-        <h1 className="mt-2 text-4xl font-bold">Ative sua lista</h1>
+        <h1 className="mt-2 text-4xl font-bold">coloque esse menu inical no app da roku</h1>
         <p className="mt-3 text-sm text-muted-foreground">
           Painel de teste. Não fornecemos conteúdos, canais nem listas de reprodução. Você é o único responsável pela URL M3U informada.
         </p>
