@@ -70,10 +70,11 @@ export const Route = createFileRoute("/api/public/activate")({
         if (!match) return json(404, { ok: false, message: "Ativação não encontrada" });
         if (!match.active) return json(403, { ok: false, message: "Ativação inativa" });
         // Registra qual app está usando esta chave (visto por último).
-        void client
+        const { error: updErr } = await client
           .from("activations")
           .update({ last_app: appName, last_app_version: appVer, last_seen: new Date().toISOString() })
           .eq("id", match.id);
+        if (updErr) console.error("activate: falha ao registrar app", updErr.message);
         return json(200, { ok: true, playlist_url: match.playlist_url, xtream: parseXtream(match.playlist_url) });
       },
     },

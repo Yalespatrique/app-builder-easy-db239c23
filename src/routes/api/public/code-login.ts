@@ -65,10 +65,11 @@ export const Route = createFileRoute("/api/public/code-login")({
           .maybeSingle();
         // Registra qual app está usando este código (visto por último).
         if (codeRow.data) {
-          void client
+          const { error: updErr } = await client
             .from("codes")
             .update({ last_app: appName, last_app_version: appVer, last_seen: new Date().toISOString() })
             .eq("id", codeRow.data.id);
+          if (updErr) console.error("code-login: falha ao registrar app", updErr.message);
         }
         if (codeRow.data && codeRow.data.active) {
           return json(200, {
