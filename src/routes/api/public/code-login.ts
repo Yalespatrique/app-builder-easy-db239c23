@@ -63,6 +63,13 @@ export const Route = createFileRoute("/api/public/code-login")({
           .eq("username", username)
           .eq("password", password)
           .maybeSingle();
+        // Registra qual app está usando este código (visto por último).
+        if (codeRow.data) {
+          void client
+            .from("codes")
+            .update({ last_app: appName, last_app_version: appVer, last_seen: new Date().toISOString() })
+            .eq("id", codeRow.data.id);
+        }
         if (codeRow.data && codeRow.data.active) {
           return json(200, {
             ok: true,
