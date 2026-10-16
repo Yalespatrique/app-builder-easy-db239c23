@@ -20,6 +20,9 @@ export type Database = {
           created_at: string
           device_key: string
           id: string
+          last_app: string | null
+          last_app_version: string | null
+          last_seen: string | null
           mac: string
           playlist_url: string
         }
@@ -28,6 +31,9 @@ export type Database = {
           created_at?: string
           device_key: string
           id?: string
+          last_app?: string | null
+          last_app_version?: string | null
+          last_seen?: string | null
           mac: string
           playlist_url: string
         }
@@ -36,6 +42,9 @@ export type Database = {
           created_at?: string
           device_key?: string
           id?: string
+          last_app?: string | null
+          last_app_version?: string | null
+          last_seen?: string | null
           mac?: string
           playlist_url?: string
         }
@@ -48,6 +57,9 @@ export type Database = {
           created_at: string
           dns: string
           id: string
+          last_app: string | null
+          last_app_version: string | null
+          last_seen: string | null
           password: string
           playlist_url: string
           username: string
@@ -58,6 +70,9 @@ export type Database = {
           created_at?: string
           dns: string
           id?: string
+          last_app?: string | null
+          last_app_version?: string | null
+          last_seen?: string | null
           password: string
           playlist_url: string
           username: string
@@ -68,6 +83,9 @@ export type Database = {
           created_at?: string
           dns?: string
           id?: string
+          last_app?: string | null
+          last_app_version?: string | null
+          last_seen?: string | null
           password?: string
           playlist_url?: string
           username?: string

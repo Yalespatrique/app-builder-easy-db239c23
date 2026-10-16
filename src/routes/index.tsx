@@ -16,8 +16,14 @@ export const Route = createFileRoute("/")({
   component: Activate,
 });
 
-type ActRow = { id: string; mac: string; device_key: string; playlist_url: string; active: boolean; created_at: string };
-type CodeRow = { id: string; code: string; username: string; dns: string; playlist_url: string; active: boolean; created_at: string };
+type ActRow = { id: string; mac: string; device_key: string; playlist_url: string; active: boolean; created_at: string; last_app: string | null; last_app_version: string | null; last_seen: string | null };
+type CodeRow = { id: string; code: string; username: string; dns: string; playlist_url: string; active: boolean; created_at: string; last_app: string | null; last_app_version: string | null; last_seen: string | null };
+
+function fmtSeen(iso: string | null): string {
+  if (!iso) return "Nunca conectou";
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 function Activate() {
   const [mode, setMode] = useState<"mac" | "code">("mac");
@@ -31,7 +37,7 @@ function Activate() {
   async function reload() {
     const [{ data: a }, { data: c }] = await Promise.all([
       supabase.from("activations").select("*").order("created_at", { ascending: false }).limit(50),
-      supabase.from("codes").select("id,code,username,dns,playlist_url,active,created_at").order("created_at", { ascending: false }).limit(50),
+      supabase.from("codes").select("id,code,username,dns,playlist_url,active,created_at,last_app,last_app_version,last_seen").order("created_at", { ascending: false }).limit(50),
     ]);
     setActs((a as ActRow[]) ?? []); setCodes((c as CodeRow[]) ?? []);
   }
@@ -126,6 +132,12 @@ function Activate() {
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">MAC {it.mac} · Chave {it.device_key}</div>
                   <div className="truncate font-mono text-xs text-muted-foreground">{it.playlist_url}</div>
+                  <div className="mt-1 text-xs">
+                    <span className="rounded bg-primary/15 px-1.5 py-0.5 font-semibold text-primary">
+                      {it.last_app ? `${it.last_app}${it.last_app_version ? ` v${it.last_app_version}` : ""}` : "App não identificado"}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">Visto: {fmtSeen(it.last_seen)}</span>
+                  </div>
                 </div>
                 <button onClick={() => removeAct(it.id)} className="text-xs text-destructive hover:underline">Remover</button>
               </li>
@@ -141,6 +153,12 @@ function Activate() {
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">Código {it.code} · Usuário {it.username}</div>
                   <div className="truncate font-mono text-xs text-muted-foreground">DNS {it.dns} → {it.playlist_url}</div>
+                  <div className="mt-1 text-xs">
+                    <span className="rounded bg-primary/15 px-1.5 py-0.5 font-semibold text-primary">
+                      {it.last_app ? `${it.last_app}${it.last_app_version ? ` v${it.last_app_version}` : ""}` : "App não identificado"}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">Visto: {fmtSeen(it.last_seen)}</span>
+                  </div>
                 </div>
                 <button onClick={() => removeCode(it.id)} className="text-xs text-destructive hover:underline">Remover</button>
               </li>

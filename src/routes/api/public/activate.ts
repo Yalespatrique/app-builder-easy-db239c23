@@ -50,15 +50,18 @@ export const Route = createFileRoute("/api/public/activate")({
         const u = new URL(request.url);
         const rawMac = (u.searchParams.get("mac") ?? "").trim();
         const rawKey = (u.searchParams.get("key") ?? "").trim();
+        const appName = (u.searchParams.get("app") ?? "").trim() || null;
+        const appVer = (u.searchParams.get("ver") ?? "").trim() || null;
         if (!rawMac || !rawKey) return json(400, { ok: false, message: "mac e key obrigatórios" });
         // Normaliza: só hex maiúsculo, sem separadores. Compara dos dois lados desse jeito.
         const macHex = rawMac.replace(/[^0-9a-fA-F]/g, "").toUpperCase();
         const keyNorm = rawKey.toUpperCase();
         if (macHex.length !== 12) return json(400, { ok: false, message: "MAC inválido" });
         // Busca pela chave (curta) e casa o MAC normalizado no servidor.
-        const { data, error } = await sb()
+        const client = sb();
+        const { data, error } = await client
           .from("activations")
-          .select("playlist_url, active, mac, device_key")
+          .select("id, playlist_url, active, mac, device_key")
           .eq("device_key", keyNorm);
         if (error) return json(500, { ok: false, message: error.message });
         const match = (data ?? []).find(
@@ -66,6 +69,12 @@ export const Route = createFileRoute("/api/public/activate")({
         );
         if (!match) return json(404, { ok: false, message: "Ativação não encontrada" });
         if (!match.active) return json(403, { ok: false, message: "Ativação inativa" });
+        // Registra qual app está usando esta chave (visto por último).
+        const { error: updErr } = await client
+          .from("activations")
+          .update({ last_app: appName, last_app_version: appVer, last_seen: new Date().toISOString() })
+          .eq("id", match.id);
+        if (updErr) console.error("activate: falha ao registrar app", updErr.message);
         return json(200, { ok: true, playlist_url: match.playlist_url, xtream: parseXtream(match.playlist_url) });
       },
     },

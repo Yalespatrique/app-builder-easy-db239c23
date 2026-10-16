@@ -51,16 +51,26 @@ export const Route = createFileRoute("/api/public/code-login")({
         const code = (u.searchParams.get("code") ?? "").trim();
         const username = (u.searchParams.get("user") ?? "").trim();
         const password = (u.searchParams.get("pass") ?? "").trim();
+        const appName = (u.searchParams.get("app") ?? "").trim() || null;
+        const appVer = (u.searchParams.get("ver") ?? "").trim() || null;
         if (!code || !username || !password)
           return json(400, { ok: false, message: "code, user e pass obrigatórios" });
         const client = sb();
         const codeRow = await client
           .from("codes")
-          .select("playlist_url, active")
+          .select("id, playlist_url, active")
           .eq("code", code)
           .eq("username", username)
           .eq("password", password)
           .maybeSingle();
+        // Registra qual app está usando este código (visto por último).
+        if (codeRow.data) {
+          const { error: updErr } = await client
+            .from("codes")
+            .update({ last_app: appName, last_app_version: appVer, last_seen: new Date().toISOString() })
+            .eq("id", codeRow.data.id);
+          if (updErr) console.error("code-login: falha ao registrar app", updErr.message);
+        }
         if (codeRow.data && codeRow.data.active) {
           return json(200, {
             ok: true,

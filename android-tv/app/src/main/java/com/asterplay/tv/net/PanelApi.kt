@@ -21,14 +21,18 @@ object PanelApi {
 
     private const val BASE = "https://apkasterplay.lovable.app"
 
+    /** Identifica o app no painel (última conexão por chave/código). */
+    private fun appQuery(): String =
+        "&app=${enc("Asterplay Android TV")}&ver=${enc(com.asterplay.tv.BuildConfig.VERSION_NAME)}"
+
     private fun enc(v: String) = URLEncoder.encode(v, "UTF-8")
 
     suspend fun activateWithMac(mac: String, key: String): PanelResult = withContext(Dispatchers.IO) {
-        request("$BASE/api/public/activate?mac=${enc(mac)}&key=${enc(key)}")
+        request("$BASE/api/public/activate?mac=${enc(mac)}&key=${enc(key)}${appQuery()}")
     }
 
     suspend fun activateWithCode(code: String, user: String, pass: String): PanelResult = withContext(Dispatchers.IO) {
-        request("$BASE/api/public/code-login?code=${enc(code)}&user=${enc(user)}&pass=${enc(pass)}")
+        request("$BASE/api/public/code-login?code=${enc(code)}&user=${enc(user)}&pass=${enc(pass)}${appQuery()}")
     }
 
     /**
