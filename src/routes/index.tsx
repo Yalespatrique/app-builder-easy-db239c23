@@ -16,8 +16,14 @@ export const Route = createFileRoute("/")({
   component: Activate,
 });
 
-type ActRow = { id: string; mac: string; device_key: string; playlist_url: string; active: boolean; created_at: string };
-type CodeRow = { id: string; code: string; username: string; dns: string; playlist_url: string; active: boolean; created_at: string };
+type ActRow = { id: string; mac: string; device_key: string; playlist_url: string; active: boolean; created_at: string; last_app: string | null; last_app_version: string | null; last_seen: string | null };
+type CodeRow = { id: string; code: string; username: string; dns: string; playlist_url: string; active: boolean; created_at: string; last_app: string | null; last_app_version: string | null; last_seen: string | null };
+
+function fmtSeen(iso: string | null): string {
+  if (!iso) return "Nunca conectou";
+  const d = new Date(iso);
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
 
 function Activate() {
   const [mode, setMode] = useState<"mac" | "code">("mac");
