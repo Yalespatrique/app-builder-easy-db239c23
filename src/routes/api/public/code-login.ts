@@ -51,12 +51,14 @@ export const Route = createFileRoute("/api/public/code-login")({
         const code = (u.searchParams.get("code") ?? "").trim();
         const username = (u.searchParams.get("user") ?? "").trim();
         const password = (u.searchParams.get("pass") ?? "").trim();
+        const appName = (u.searchParams.get("app") ?? "").trim() || null;
+        const appVer = (u.searchParams.get("ver") ?? "").trim() || null;
         if (!code || !username || !password)
           return json(400, { ok: false, message: "code, user e pass obrigatórios" });
         const client = sb();
         const codeRow = await client
           .from("codes")
-          .select("playlist_url, active")
+          .select("id, playlist_url, active")
           .eq("code", code)
           .eq("username", username)
           .eq("password", password)
