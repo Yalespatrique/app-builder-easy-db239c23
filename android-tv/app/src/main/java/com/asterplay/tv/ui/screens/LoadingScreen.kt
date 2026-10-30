@@ -115,17 +115,35 @@ fun LoadingScreen(onReady: () -> Unit, onFail: () -> Unit) {
 
         // DNS cadastrada no painel admin? Se não estiver, o app roda em
         // teste grátis de 7 dias; depois disso volta pro login.
+        // O contador agora é do SERVIDOR (por MAC), não só local: limpar
+        // os dados do app ou reinstalar não cria um teste novo, porque o
+        // servidor lembra a data do primeiro teste daquele MAC. O contador
+        // local só vale como fallback quando o servidor não responde.
         when (PanelApi.isDnsRegistered(c.host)) {
             true -> AccountStore.markDnsRegistered(ctx)
             false -> {
-                AccountStore.startTrialIfNeeded(ctx)
-                if (AccountStore.trialExpired(ctx)) {
-                    status = "Teste grátis encerrado"
-                    sub = "Ative o app ou use uma lista com DNS cadastrada."
-                    delay(2600)
-                    XtreamStore.clear(ctx); PlaylistStore.clear(ctx); LoginStore.clear(ctx)
-                    onFail()
-                    return@LaunchedEffect
+                val mac = DeviceId.getMac(ctx)
+                val serverTrial = PanelApi.trialStatus(mac, DeviceId.getKey(mac))
+                if (serverTrial != null) {
+                    AccountStore.syncTrialStartFromServer(ctx, serverTrial.startMillis)
+                    if (serverTrial.expired) {
+                        status = "Teste grátis encerrado"
+                        sub = "Ative o app ou use uma lista com DNS cadastrada."
+                        delay(2600)
+                        XtreamStore.clear(ctx); PlaylistStore.clear(ctx); LoginStore.clear(ctx)
+                        onFail()
+                        return@LaunchedEffect
+                    }
+                } else {
+                    AccountStore.startTrialIfNeeded(ctx)
+                    if (AccountStore.trialExpired(ctx)) {
+                        status = "Teste grátis encerrado"
+                        sub = "Ative o app ou use uma lista com DNS cadastrada."
+                        delay(2600)
+                        XtreamStore.clear(ctx); PlaylistStore.clear(ctx); LoginStore.clear(ctx)
+                        onFail()
+                        return@LaunchedEffect
+                    }
                 }
             }
             null -> { /* sem internet pra checar: não bloqueia */ }

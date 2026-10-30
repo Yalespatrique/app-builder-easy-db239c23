@@ -20,6 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
@@ -98,6 +100,9 @@ fun MovieDetailScreen(onBack: () -> Unit) {
     }
 
     val channel = args.channel
+    var isFavorite by remember(channel.url) {
+        mutableStateOf(com.asterplay.tv.store.FavoritesStore.contains(ctx, channel.url))
+    }
     var detail by remember { mutableStateOf<MergedDetail?>(null) }
     var loading by remember { mutableStateOf(true) }
 
@@ -320,6 +325,35 @@ fun MovieDetailScreen(onBack: () -> Unit) {
 
                     )
                     SecondaryButton(label = "Voltar", onClick = onBack)
+                    Surface(
+                        onClick = {
+                            isFavorite = com.asterplay.tv.store.FavoritesStore.toggle(ctx, channel.url)
+                        },
+                        colors = ClickableSurfaceDefaults.colors(
+                            containerColor = if (isFavorite) Accent.copy(alpha = 0.25f) else Color(0x33FFFFFF),
+                            focusedContainerColor = Accent.copy(alpha = 0.45f),
+                        ),
+                        shape = ClickableSurfaceDefaults.shape(shape = RoundedCornerShape(10.dp)),
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                null,
+                                tint = if (isFavorite) Accent else TextPrimary,
+                                modifier = Modifier.width(18.dp).height(18.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                if (isFavorite) "FAVORITO" else "FAVORITAR",
+                                color = TextPrimary,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
                 }
             }
         }
