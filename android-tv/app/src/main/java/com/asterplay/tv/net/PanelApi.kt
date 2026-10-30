@@ -35,6 +35,32 @@ object PanelApi {
         request("$BASE/api/public/code-login?code=${enc(code)}&user=${enc(user)}&pass=${enc(pass)}${appQuery()}")
     }
 
+    /** Status do teste grátis no servidor, por MAC. Null = sem internet pra checar. */
+    data class TrialStatus(
+        val expired: Boolean,
+        val daysLeft: Int,
+        val startMillis: Long,
+    )
+
+    suspend fun trialStatus(mac: String, key: String): TrialStatus? = withContext(Dispatchers.IO) {
+        try {
+            val req = Request.Builder()
+                .url("$BASE/api/public/trial-status?mac=${enc(mac)}&key=${enc(key)}${appQuery()}")
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                val json = try { JSONObject(body) } catch (_: Exception) { return@use null }
+                if (!resp.isSuccessful || !json.optBoolean("ok", false)) return@use null
+                val startMs = json.optLong("trial_start_ms", 0L)
+                TrialStatus(
+                    expired = json.optBoolean("trial_expired", false),
+                    daysLeft = json.optInt("trial_days_left", 0),
+                    startMillis = startMs,
+                )
+            }
+        } catch (_: Exception) { null }
+    }
+
     /**
      * Verifica se a DNS (host) do usuário está cadastrada no painel admin.
      * Retorna null quando não deu pra consultar (erro de rede) — nesse caso

@@ -71,6 +71,19 @@ object AccountStore {
         remove(KEY_TRIAL_START)
     }
 
+    /**
+     * Sincroniza o contador local com o servidor: o servidor é quem manda.
+     * Se o app foi apagado/reinstalado, o local nasce zerado, mas o servidor
+     * devolve a data original do MAC — e é ela que passa a valer aqui.
+     */
+    fun syncTrialStartFromServer(ctx: Context, startMillis: Long) {
+        if (startMillis <= 0L) return
+        trial(ctx).edit {
+            putBoolean(KEY_DNS_OK, false)
+            putLong(KEY_TRIAL_START, startMillis)
+        }
+    }
+
     /** DNS fora do painel: inicia (ou mantém) o teste de 7 dias. */
     fun startTrialIfNeeded(ctx: Context) {
         val p = trial(ctx)

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DnsRouteImport } from './routes/dns'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicTrialStatusRouteImport } from './routes/api/public/trial-status'
 import { Route as ApiPublicDnsCheckRouteImport } from './routes/api/public/dns-check'
 import { Route as ApiPublicCodeLoginRouteImport } from './routes/api/public/code-login'
 import { Route as ApiPublicActivateRouteImport } from './routes/api/public/activate'
@@ -23,6 +24,11 @@ const DnsRoute = DnsRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTrialStatusRoute = ApiPublicTrialStatusRouteImport.update({
+  id: '/api/public/trial-status',
+  path: '/api/public/trial-status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicDnsCheckRoute = ApiPublicDnsCheckRouteImport.update({
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/api/public/activate': typeof ApiPublicActivateRoute
   '/api/public/code-login': typeof ApiPublicCodeLoginRoute
   '/api/public/dns-check': typeof ApiPublicDnsCheckRoute
+  '/api/public/trial-status': typeof ApiPublicTrialStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/api/public/activate': typeof ApiPublicActivateRoute
   '/api/public/code-login': typeof ApiPublicCodeLoginRoute
   '/api/public/dns-check': typeof ApiPublicDnsCheckRoute
+  '/api/public/trial-status': typeof ApiPublicTrialStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/api/public/activate': typeof ApiPublicActivateRoute
   '/api/public/code-login': typeof ApiPublicCodeLoginRoute
   '/api/public/dns-check': typeof ApiPublicDnsCheckRoute
+  '/api/public/trial-status': typeof ApiPublicTrialStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,6 +80,7 @@ export interface FileRouteTypes {
     | '/api/public/activate'
     | '/api/public/code-login'
     | '/api/public/dns-check'
+    | '/api/public/trial-status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/api/public/activate'
     | '/api/public/code-login'
     | '/api/public/dns-check'
+    | '/api/public/trial-status'
   id:
     | '__root__'
     | '/'
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/api/public/activate'
     | '/api/public/code-login'
     | '/api/public/dns-check'
+    | '/api/public/trial-status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,6 +105,7 @@ export interface RootRouteChildren {
   ApiPublicActivateRoute: typeof ApiPublicActivateRoute
   ApiPublicCodeLoginRoute: typeof ApiPublicCodeLoginRoute
   ApiPublicDnsCheckRoute: typeof ApiPublicDnsCheckRoute
+  ApiPublicTrialStatusRoute: typeof ApiPublicTrialStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -109,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/trial-status': {
+      id: '/api/public/trial-status'
+      path: '/api/public/trial-status'
+      fullPath: '/api/public/trial-status'
+      preLoaderRoute: typeof ApiPublicTrialStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/dns-check': {
@@ -141,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicActivateRoute: ApiPublicActivateRoute,
   ApiPublicCodeLoginRoute: ApiPublicCodeLoginRoute,
   ApiPublicDnsCheckRoute: ApiPublicDnsCheckRoute,
+  ApiPublicTrialStatusRoute: ApiPublicTrialStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

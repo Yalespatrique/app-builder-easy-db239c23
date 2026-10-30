@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ fun PosterCard(
     aspect: Float = 2f / 3f, // pôster (filmes/séries). Use 16/9 pra canais.
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isFavorite: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(false) }
 
@@ -80,6 +83,21 @@ fun PosterCard(
                         contentDescription = null,
                         tint = TextSecondary,
                     )
+                }
+                // Coração de favorito no canto do pôster (só quando é favorito).
+                if (isFavorite) {
+                    Box(
+                        Modifier.align(Alignment.TopEnd).padding(8.dp)
+                            .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                            .padding(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "Favorito",
+                            tint = Accent,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
         }
