@@ -50,6 +50,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -696,15 +701,52 @@ private fun PinDialog(
     var step by remember { mutableStateOf(0) } // 0 = PIN atual, 1 = novo PIN
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    val confirmFocus = remember { FocusRequester() }
-    LaunchedEffect(step) {
-        repeat(20) {
-            if (runCatching { confirmFocus.requestFocus() }.isSuccess) return@LaunchedEffect
-            delay(60)
+
+    fun addDigit(d: Char) {
+        if (pin.length < 4 && d.isDigit()) pin += d
+    }
+    fun confirm() {
+        if (step == 0) {
+            if (SettingsStore.checkPin(ctx, pin)) {
+                error = null
+                if (mode == "toggle") onUnlockToggle() else { step = 1; pin = "" }
+            } else {
+                error = "PIN incorreto."
+            }
+        } else {
+            if (pin.length == 4) onChangePin(pin) else error = "Use 4 dígitos."
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color(0xF2000000)).focusGroup(), contentAlignment = Alignment.Center) {
+    // Teclas numéricas do controle também digitam, sem depender de teclado.
+    val dialogModifier = Modifier
+        .fillMaxSize()
+        .background(Color(0xF2000000))
+        .focusGroup()
+        .onPreviewKeyEvent { event ->
+            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+            val digit = when (event.key) {
+                Key.Zero, Key.NumPad0 -> '0'
+                Key.One, Key.NumPad1 -> '1'
+                Key.Two, Key.NumPad2 -> '2'
+                Key.Three, Key.NumPad3 -> '3'
+                Key.Four, Key.NumPad4 -> '4'
+                Key.Five, Key.NumPad5 -> '5'
+                Key.Six, Key.NumPad6 -> '6'
+                Key.Seven, Key.NumPad7 -> '7'
+                Key.Eight, Key.NumPad8 -> '8'
+                Key.Nine, Key.NumPad9 -> '9'
+                Key.Backspace -> {
+                    if (pin.isNotEmpty()) pin = pin.dropLast(1)
+                    return@onPreviewKeyEvent true
+                }
+                else -> return@onPreviewKeyEvent false
+            }
+            addDigit(digit)
+            true
+        }
+
+    Box(dialogModifier, contentAlignment = Alignment.Center) {
         Column(
             Modifier.width(420.dp).background(BgElevated, RoundedCornerShape(14.dp)).padding(24.dp).focusGroup(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -720,81 +762,116 @@ private fun PinDialog(
                 color = TextMuted,
                 style = MaterialTheme.typography.labelMedium,
             )
-            PinField(value = pin, onValueChange = { pin = it.filter { c -> c.isDigit() }.take(4) })
+            PinEntry(
+                value = pin,
+                onDigit = { addDigit(it) },
+                onBackspace = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+            )
             error?.let { Text(it, color = Color(0xFFFF6B6B), style = MaterialTheme.typography.labelMedium) }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SideMenuItem(Icons.Default.Lock, "Confirmar", modifier = Modifier.focusRequester(confirmFocus)) {
-                    if (step == 0) {
-                        if (SettingsStore.checkPin(ctx, pin)) {
-                            error = null
-                            if (mode == "toggle") onUnlockToggle() else { step = 1; pin = "" }
-                        } else {
-                            error = "PIN incorreto."
-                        }
-                    } else {
-                        if (pin.length == 4) onChangePin(pin) else error = "Use 4 dígitos."
-                    }
-                }
+                SideMenuItem(Icons.Default.Lock, "Confirmar") { confirm() }
                 SideMenuItem(Icons.Default.Tv, "Cancelar", onClick = onDismiss)
             }
         }
     }
 }
 
+/**
+ * PIN para TV, sem teclado virtual: o campo antigo era um EditText com
+ * showSoftInputOnFocus=false, e o foco inicial ia para o botão Confirmar,
+ * então o campo nunca recebia foco/clique e o teclado nunca aparecia.
+ * Aqui são 4 caixas com bolinhas + teclado numérico na tela, navegável
+ * só com o controle remoto (D-pad), além das teclas numéricas do controle.
+ */
 @Composable
-private fun PinField(value: String, onValueChange: (String) -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(46.dp)
-            .background(BgSurface, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        androidx.compose.ui.viewinterop.AndroidView(
-            modifier = Modifier.fillMaxWidth(),
-            factory = { c ->
-                android.widget.EditText(c).apply {
-                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    setTextColor(android.graphics.Color.WHITE)
-                    setHintTextColor(android.graphics.Color.GRAY)
-                    hint = "0000"
-                    textSize = 18f
-                    isSingleLine = true
-                    setPadding(0, 0, 0, 0)
-                    inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                        android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
-                    isFocusable = true
-                    isFocusableInTouchMode = true
-                    showSoftInputOnFocus = false
+private fun PinEntry(
+    value: String,
+    onDigit: (Char) -> Unit,
+    onBackspace: () -> Unit,
+) {
+    val firstKeyFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        repeat(20) {
+            if (runCatching { firstKeyFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+            kotlinx.coroutines.delay(60)
+        }
+    }
 
-                    fun openKeyboard() {
-                        requestFocus()
-                        val imm = c.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
-                            as android.view.inputmethod.InputMethodManager
-                        imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-                    }
-                    setOnClickListener { openKeyboard() }
-                    setOnKeyListener { _, keyCode, event ->
-                        if (event.action == android.view.KeyEvent.ACTION_DOWN &&
-                            (keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
-                                keyCode == android.view.KeyEvent.KEYCODE_ENTER)
-                        ) { openKeyboard(); true } else false
-                    }
-                    setOnFocusChangeListener { _, hasFocus -> focused = hasFocus }
-                    addTextChangedListener(object : android.text.TextWatcher {
-                        override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
-                        override fun onTextChanged(s: CharSequence?, a: Int, b: Int, d: Int) {}
-                        override fun afterTextChanged(s: android.text.Editable?) {
-                            val t = s?.toString().orEmpty()
-                            if (t != value) onValueChange(t)
-                        }
-                    })
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Caixas do PIN
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(4) { i ->
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .background(BgSurface, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (i < value.length) "•" else "",
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
                 }
-            },
-            update = { et -> if (et.text.toString() != value) et.setText(value) },
-        )
+            }
+        }
+        // Teclado numérico na tela
+        val rows = listOf(listOf('1', '2', '3'), listOf('4', '5', '6'), listOf('7', '8', '9'))
+        rows.forEachIndexed { rowIdx, row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEachIndexed { colIdx, digit ->
+                    val modifier = if (rowIdx == 0 && colIdx == 0) {
+                        Modifier.weight(1f).focusRequester(firstKeyFocus)
+                    } else {
+                        Modifier.weight(1f)
+                    }
+                    androidx.tv.material3.Surface(
+                        onClick = { onDigit(digit) },
+                        colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+                            containerColor = Color(0x33FFFFFF),
+                            focusedContainerColor = Accent,
+                        ),
+                        shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                        modifier = modifier.height(48.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(digit.toString(), color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            androidx.tv.material3.Surface(
+                onClick = onBackspace,
+                colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+                    containerColor = Color(0x33FFFFFF),
+                    focusedContainerColor = Accent,
+                ),
+                shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                modifier = Modifier.weight(1f).height(48.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("⌫ Apagar", color = TextPrimary, style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            androidx.tv.material3.Surface(
+                onClick = { onDigit('0') },
+                colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+                    containerColor = Color(0x33FFFFFF),
+                    focusedContainerColor = Accent,
+                ),
+                shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                modifier = Modifier.weight(1f).height(48.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("0", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+            // Espaçador para manter o 0 centralizado, como num teclado de telefone.
+            Spacer(Modifier.weight(1f))
+        }
     }
 }
 

@@ -147,10 +147,11 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             XtreamCategory(ContinueStore.CATEGORY_ID, ContinueStore.CATEGORY_NAME)
         } else null
     }
+    // Categoria FAVORITOS: sempre a primeira, em canais, filmes e séries.
+    // Antes só existia para canais; filmes/séries favoritados pela tecla
+    // amarela ficavam salvos mas nunca apareciam em lugar nenhum.
     val favCat = remember(type) {
-        if (type == "live") {
-            XtreamCategory("favorites", "FAVORITOS")
-        } else null
+        XtreamCategory("favorites", "FAVORITOS")
     }
     
     var continueItems by remember { mutableStateOf<List<Channel>>(emptyList()) }
@@ -159,7 +160,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
     fun refreshState() {
         favorites = com.asterplay.tv.store.FavoritesStore.all(ctx)
         continueItems = if (continueCat != null) ContinueStore.channels(ctx, type) else emptyList()
-        favoriteItems = if (favCat != null && creds != null) {
+        favoriteItems = if (creds != null) {
             val account = CacheDb.accountKey(creds.host, creds.username)
             val allFavs = favorites
             // Busca canais favoritos no banco
@@ -196,10 +197,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
         }
         val visibleCats = cats.filter { !SettingsStore.isBlocked(ctx, it.name) }
         val hasContinue = continueCat != null && continueItems.isNotEmpty()
-        val hasFavs = favCat != null && favoriteItems.isNotEmpty()
-        
+        val hasFavs = favoriteItems.isNotEmpty()
+
+        // FAVORITOS sempre em primeiro, mesmo vazio: assim o usuário já vê
+        // onde os favoritos vão parar, e não precisa favoritar algo às
+        // cegas para a categoria aparecer.
         categories = mutableListOf<XtreamCategory>().apply {
-            if (hasFavs) add(favCat!!)
+            add(favCat)
             if (hasContinue) add(continueCat!!)
             addAll(visibleCats)
         }
@@ -233,12 +237,13 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
             shownCount = minOf(pageSize, items.size)
             loadingItems = false
         } else if (hasContinue) {
-            selectedIdx = 0
+            // Índice 1: FAVORITOS (vazio) ocupa o 0.
+            selectedIdx = 1
             items = continueItems
             shownCount = minOf(pageSize, continueItems.size)
             loadingItems = false
         } else if (visibleCats.isNotEmpty()) {
-            selectedIdx = 0
+            selectedIdx = 1
             loadingItems = true
             val first = withContext(Dispatchers.IO) {
                 val db = CacheDb.get(ctx)
@@ -347,10 +352,9 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                 androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
                     refreshState()
                     val hasCont = continueItems.isNotEmpty()
-                    val hasFav = favoriteItems.isNotEmpty()
-                    
+
                     val newCats = mutableListOf<XtreamCategory>()
-                    if (hasFav && favCat != null) newCats.add(favCat!!)
+                    newCats.add(favCat)
                     if (hasCont && continueCat != null) newCats.add(continueCat!!)
                     
                     val realCats = categories.filter { it.id != ContinueStore.CATEGORY_ID && it.id != "favorites" }
@@ -438,6 +442,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                     channels = items,
                     current = selectedLive!!,
                     player = livePlayer,
+                    favorites = favorites,
                     isFavorite = favorites.contains(selectedLive!!.url),
                     onPick = { selectedLive = it },
                     onToggleFavorite = { ch ->
@@ -499,6 +504,7 @@ fun BrowseScreen(type: String, onBack: () -> Unit, onOpenMovieDetail: (Channel) 
                                     title = ch.name,
                                     logo = ch.logo,
                                     aspect = if (isChannels) 16f / 9f else 2f / 3f,
+                                    isFavorite = favorites.contains(ch.url),
                                     onClick = {
                                         when (type) {
                                             "vod" -> onOpenMovieDetail(ch)
@@ -549,6 +555,7 @@ private fun LiveChannelPane(
     channels: List<Channel>,
     current: Channel,
     player: ExoPlayer,
+    favorites: Set<String> = emptySet(),
     isFavorite: Boolean,
     onPick: (Channel) -> Unit,
     onToggleFavorite: (Channel) -> Unit,
@@ -596,11 +603,13 @@ private fun LiveChannelPane(
                     ChannelRowItem(
                         channel = ch,
                         selected = isCurrent,
+                        isFavorite = favorites.contains(ch.url),
                         modifier = if (isCurrent) Modifier.focusRequester(listFocus) else Modifier,
                         onClick = {
                             if (isCurrent) onEnterFullscreen()
                             else onPick(ch)
                         },
+                        onToggleFavorite = { onToggleFavorite(ch) },
                         onFocus = { /* trocar canal só com OK, não com foco */ },
                     )
                 }
@@ -767,6 +776,8 @@ private fun ChannelRowItem(
     onClick: () -> Unit,
     onFocus: () -> Unit,
     modifier: Modifier = Modifier,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
 ) {
     var focused by remember { mutableStateOf(false) }
     Surface(
@@ -801,12 +812,32 @@ private fun ChannelRowItem(
                 }
             }
             Spacer(Modifier.width(10.dp))
+            // Coração na frente do canal: cheio quando é favorito, contorno
+            // quando não é. Focar nele e apertar OK favorita/desfavorita,
+            // sem precisar abrir o painel do canal.
+            Surface(
+                onClick = onToggleFavorite,
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.Transparent,
+                    focusedContainerColor = Accent.copy(alpha = 0.25f),
+                ),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
+            ) {
+                androidx.tv.material3.Icon(
+                    imageVector = if (isFavorite) androidx.compose.material.icons.Icons.Default.Favorite else androidx.compose.material.icons.Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) "Remover dos favoritos" else "Adicionar aos favoritos",
+                    tint = if (isFavorite) Accent else TextMuted,
+                    modifier = Modifier.size(20.dp).padding(2.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             Text(
                 channel.name,
                 color = if (selected || focused) TextPrimary else TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
         }
     }
